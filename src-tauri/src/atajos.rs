@@ -1,11 +1,11 @@
 use crate::config::AlmacenConfig;
 use parking_lot::Mutex;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutEvent, ShortcutState};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Accion {
     MostrarOcultar,
@@ -83,7 +83,8 @@ pub fn cambiar(app: &AppHandle, accion: Accion, combinacion: &str) -> Result<Vec
     }
     let nuevo = intentar(app, accion, combinacion)?;
     if let Ok(viejo) = anterior.parse::<Shortcut>() {
-        let mut reg = app.state::<Atajos>().registrados.lock();
+        let atajos = app.state::<Atajos>();
+        let mut reg = atajos.registrados.lock();
         if reg.get(&viejo.id()) == Some(&accion) {
             reg.remove(&viejo.id());
             let _ = app.global_shortcut().unregister(viejo);
@@ -104,7 +105,9 @@ pub fn al_pulsar(app: &AppHandle, atajo: &Shortcut, evento: ShortcutEvent) {
     let accion = app.state::<Atajos>().registrados.lock().get(&atajo.id()).copied();
     match accion {
         Some(Accion::MostrarOcultar) => crate::ventanas::mostrar_ocultar_todo(app),
-        Some(Accion::Privacidad) => alternar_privacidad(app),
+        Some(Accion::Privacidad) => {
+            alternar_privacidad(app);
+        }
         None => {}
     }
 }

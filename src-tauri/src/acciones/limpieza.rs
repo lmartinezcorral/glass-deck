@@ -223,7 +223,7 @@ mod papelera {
 #[cfg(windows)]
 pub mod elevado {
     use std::path::Path;
-    use windows::core::{w, HSTRING};
+    use windows::core::{w, HSTRING, PCWSTR};
     use windows::Win32::Foundation::{CloseHandle, ERROR_CANCELLED};
     use windows::Win32::System::Threading::{GetExitCodeProcess, WaitForSingleObject, INFINITE};
     use windows::Win32::UI::Shell::{ShellExecuteExW, SEE_MASK_NOASYNC, SEE_MASK_NOCLOSEPROCESS, SHELLEXECUTEINFOW};
@@ -239,8 +239,8 @@ pub mod elevado {
             cbSize: std::mem::size_of::<SHELLEXECUTEINFOW>() as u32,
             fMask: SEE_MASK_NOCLOSEPROCESS | SEE_MASK_NOASYNC,
             lpVerb: w!("runas"),
-            lpFile: (&archivo).into(),
-            lpParameters: (&parametros).into(),
+            lpFile: PCWSTR(archivo.as_ptr()),
+            lpParameters: PCWSTR(parametros.as_ptr()),
             nShow: SW_HIDE.0,
             ..Default::default()
         };

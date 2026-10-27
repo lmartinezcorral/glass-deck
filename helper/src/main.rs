@@ -54,9 +54,13 @@ fn windows_temp() -> PathBuf {
         .join("Temp")
 }
 
+fn accion_valida(args: &[String]) -> bool {
+    matches!(args, [unica] if unica == ACCION_LIMPIAR_WINDOWS_TEMP)
+}
+
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
-    if args.len() != 1 || args[0] != ACCION_LIMPIAR_WINDOWS_TEMP {
+    if !accion_valida(&args) {
         std::process::exit(CODIGO_ERROR);
     }
     let raiz = windows_temp();
@@ -67,4 +71,42 @@ fn main() {
     limpiar(&raiz, SystemTime::now(), &mut liberado);
     let mb = (liberado / 1_048_576).min(i32::MAX as u64) as i32;
     std::process::exit(mb);
+}
+
+#[cfg(test)]
+mod pruebas {
+    use super::*;
+
+    fn args(v: &[&str]) -> Vec<String> {
+        v.iter().map(|s| s.to_string()).collect()
+    }
+
+    #[test]
+    fn solo_acepta_la_accion_cerrada() {
+        assert!(accion_valida(&args(&["limpiar-windows-temp"])));
+        assert!(!accion_valida(&args(&[])));
+        assert!(!accion_valida(&args(&["limpiar-windows-temp", "C:\\"])));
+        assert!(!accion_valida(&args(&["C:\\Windows\\Temp"])));
+        assert!(!accion_valida(&args(&["LIMPIAR-WINDOWS-TEMP"])));
+    }
+
+    #[test]
+    fn borra_solo_archivos_viejos() {
+        let dir = std::env::temp_dir().join(format!("gd-helper-prueba-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        let viejo_ruta = dir.join("viejo.tmp");
+        let nuevo_ruta = dir.join("nuevo.tmp");
+        fs::write(&viejo_ruta, vec![0u8; 2048]).unwrap();
+        fs::write(&nuevo_ruta, b"reciente").unwrap();
+        let hace_dos_dias = SystemTime::now() - Duration::from_secs(48 * 3600);
+        fs::File::options().write(true).open(&viejo_ruta).unwrap().set_modified(hace_dos_dias).unwrap();
+
+        let mut liberado = 0;
+        limpiar(&dir, SystemTime::now(), &mut liberado);
+
+        assert!(!viejo_ruta.exists());
+        assert!(nuevo_ruta.exists());
+        assert_eq!(liberado, 2048);
+        fs::remove_dir_all(&dir).unwrap();
+    }
 }

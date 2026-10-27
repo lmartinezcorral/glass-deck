@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-estado-entorno"
+description = "Enables the estado_entorno command without any pre-configured scope."
+commands.allow = ["estado_entorno"]
+
+[[permission]]
+identifier = "deny-estado-entorno"
+description = "Denies the estado_entorno command without any pre-configured scope."
+commands.deny = ["estado_entorno"]

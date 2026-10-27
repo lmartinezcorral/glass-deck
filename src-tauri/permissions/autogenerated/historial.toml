@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-historial"
+description = "Enables the historial command without any pre-configured scope."
+commands.allow = ["historial"]
+
+[[permission]]
+identifier = "deny-historial"
+description = "Denies the historial command without any pre-configured scope."
+commands.deny = ["historial"]

@@ -24,11 +24,13 @@ impl Anillo {
         self.datos.iter().copied().collect()
     }
 
+    #[cfg(test)]
     pub fn ultimos(&self, n: usize) -> Vec<f32> {
         let inicio = self.datos.len().saturating_sub(n);
         self.datos.iter().skip(inicio).copied().collect()
     }
 
+    #[cfg(test)]
     pub fn len(&self) -> usize {
         self.datos.len()
     }

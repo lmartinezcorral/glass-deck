@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-atajos-estado"
+description = "Enables the atajos_estado command without any pre-configured scope."
+commands.allow = ["atajos_estado"]
+
+[[permission]]
+identifier = "deny-atajos-estado"
+description = "Denies the atajos_estado command without any pre-configured scope."
+commands.deny = ["atajos_estado"]

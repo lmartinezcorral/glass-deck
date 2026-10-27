@@ -79,7 +79,9 @@ pub fn sincronizar(app: &AppHandle) {
     if let Some(i) = estado.privacidad.lock().as_ref() {
         let _ = i.set_checked(app.state::<AlmacenConfig>().leer().privacidad);
     }
-    if let Some(i) = estado.pausa.lock().as_ref() {
-        let _ = i.set_checked(app.state::<EstadoRecoleccion>().pausado.load(Ordering::Relaxed));
+    let pausado = app.state::<EstadoRecoleccion>().pausado.load(Ordering::Relaxed);
+    let pausa = estado.pausa.lock();
+    if let Some(i) = pausa.as_ref() {
+        let _ = i.set_checked(pausado);
     }
 }

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-procesos-cerrar"
+description = "Enables the procesos_cerrar command without any pre-configured scope."
+commands.allow = ["procesos_cerrar"]
+
+[[permission]]
+identifier = "deny-procesos-cerrar"
+description = "Denies the procesos_cerrar command without any pre-configured scope."
+commands.deny = ["procesos_cerrar"]

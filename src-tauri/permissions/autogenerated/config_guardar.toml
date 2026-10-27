@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-config-guardar"
+description = "Enables the config_guardar command without any pre-configured scope."
+commands.allow = ["config_guardar"]
+
+[[permission]]
+identifier = "deny-config-guardar"
+description = "Denies the config_guardar command without any pre-configured scope."
+commands.deny = ["config_guardar"]

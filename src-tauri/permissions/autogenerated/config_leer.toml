@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-config-leer"
+description = "Enables the config_leer command without any pre-configured scope."
+commands.allow = ["config_leer"]
+
+[[permission]]
+identifier = "deny-config-leer"
+description = "Denies the config_leer command without any pre-configured scope."
+commands.deny = ["config_leer"]

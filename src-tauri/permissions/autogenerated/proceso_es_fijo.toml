@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-proceso-es-fijo"
+description = "Enables the proceso_es_fijo command without any pre-configured scope."
+commands.allow = ["proceso_es_fijo"]
+
+[[permission]]
+identifier = "deny-proceso-es-fijo"
+description = "Denies the proceso_es_fijo command without any pre-configured scope."
+commands.deny = ["proceso_es_fijo"]

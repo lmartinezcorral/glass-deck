@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-widget-maximizar"
+description = "Enables the widget_maximizar command without any pre-configured scope."
+commands.allow = ["widget_maximizar"]
+
+[[permission]]
+identifier = "deny-widget-maximizar"
+description = "Denies the widget_maximizar command without any pre-configured scope."
+commands.deny = ["widget_maximizar"]

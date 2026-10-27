@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-limpieza-ejecutar"
+description = "Enables the limpieza_ejecutar command without any pre-configured scope."
+commands.allow = ["limpieza_ejecutar"]
+
+[[permission]]
+identifier = "deny-limpieza-ejecutar"
+description = "Denies the limpieza_ejecutar command without any pre-configured scope."
+commands.deny = ["limpieza_ejecutar"]

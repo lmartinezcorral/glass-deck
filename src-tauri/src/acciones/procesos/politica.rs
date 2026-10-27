@@ -135,6 +135,7 @@ impl Politica {
         }
     }
 
+    #[cfg(test)]
     pub fn pid_propio(&self) -> u32 {
         self.pid_propio
     }
@@ -161,6 +162,7 @@ impl Politica {
         PROTEGIDOS_FIJOS.iter().any(|f| normalizar(f) == n)
     }
 
+    #[cfg(test)]
     pub fn es_fijo_reforzado(nombre: &str) -> bool {
         let n = normalizar(nombre);
         REFORZADOS_FIJOS.iter().any(|f| normalizar(f) == n)

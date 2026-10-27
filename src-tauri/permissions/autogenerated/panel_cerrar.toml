@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-panel-cerrar"
+description = "Enables the panel_cerrar command without any pre-configured scope."
+commands.allow = ["panel_cerrar"]
+
+[[permission]]
+identifier = "deny-panel-cerrar"
+description = "Denies the panel_cerrar command without any pre-configured scope."
+commands.deny = ["panel_cerrar"]

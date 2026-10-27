@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-widget-activar"
+description = "Enables the widget_activar command without any pre-configured scope."
+commands.allow = ["widget_activar"]
+
+[[permission]]
+identifier = "deny-widget-activar"
+description = "Denies the widget_activar command without any pre-configured scope."
+commands.deny = ["widget_activar"]

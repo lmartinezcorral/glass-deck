@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-limpieza-vista-previa"
+description = "Enables the limpieza_vista_previa command without any pre-configured scope."
+commands.allow = ["limpieza_vista_previa"]
+
+[[permission]]
+identifier = "deny-limpieza-vista-previa"
+description = "Denies the limpieza_vista_previa command without any pre-configured scope."
+commands.deny = ["limpieza_vista_previa"]

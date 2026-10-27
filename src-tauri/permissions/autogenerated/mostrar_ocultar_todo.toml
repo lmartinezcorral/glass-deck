@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-mostrar-ocultar-todo"
+description = "Enables the mostrar_ocultar_todo command without any pre-configured scope."
+commands.allow = ["mostrar_ocultar_todo"]
+
+[[permission]]
+identifier = "deny-mostrar-ocultar-todo"
+description = "Denies the mostrar_ocultar_todo command without any pre-configured scope."
+commands.deny = ["mostrar_ocultar_todo"]

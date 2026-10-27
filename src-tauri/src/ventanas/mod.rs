@@ -285,7 +285,8 @@ fn al_mover(app: &AppHandle, id: &str) {
 
 pub fn revisar_arrastres(app: &AppHandle) {
     let terminados: Vec<String> = {
-        let mut m = gestor(app).runtime.lock();
+        let g = gestor(app);
+        let mut m = g.runtime.lock();
         m.iter_mut()
             .filter(|(_, r)| r.arrastrando && r.ultimo_movimiento.map(|t| t.elapsed() >= ESPERA_FIN_ARRASTRE).unwrap_or(false))
             .map(|(id, r)| {
@@ -481,7 +482,8 @@ pub fn revisar_monitores(app: &AppHandle) {
     let ms = monitores(app);
     let nueva = firma(&ms);
     {
-        let mut actual = gestor(app).firma_monitores.lock();
+        let g = gestor(app);
+        let mut actual = g.firma_monitores.lock();
         if *actual == nueva {
             return;
         }

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-reiniciar-explorer"
+description = "Enables the reiniciar_explorer command without any pre-configured scope."
+commands.allow = ["reiniciar_explorer"]
+
+[[permission]]
+identifier = "deny-reiniciar-explorer"
+description = "Denies the reiniciar_explorer command without any pre-configured scope."
+commands.deny = ["reiniciar_explorer"]
