@@ -1,0 +1,25 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "paneles",
+  "description": "Dock, Customize y Limpieza: configuración y acciones con confirmación",
+  "windows": ["dock", "customize", "limpieza"],
+  "permissions": [
+    "core:event:default",
+    "core:window:allow-start-dragging",
+    "allow-config-leer",
+    "allow-config-guardar",
+    "allow-widget-activar",
+    "allow-proceso-es-fijo",
+    "allow-limpieza-vista-previa",
+    "allow-limpieza-ejecutar",
+    "allow-panel-abrir",
+    "allow-panel-cerrar",
+    "allow-atajos-estado",
+    "allow-atajo-cambiar",
+    "allow-privacidad-alternar",
+    "allow-mostrar-ocultar-todo",
+    "allow-restablecer-posiciones",
+    "allow-abrir-administrador-tareas",
+    "allow-estado-entorno"
+  ]
+}

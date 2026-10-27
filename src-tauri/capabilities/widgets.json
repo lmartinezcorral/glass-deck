@@ -1,0 +1,21 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "widgets",
+  "description": "Ventanas de widgets: solo leen datos y controlan su propia ventana",
+  "windows": ["w-*"],
+  "permissions": [
+    "core:event:default",
+    "core:window:allow-start-dragging",
+    "allow-config-leer",
+    "allow-widget-estado",
+    "allow-widget-maximizar",
+    "allow-widget-fijar",
+    "allow-widget-cerrar",
+    "allow-historial",
+    "allow-procesos-cerrar",
+    "allow-proceso-es-fijo",
+    "allow-panel-abrir",
+    "allow-reiniciar-explorer",
+    "allow-estado-entorno"
+  ]
+}

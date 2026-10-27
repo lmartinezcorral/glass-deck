@@ -1,0 +1,233 @@
+:root {
+  color-scheme: dark;
+
+  --gd-acento: #22d3ee;
+  --gd-acento-rgb: 34, 211, 238;
+  --gd-acento-2: #6d8bff;
+  --gd-acento-2-rgb: 109, 139, 255;
+  --gd-acento-contraste: #03141b;
+  --gd-acento-texto: var(--gd-acento);
+  --gd-acento-trazo: var(--gd-acento);
+  --gd-acento-2-trazo: var(--gd-acento-2);
+  --gd-coral: #f39a6b;
+  --gd-coral-rgb: 243, 154, 107;
+  --gd-ok: #34d399;
+  --gd-ok-rgb: 52, 211, 153;
+  --gd-aviso: #fbbf24;
+  --gd-aviso-rgb: 251, 191, 36;
+  --gd-peligro: #fb7185;
+  --gd-peligro-rgb: 251, 113, 133;
+  --gd-peligro-fuerte: #c8344b;
+  --gd-peligro-fuerte-hover: #b42d43;
+  --gd-brillo-trazo: 0.55;
+
+  --gd-texto: #f3f6fb;
+  --gd-texto-2: rgba(232, 238, 248, 0.82);
+  --gd-texto-3: rgba(214, 224, 240, 0.68);
+  --gd-texto-acento: color-mix(in srgb, var(--gd-acento) 28%, #ffffff);
+  --gd-texto-aviso: #fde68a;
+  --gd-texto-ok: #b7f5dc;
+  --gd-texto-peligro: #ffd0d8;
+  --gd-texto-aviso-caja: #fdecc0;
+  --gd-texto-sobre-peligro: #ffffff;
+
+  --gd-linea: rgba(255, 255, 255, 0.1);
+  --gd-guia: rgba(255, 255, 255, 0.06);
+  --gd-pista: rgba(255, 255, 255, 0.1);
+  --gd-superficie-0: rgba(255, 255, 255, 0.02);
+  --gd-superficie-1: rgba(255, 255, 255, 0.035);
+  --gd-superficie-2: rgba(255, 255, 255, 0.05);
+  --gd-superficie-3: rgba(255, 255, 255, 0.08);
+  --gd-superficie-hover: rgba(255, 255, 255, 0.12);
+  --gd-superficie-activa: rgba(255, 255, 255, 0.16);
+  --gd-borde-suave: rgba(255, 255, 255, 0.08);
+  --gd-borde-control: rgba(255, 255, 255, 0.16);
+  --gd-perilla: #ffffff;
+  --gd-scroll-pulgar: rgba(255, 255, 255, 0.18);
+  --gd-scroll-pulgar-hover: rgba(255, 255, 255, 0.3);
+
+  --gd-vidrio-rgb: 14, 19, 30;
+  --gd-vidrio-opacidad: 0.44;
+  --gd-vidrio-minimo: 0.2;
+  --gd-vidrio-solido-extra: 0.22;
+  --gd-vidrio-brillo: linear-gradient(180deg, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0.035) 40%, rgba(255, 255, 255, 0.02));
+  --gd-vidrio-borde: linear-gradient(155deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.08) 34%, rgba(255, 255, 255, 0.03) 62%, rgba(255, 255, 255, 0.26));
+  --gd-vidrio-destello: linear-gradient(180deg, rgba(255, 255, 255, 0.12), transparent 26%);
+  --gd-reflejo-color: rgba(255, 255, 255, 0.13);
+  --gd-reflejo-acento: rgba(var(--gd-acento-rgb), 0.05);
+  --gd-reflejo-tamano: 380px;
+  --gd-desenfoque: 24px;
+  --gd-fondo-velo: rgba(3, 6, 12, 0.42);
+
+  --gd-sombra-interior: inset 0 1px 0 rgba(255, 255, 255, 0.22), inset 0 -1px 0 rgba(255, 255, 255, 0.04);
+  --gd-sombra-elevada: 0 24px 60px -18px rgba(0, 0, 0, 0.65), 0 4px 14px rgba(0, 0, 0, 0.28);
+  --gd-sombra-arrastre: inset 0 0 0 1px rgba(var(--gd-acento-rgb), 0.35);
+  --gd-halo-fijado: inset 0 0 0 1px rgba(var(--gd-acento-rgb), 0.45), inset 0 0 22px -6px rgba(var(--gd-acento-rgb), 0.45);
+  --gd-sombra-perilla: 0 1px 4px rgba(0, 0, 0, 0.5);
+  --gd-sombra-primario: 0 6px 20px -6px rgba(var(--gd-acento-rgb), 0.7);
+  --gd-brillo-boton: linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0));
+  --gd-brillo-boton-hover: linear-gradient(180deg, rgba(255, 255, 255, 0.32), rgba(255, 255, 255, 0.05));
+  --gd-brillo-boton-suave: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0));
+
+  --gd-foco: var(--gd-acento);
+  --gd-foco-ancho: 2px;
+  --gd-foco-separacion: 2px;
+
+  --gd-radio-xs: 6px;
+  --gd-radio-sm: 8px;
+  --gd-radio-md: 10px;
+  --gd-radio-lg: 12px;
+  --gd-radio-xl: 14px;
+  --gd-radio-2xl: 16px;
+  --gd-radio-widget: 22px;
+  --gd-radio-panel: 24px;
+  --gd-radio-total: 999px;
+
+  --gd-esp-1: 2px;
+  --gd-esp-2: 4px;
+  --gd-esp-3: 6px;
+  --gd-esp-4: 8px;
+  --gd-esp-5: 10px;
+  --gd-esp-6: 12px;
+  --gd-esp-7: 14px;
+  --gd-esp-8: 16px;
+  --gd-esp-10: 20px;
+  --gd-esp-11: 22px;
+  --gd-esp-12: 24px;
+
+  --gd-alto-barra: 38px;
+  --gd-boton-icono: 26px;
+
+  --gd-fuente: "Segoe UI Variable Text", "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+  --gd-fuente-mono: "Cascadia Mono", Consolas, monospace;
+  --gd-txt-micro: 10px;
+  --gd-txt-xs: 11px;
+  --gd-txt-sm: 11.5px;
+  --gd-txt-md: 12.5px;
+  --gd-txt-base: 13px;
+  --gd-txt-lg: 14px;
+  --gd-txt-xl: 15px;
+  --gd-txt-2xl: 17px;
+  --gd-txt-3xl: 18px;
+  --gd-txt-4xl: 20px;
+  --gd-txt-num: 28px;
+  --gd-txt-display: 52px;
+  --gd-peso-normal: 400;
+  --gd-peso-medio: 600;
+  --gd-peso-fuerte: 700;
+  --gd-interlineado: 1.35;
+
+  --gd-dur-rapida: 150ms;
+  --gd-dur-media: 250ms;
+  --gd-dur-lenta: 550ms;
+  --gd-dur-medidor: 1100ms;
+  --gd-dur-barra: 1200ms;
+  --gd-curva: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --gd-curva-rebote: cubic-bezier(0.2, 0.9, 0.25, 1.05);
+
+  --gd-fondo-demo:
+    radial-gradient(1100px 760px at 16% 24%, rgba(14, 104, 132, 0.62), transparent 62%),
+    radial-gradient(980px 720px at 82% 72%, rgba(96, 44, 168, 0.6), transparent 62%),
+    radial-gradient(820px 620px at 34% 92%, rgba(176, 44, 118, 0.34), transparent 62%),
+    linear-gradient(160deg, #050913, #0a1020 42%, #0c0818);
+}
+
+:root[data-tema="claro"] {
+  color-scheme: light;
+
+  --gd-acento-texto: color-mix(in srgb, var(--gd-acento) 45%, #0b1220);
+  --gd-acento-trazo: color-mix(in srgb, var(--gd-acento) 72%, #0b1220);
+  --gd-acento-2-trazo: color-mix(in srgb, var(--gd-acento-2) 80%, #0b1220);
+  --gd-ok: #059669;
+  --gd-ok-rgb: 5, 150, 105;
+  --gd-aviso: #d97706;
+  --gd-aviso-rgb: 217, 119, 6;
+  --gd-peligro: #e11d48;
+  --gd-peligro-rgb: 225, 29, 72;
+  --gd-brillo-trazo: 0.25;
+
+  --gd-texto: #0b1220;
+  --gd-texto-2: rgba(15, 23, 42, 0.84);
+  --gd-texto-3: rgba(30, 41, 59, 0.76);
+  --gd-texto-acento: var(--gd-acento-texto);
+  --gd-texto-aviso: #92400e;
+  --gd-texto-ok: #065f46;
+  --gd-texto-peligro: #9f1239;
+  --gd-texto-aviso-caja: #78350f;
+
+  --gd-linea: rgba(15, 23, 42, 0.12);
+  --gd-guia: rgba(15, 23, 42, 0.07);
+  --gd-pista: rgba(15, 23, 42, 0.12);
+  --gd-superficie-0: rgba(255, 255, 255, 0.2);
+  --gd-superficie-1: rgba(255, 255, 255, 0.35);
+  --gd-superficie-2: rgba(255, 255, 255, 0.45);
+  --gd-superficie-3: rgba(15, 23, 42, 0.06);
+  --gd-superficie-hover: rgba(15, 23, 42, 0.09);
+  --gd-superficie-activa: rgba(255, 255, 255, 0.85);
+  --gd-borde-suave: rgba(15, 23, 42, 0.08);
+  --gd-borde-control: rgba(15, 23, 42, 0.18);
+  --gd-scroll-pulgar: rgba(15, 23, 42, 0.2);
+  --gd-scroll-pulgar-hover: rgba(15, 23, 42, 0.34);
+
+  --gd-vidrio-rgb: 246, 248, 252;
+  --gd-vidrio-minimo: 0.55;
+  --gd-vidrio-solido-extra: 0.25;
+  --gd-vidrio-brillo: linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.2) 40%, rgba(255, 255, 255, 0.1));
+  --gd-vidrio-borde: linear-gradient(155deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.4) 34%, rgba(15, 23, 42, 0.06) 62%, rgba(255, 255, 255, 0.7));
+  --gd-vidrio-destello: linear-gradient(180deg, rgba(255, 255, 255, 0.45), transparent 30%);
+  --gd-reflejo-color: rgba(255, 255, 255, 0.5);
+  --gd-reflejo-acento: rgba(var(--gd-acento-rgb), 0.08);
+  --gd-fondo-velo: rgba(226, 232, 240, 0.5);
+
+  --gd-sombra-interior: inset 0 1px 0 rgba(255, 255, 255, 0.8), inset 0 -1px 0 rgba(15, 23, 42, 0.06);
+  --gd-sombra-elevada: 0 24px 60px -18px rgba(15, 23, 42, 0.35), 0 4px 14px rgba(15, 23, 42, 0.12);
+  --gd-sombra-perilla: 0 1px 4px rgba(15, 23, 42, 0.35);
+
+  --gd-foco: var(--gd-acento-texto);
+
+  --gd-fondo-demo:
+    radial-gradient(1100px 760px at 16% 24%, rgba(103, 232, 249, 0.55), transparent 62%),
+    radial-gradient(980px 720px at 82% 72%, rgba(196, 181, 253, 0.6), transparent 62%),
+    radial-gradient(820px 620px at 34% 92%, rgba(249, 168, 212, 0.45), transparent 62%),
+    linear-gradient(160deg, #e0f2fe, #eef2ff 42%, #fdf2f8);
+}
+
+:root.sin-animacion {
+  --gd-dur-rapida: 0ms;
+  --gd-dur-media: 0ms;
+  --gd-dur-lenta: 0ms;
+  --gd-dur-medidor: 0ms;
+  --gd-dur-barra: 0ms;
+}
+
+:root.sin-animacion *,
+:root.sin-animacion *::before,
+:root.sin-animacion *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+  scroll-behavior: auto !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --gd-dur-rapida: 0ms;
+    --gd-dur-media: 0ms;
+    --gd-dur-lenta: 0ms;
+    --gd-dur-medidor: 0ms;
+    --gd-dur-barra: 0ms;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+}

@@ -1,0 +1,17 @@
+[package]
+name = "glassdeck-helper"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[[bin]]
+name = "glassdeck-helper"
+path = "src/main.rs"
+
+[dependencies]
+
+[profile.release]
+opt-level = "s"
+lto = true
+panic = "abort"
+strip = true
