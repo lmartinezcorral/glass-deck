@@ -142,6 +142,7 @@ export const api = {
   procesosCerrar: (pids: number[], confirmacion: string | null) =>
     invoke<ResultadoProceso[]>('procesos_cerrar', { pids, confirmacion }),
   procesoEsFijo: (nombre: string) => invoke<boolean>('proceso_es_fijo', { nombre }),
+  procesosFijos: () => invoke<string[]>('procesos_fijos'),
   limpiezaVistaPrevia: () => invoke<OrigenLimpieza[]>('limpieza_vista_previa'),
   limpiezaEjecutar: (opciones: OpcionesLimpieza) => invoke<ResumenLimpieza>('limpieza_ejecutar', { opciones }),
   panelAbrir: (panel: 'customize' | 'limpieza' | 'procesos' | 'dock') => invoke<void>('panel_abrir', { panel }),

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-procesos-fijos"
+description = "Enables the procesos_fijos command without any pre-configured scope."
+commands.allow = ["procesos_fijos"]
+
+[[permission]]
+identifier = "deny-procesos-fijos"
+description = "Denies the procesos_fijos command without any pre-configured scope."
+commands.deny = ["procesos_fijos"]

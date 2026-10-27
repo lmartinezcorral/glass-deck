@@ -462,7 +462,24 @@
 .gd-lista-editable {
   display: grid;
   gap: var(--gd-esp-2);
+  margin: 0;
+  padding: 0;
   list-style: none;
+}
+
+.gd-fijos summary {
+  cursor: pointer;
+  font-size: var(--gd-txt-sm);
+  color: var(--gd-texto-2);
+}
+
+.gd-fijos[open] summary {
+  margin-bottom: var(--gd-esp-4);
+}
+
+.gd-fijos .gd-lista-editable {
+  max-height: 180px;
+  overflow-y: auto;
 }
 
 .gd-lista-editable li {

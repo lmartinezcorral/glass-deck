@@ -20,7 +20,8 @@ export interface DialogoProps {
   textoConfirmar?: string;
   textoCancelar?: string;
   peligro?: boolean;
-  onConfirmar: () => void;
+  /** Recibe lo escrito en la confirmación para que el backend lo vuelva a validar. */
+  onConfirmar: (escrito: string) => void;
   onCancelar: () => void;
   children?: ReactNode;
 }
@@ -78,8 +79,8 @@ export function Dialogo({
 
   cancelar.current = onCancelar;
 
-  const habilitado =
-    !confirmacionEscrita || escrito.trim().toUpperCase() === confirmacionEscrita.trim().toUpperCase();
+  const habilitado = !confirmacionEscrita || escrito.trim() === confirmacionEscrita;
+  const confirmar = (): void => onConfirmar(escrito.trim());
 
   useEffect(() => {
     if (!abierto) return;
@@ -194,7 +195,7 @@ export function Dialogo({
             value={escrito}
             onChange={(e) => setEscrito(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && habilitado) onConfirmar();
+              if (e.key === 'Enter' && habilitado) confirmar();
             }}
             placeholder={confirmacionEscrita}
             aria-label={`Escribe ${confirmacionEscrita} para confirmar`}
@@ -212,7 +213,7 @@ export function Dialogo({
             type="button"
             className={['gd-boton', peligro ? 'gd-boton--peligro' : 'gd-boton--primario'].join(' ')}
             disabled={!habilitado}
-            onClick={onConfirmar}
+            onClick={confirmar}
             data-foco-inicial={!confirmacionEscrita && !peligro ? '' : undefined}
           >
             {textoConfirmar}

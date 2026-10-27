@@ -6,7 +6,7 @@ import { useLectura } from '../hooks';
 import { IconoCandado, IconoProcesos } from '../iconos';
 import { MarcoWidget, useMaximizado } from './MarcoWidget';
 
-type Orden = 'cpu' | 'ram' | 'nombre';
+export type Orden = 'nombre' | 'pid' | 'cpu' | 'ram' | 'usuario';
 const CONFIRMACION = 'CERRAR';
 const TOP = 5;
 
@@ -23,13 +23,89 @@ const TEXTO_NIVEL: Record<FilaProceso['nivel'], string> = {
   normal: '',
 };
 
-function ordenar(filas: readonly FilaProceso[], orden: Orden, asc: boolean): FilaProceso[] {
-  const copia = filas.slice();
-  copia.sort((a, b) => {
-    const d = orden === 'nombre' ? a.nombre.localeCompare(b.nombre) : orden === 'cpu' ? a.cpu - b.cpu : a.ram - b.ram;
-    return asc ? d : -d;
-  });
-  return copia;
+function comparar(a: FilaProceso, b: FilaProceso, orden: Orden): number {
+  switch (orden) {
+    case 'nombre':
+      return a.nombre.localeCompare(b.nombre);
+    case 'pid':
+      return a.pid - b.pid;
+    case 'cpu':
+      return a.cpu - b.cpu;
+    case 'ram':
+      return a.ram - b.ram;
+    case 'usuario':
+      return (a.usuario ?? '').localeCompare(b.usuario ?? '');
+  }
+}
+
+export function filtrarYOrdenar(filas: readonly FilaProceso[], busqueda: string, orden: Orden, asc: boolean): FilaProceso[] {
+  const q = busqueda.trim().toLowerCase();
+  const filtradas = q ? filas.filter((f) => f.nombre.toLowerCase().includes(q) || String(f.pid) === q) : filas.slice();
+  return filtradas.sort((a, b) => (asc ? comparar(a, b, orden) : -comparar(a, b, orden)));
+}
+
+export function ListaTopProcesos({ filas, orden }: { filas: readonly FilaProceso[]; orden: 'cpu' | 'ram' }) {
+  const valorDe = (f: FilaProceso): number => (orden === 'ram' ? f.ram : f.cpu);
+  const maximo = filas.reduce((m, f) => Math.max(m, valorDe(f)), 0);
+  return (
+    <ol className="gd-lista-procesos" aria-label="Procesos que más consumen">
+      {filas.map((f) => (
+        <li key={f.pid} data-pid={f.pid}>
+          <span className="gd-privado" title={f.nombre}>
+            {f.nombre}
+          </span>
+          <span className="gd-lista-procesos__barra" aria-hidden="true">
+            <i style={{ width: `${maximo > 0 ? (valorDe(f) / maximo) * 100 : 0}%` }} />
+          </span>
+          <b className="num">{orden === 'ram' ? bytes(f.ram) : porcentaje(f.cpu)}</b>
+        </li>
+      ))}
+      {filas.length === 0 && <li className="gd-etiqueta">Midiendo…</li>}
+    </ol>
+  );
+}
+
+interface FilaTablaProps {
+  fila: FilaProceso;
+  marcada: boolean;
+  onAlternar: (f: FilaProceso) => void;
+  onReiniciarExplorer: () => void;
+}
+
+export function FilaTablaProceso({ fila: f, marcada, onAlternar, onReiniciarExplorer }: FilaTablaProps) {
+  return (
+    <tr className={marcada ? 'gd-tabla__fila--marcada' : undefined}>
+      <td>
+        {f.nivel === 'protegido' ? (
+          <span className="gd-tabla__candado" title={TEXTO_NIVEL.protegido} aria-label={TEXTO_NIVEL.protegido}>
+            <IconoCandado />
+          </span>
+        ) : (
+          <input type="checkbox" checked={marcada} onChange={() => onAlternar(f)} aria-label={`Seleccionar ${f.nombre}`} />
+        )}
+      </td>
+      <td className="gd-privado" title={f.nombre}>
+        {f.nombre}
+        {f.nivel === 'reforzado' && (
+          <span className="gd-chip gd-chip--aviso" title={TEXTO_NIVEL.reforzado}>
+            importante
+          </span>
+        )}
+        {f.reiniciar_explorer && (
+          <>
+            {' '}
+            <button type="button" className="gd-enlace" onClick={onReiniciarExplorer}>
+              Reiniciar Explorer
+            </button>
+          </>
+        )}
+      </td>
+      <td className="num">{f.pid}</td>
+      <td className="num">{porcentaje(f.cpu)}</td>
+      <td className="num">{bytes(f.ram)}</td>
+      <td className="gd-privado">{f.usuario ?? '—'}</td>
+    </tr>
+  );
 }
 
 export function VistaProcesos() {
@@ -43,19 +119,16 @@ export function VistaProcesos() {
   const [resultados, setResultados] = useState<ResultadoProceso[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const visibles = useMemo(() => {
-    const q = busqueda.trim().toLowerCase();
-    const filtradas = q ? filas.filter((f) => f.nombre.toLowerCase().includes(q) || String(f.pid) === q) : filas;
-    return ordenar(filtradas, maximizado ? orden : orden === 'nombre' ? 'cpu' : orden, maximizado ? asc : false);
-  }, [filas, busqueda, orden, asc, maximizado]);
+  const ordenTop: 'cpu' | 'ram' = orden === 'ram' ? 'ram' : 'cpu';
+  const visibles = useMemo(
+    () => (maximizado ? filtrarYOrdenar(filas, busqueda, orden, asc) : filtrarYOrdenar(filas, '', ordenTop, false)),
+    [filas, busqueda, orden, asc, maximizado, ordenTop],
+  );
 
   const top = visibles.slice(0, TOP);
   const pesado = top[0];
-  const valorDe = (f: FilaProceso): number => (orden === 'ram' ? f.ram : f.cpu);
-  const maximoTop = top.reduce((m, f) => Math.max(m, valorDe(f)), 0);
   const seleccion = [...marcados.values()];
   const requiereEscribir = seleccion.some((f) => f.nivel === 'reforzado');
-  const sugerirExplorer = seleccion.some((f) => f.reiniciar_explorer);
 
   const alternar = (f: FilaProceso): void => {
     if (f.nivel === 'protegido') return;
@@ -71,17 +144,22 @@ export function VistaProcesos() {
     if (o === orden) setAsc(!asc);
     else {
       setOrden(o);
-      setAsc(o === 'nombre');
+      setAsc(o === 'nombre' || o === 'usuario' || o === 'pid');
     }
   };
 
-  const confirmar = (): void => {
+  const reiniciarExplorer = (): void => {
+    setError(null);
+    api.reiniciarExplorer().catch((e) => setError(mensajeError(e)));
+  };
+
+  const confirmar = (escrito: string): void => {
     setDialogo(false);
     setError(null);
     api
       .procesosCerrar(
         seleccion.map((f) => f.pid),
-        requiereEscribir ? CONFIRMACION : null,
+        requiereEscribir ? escrito : null,
       )
       .then((r) => {
         setResultados(r);
@@ -116,23 +194,10 @@ export function VistaProcesos() {
               { valor: 'cpu', etiqueta: 'CPU' },
               { valor: 'ram', etiqueta: 'RAM' },
             ]}
-            valor={orden === 'ram' ? 'ram' : 'cpu'}
+            valor={ordenTop}
             onCambiar={(v) => setOrden(v)}
           />
-          <ol className="gd-lista-procesos" aria-label="Procesos que más consumen">
-            {top.map((f) => (
-              <li key={f.pid}>
-                <span className="gd-privado" title={f.nombre}>
-                  {f.nombre}
-                </span>
-                <span className="gd-lista-procesos__barra" aria-hidden="true">
-                  <i style={{ width: `${maximoTop > 0 ? (valorDe(f) / maximoTop) * 100 : 0}%` }} />
-                </span>
-                <b className="num">{orden === 'ram' ? bytes(f.ram) : porcentaje(f.cpu)}</b>
-              </li>
-            ))}
-            {top.length === 0 && <li className="gd-etiqueta">Midiendo…</li>}
-          </ol>
+          <ListaTopProcesos filas={top} orden={ordenTop} />
         </div>
       ) : (
         <div className="gd-vista gd-vista--detalle">
@@ -168,40 +233,21 @@ export function VistaProcesos() {
                     <span className="gd-solo-lector">Seleccionar</span>
                   </th>
                   {encabezado('nombre', 'Nombre')}
-                  <th scope="col">PID</th>
+                  {encabezado('pid', 'PID')}
                   {encabezado('cpu', 'CPU')}
                   {encabezado('ram', 'RAM')}
+                  {encabezado('usuario', 'Usuario')}
                 </tr>
               </thead>
               <tbody>
                 {visibles.map((f) => (
-                  <tr key={f.pid} className={marcados.has(f.pid) ? 'gd-tabla__fila--marcada' : undefined}>
-                    <td>
-                      {f.nivel === 'protegido' ? (
-                        <span className="gd-tabla__candado" title={TEXTO_NIVEL.protegido} aria-label={TEXTO_NIVEL.protegido}>
-                          <IconoCandado />
-                        </span>
-                      ) : (
-                        <input
-                          type="checkbox"
-                          checked={marcados.has(f.pid)}
-                          onChange={() => alternar(f)}
-                          aria-label={`Seleccionar ${f.nombre}`}
-                        />
-                      )}
-                    </td>
-                    <td className="gd-privado" title={f.nombre}>
-                      {f.nombre}
-                      {f.nivel === 'reforzado' && (
-                        <span className="gd-chip gd-chip--aviso" title={TEXTO_NIVEL.reforzado}>
-                          importante
-                        </span>
-                      )}
-                    </td>
-                    <td className="num">{f.pid}</td>
-                    <td className="num">{porcentaje(f.cpu)}</td>
-                    <td className="num">{bytes(f.ram)}</td>
-                  </tr>
+                  <FilaTablaProceso
+                    key={f.pid}
+                    fila={f}
+                    marcada={marcados.has(f.pid)}
+                    onAlternar={alternar}
+                    onReiniciarExplorer={reiniciarExplorer}
+                  />
                 ))}
               </tbody>
             </table>
@@ -240,23 +286,6 @@ export function VistaProcesos() {
           <>
             Puedes perder trabajo sin guardar.
             {requiereEscribir && ' Incluye programas importantes: escribe CERRAR para continuar.'}
-            {sugerirExplorer && (
-              <>
-                {' '}
-                Para el Explorador de Windows es mejor{' '}
-                <button
-                  type="button"
-                  className="gd-enlace"
-                  onClick={() => {
-                    setDialogo(false);
-                    api.reiniciarExplorer().catch((e) => setError(mensajeError(e)));
-                  }}
-                >
-                  reiniciarlo
-                </button>
-                .
-              </>
-            )}
           </>
         }
         confirmacionEscrita={requiereEscribir ? CONFIRMACION : undefined}

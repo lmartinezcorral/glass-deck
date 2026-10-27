@@ -267,6 +267,12 @@
           "markdownDescription": "Enables the procesos_cerrar command without any pre-configured scope."
         },
         {
+          "description": "Enables the procesos_fijos command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-procesos-fijos",
+          "markdownDescription": "Enables the procesos_fijos command without any pre-configured scope."
+        },
+        {
           "description": "Enables the reiniciar_explorer command without any pre-configured scope.",
           "type": "string",
           "const": "allow-reiniciar-explorer",
@@ -397,6 +403,12 @@
           "type": "string",
           "const": "deny-procesos-cerrar",
           "markdownDescription": "Denies the procesos_cerrar command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the procesos_fijos command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-procesos-fijos",
+          "markdownDescription": "Denies the procesos_fijos command without any pre-configured scope."
         },
         {
           "description": "Denies the reiniciar_explorer command without any pre-configured scope.",

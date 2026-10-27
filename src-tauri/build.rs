@@ -9,6 +9,7 @@ const COMANDOS: &[&str] = &[
     "historial",
     "procesos_cerrar",
     "proceso_es_fijo",
+    "procesos_fijos",
     "limpieza_vista_previa",
     "limpieza_ejecutar",
     "panel_abrir",

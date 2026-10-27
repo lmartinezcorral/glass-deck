@@ -235,7 +235,16 @@ function SeccionIntervalos({ config, guardar }: PropsSeccion) {
 function SeccionProcesos({ config, guardar }: PropsSeccion) {
   const [nuevo, setNuevo] = useState('');
   const [aviso, setAviso] = useState<string | null>(null);
+  const [fijos, setFijos] = useState<string[]>([]);
   const lista = config.lista_negra_usuario;
+
+  useEffect(() => {
+    if (!enTauri()) return;
+    api
+      .procesosFijos()
+      .then(setFijos)
+      .catch(() => undefined);
+  }, []);
 
   const agregar = async (): Promise<void> => {
     const nombre = nuevo.trim();
@@ -260,6 +269,21 @@ function SeccionProcesos({ config, guardar }: PropsSeccion) {
       <p className="gd-aviso-linea">
         <IconoCandado /> Los procesos críticos de Windows y los de otros usuarios están protegidos siempre; esa lista no se puede editar.
       </p>
+      {fijos.length > 0 && (
+        <details className="gd-fijos">
+          <summary>Ver los {fijos.length} protegidos siempre</summary>
+          <ul className="gd-lista-editable" aria-label="Protegidos siempre">
+            {fijos.map((n) => (
+              <li key={n}>
+                <span>{n}</span>
+                <span className="gd-tabla__candado" title="Protegido siempre" aria-label="Protegido siempre">
+                  <IconoCandado />
+                </span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
       <p className="gd-etiqueta">Agrega aquí los tuyos (por ejemplo, el nombre del programa que no quieres cerrar por accidente).</p>
       <form
         className="gd-vista__herramientas"

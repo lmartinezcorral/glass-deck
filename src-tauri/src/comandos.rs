@@ -171,6 +171,11 @@ pub fn proceso_es_fijo(nombre: String) -> bool {
 }
 
 #[tauri::command]
+pub fn procesos_fijos() -> Vec<&'static str> {
+    crate::acciones::procesos::politica::PROTEGIDOS_FIJOS.to_vec()
+}
+
+#[tauri::command]
 pub async fn limpieza_vista_previa() -> R<Vec<Origen>> {
     tauri::async_runtime::spawn_blocking(limpieza::vista_previa).await.map_err(|e| e.to_string())
 }

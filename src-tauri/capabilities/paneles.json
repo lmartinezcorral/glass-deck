@@ -10,6 +10,7 @@
     "allow-config-guardar",
     "allow-widget-activar",
     "allow-proceso-es-fijo",
+    "allow-procesos-fijos",
     "allow-limpieza-vista-previa",
     "allow-limpieza-ejecutar",
     "allow-panel-abrir",

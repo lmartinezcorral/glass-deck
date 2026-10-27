@@ -81,6 +81,7 @@ pub fn run() {
             comandos::historial,
             comandos::procesos_cerrar,
             comandos::proceso_es_fijo,
+            comandos::procesos_fijos,
             comandos::limpieza_vista_previa,
             comandos::limpieza_ejecutar,
             comandos::panel_abrir,
