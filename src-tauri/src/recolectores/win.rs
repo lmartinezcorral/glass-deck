@@ -229,3 +229,25 @@ pub fn bytes_adaptador(indice: u32) -> Option<(u64, u64)> {
     }
     Some((fila.InOctets, fila.OutOctets))
 }
+
+#[cfg(test)]
+mod pruebas {
+    use super::*;
+
+    #[test]
+    fn en_el_equipo_real_el_desglose_de_ram_suma_el_total() {
+        let m = memoria();
+        assert!(m.total > 0);
+        let suma = m.usada + m.en_cache + m.libre;
+        assert!(suma.abs_diff(m.total) as f64 / m.total as f64 <= 0.01);
+        assert!(m.usada <= m.total);
+    }
+
+    #[test]
+    fn en_el_equipo_real_hay_al_menos_una_lectura_de_red_o_ninguna_conexion() {
+        if let Some(a) = adaptador_activo() {
+            assert!(!a.nombre.is_empty());
+            assert!(bytes_adaptador(a.indice).is_some());
+        }
+    }
+}

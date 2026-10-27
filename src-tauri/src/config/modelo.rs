@@ -226,6 +226,22 @@ mod pruebas {
     }
 
     #[test]
+    fn intervalos_por_defecto_son_los_de_la_spec() {
+        let i = Config::default().intervalos;
+        assert_eq!(i.cpu_ram_red_ms, 2_000);
+        assert_eq!(i.procesos_ms, 3_000);
+        assert_eq!(i.disco_ms, 5_000);
+    }
+
+    #[test]
+    fn intervalos_en_el_minimo_se_aceptan() {
+        let i = Intervalos { cpu_ram_red_ms: 1_000, procesos_ms: 2_000, disco_ms: 1_000 };
+        assert!(i.validar().is_ok());
+        let i = Intervalos { disco_ms: 999, ..Intervalos::default() };
+        assert!(i.validar().is_err());
+    }
+
+    #[test]
     fn intervalos_menores_al_minimo_se_rechazan() {
         let i = Intervalos { cpu_ram_red_ms: 500, ..Intervalos::default() };
         assert!(i.validar().is_err());

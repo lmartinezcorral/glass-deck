@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { agregarAcotado, bytes, porcentaje, puntosPorMinuto, velocidad } from './formato';
+import { agregarAcotado, bytes, porcentaje, puntosPorHora, puntosPorMinuto, velocidad } from './formato';
 
 describe('formato', () => {
   it('convierte bytes a la unidad más legible', () => {
@@ -23,6 +23,13 @@ describe('formato', () => {
     expect(puntosPorMinuto(5000)).toBe(12);
     expect(puntosPorMinuto(60_000)).toBe(10);
     expect(puntosPorMinuto(0)).toBe(30);
+  });
+
+  it('calcula cuántas muestras caben en una hora sin pasar del búfer', () => {
+    expect(puntosPorHora(2000)).toBe(1800);
+    expect(puntosPorHora(1000)).toBe(3600);
+    expect(puntosPorHora(5000)).toBe(720);
+    expect(puntosPorHora(500)).toBe(3600);
   });
 
   it('mantiene un historial acotado', () => {

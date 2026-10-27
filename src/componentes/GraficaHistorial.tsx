@@ -17,9 +17,17 @@ export interface GraficaHistorialProps {
   area?: boolean;
   leyenda?: boolean;
   className?: string;
+  /** Puntos que caben en todo el eje; con menos datos el trazo se alinea a la derecha («ahora»). */
+  capacidad?: number;
 }
 
 const ALTO_EJE = 18;
+
+export function tramoOcupado(n: number, capacidad: number | undefined, ancho: number): { x: number; ancho: number } {
+  if (!capacidad || capacidad <= 1 || n >= capacidad || n === 0) return { x: 0, ancho };
+  const ocupado = n <= 1 ? 0 : (ancho * (n - 1)) / (capacidad - 1);
+  return { x: ancho - ocupado, ancho: ocupado };
+}
 const MAX_SERIES = 3;
 const VARIANTES: readonly VarianteTrazo[] = ['acento', 'secundario', 'coral'];
 export const EJE_UNA_HORA: readonly string[] = ['−60 min', '−45', '−30', '−15', 'ahora'];
@@ -97,6 +105,7 @@ export function GraficaHistorial({
   area = true,
   leyenda,
   className,
+  capacidad,
 }: GraficaHistorialProps) {
   const [ref, ancho] = useAncho<HTMLDivElement>();
   const prefijo = useIdSvg('gd-grafica');
@@ -108,15 +117,17 @@ export function GraficaHistorial({
     const visibles = series.slice(0, MAX_SERIES);
     const tope = max === 'auto' ? maximoAuto(visibles.map((s) => s.datos), min) : max;
     return visibles.map((s, i) => {
-      const linea = trazoReducido(s.datos, ancho, altoTrazo, min, tope);
+      const tramo = tramoOcupado(s.datos.length, capacidad, ancho);
+      const linea = s.datos.length > 1 || !capacidad ? trazoReducido(s.datos, tramo.ancho, altoTrazo, min, tope) : '';
       return {
         nombre: s.nombre,
         variante: s.variante ?? VARIANTES[i] ?? 'acento',
+        x: tramo.x,
         linea,
-        relleno: linea ? `${linea}L${ancho},${altoTrazo}L0,${altoTrazo}Z` : '',
+        relleno: linea ? `${linea}L${tramo.ancho},${altoTrazo}L0,${altoTrazo}Z` : '',
       };
     });
-  }, [series, ancho, altoTrazo, min, max]);
+  }, [series, ancho, altoTrazo, min, max, capacidad]);
 
   return (
     <div className={['gd-grafica-envoltura', className].filter(Boolean).join(' ')}>
@@ -141,7 +152,11 @@ export function GraficaHistorial({
               </defs>
             )}
             {trazos.map((t, i) => (
-              <g key={t.nombre} className={`gd-trazo--${t.variante}`}>
+              <g
+                key={t.nombre}
+                className={`gd-trazo--${t.variante}`}
+                transform={t.x ? `translate(${t.x.toFixed(1)},0)` : undefined}
+              >
                 {area && t.relleno && <path d={t.relleno} fill={`url(#${prefijo}-${i})`} />}
                 {t.linea && <path className="gd-trazo__linea" d={t.linea} />}
               </g>

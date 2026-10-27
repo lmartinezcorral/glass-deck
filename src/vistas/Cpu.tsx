@@ -10,7 +10,7 @@ export function VistaCpu() {
   const maximizado = useMaximizado();
   const puntos = usePuntosUltimoMinuto();
   const [reciente, setReciente] = useState<number[]>([]);
-  const [series, agregar] = useHistorial('cpu', maximizado);
+  const [series, agregar, capacidad] = useHistorial('cpu', maximizado);
   const muestra = useLectura('cpu', (m) => {
     setReciente((r) => agregarAcotado(r, m.total, puntos));
     agregar({ total: m.total, ...Object.fromEntries(m.nucleos.map((v, i) => [`n${i}`, v])) });
@@ -34,6 +34,7 @@ export function VistaCpu() {
       {maximizado ? (
         <div className="gd-vista gd-vista--detalle">
           <GraficaHistorial
+            capacidad={capacidad}
             series={[{ nombre: 'Total', datos: series.total ?? [] }]}
             etiqueta="Uso total de CPU, última hora"
             max={100}

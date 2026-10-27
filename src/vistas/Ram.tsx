@@ -7,7 +7,7 @@ import { MarcoWidget, useMaximizado } from './MarcoWidget';
 
 export function VistaRam() {
   const maximizado = useMaximizado();
-  const [series, agregar] = useHistorial('ram', maximizado);
+  const [series, agregar, capacidad] = useHistorial('ram', maximizado);
   const m = useLectura('ram', (d) => {
     if (d.total > 0) agregar({ usada: (d.usada * 100) / d.total });
   });
@@ -42,6 +42,7 @@ export function VistaRam() {
       {maximizado ? (
         <div className="gd-vista gd-vista--detalle">
           <GraficaHistorial
+            capacidad={capacidad}
             series={[{ nombre: 'En uso', datos: series.usada ?? [] }]}
             etiqueta="Memoria en uso, última hora"
             max={100}

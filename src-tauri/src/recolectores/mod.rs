@@ -3,9 +3,9 @@ pub mod historial;
 pub mod win;
 
 use crate::acciones::procesos::{Candidato, Dueno, Nivel, Politica};
-use crate::config::AlmacenConfig;
+use crate::config::{AlmacenConfig, Intervalos};
 use crate::ventanas::{self, catalogo, Gestor};
-use historial::{Anillo, PUNTOS_UNA_HORA};
+use historial::{puntos_por_hora, Anillo, PUNTOS_UNA_HORA};
 use parking_lot::Mutex;
 use serde::Serialize;
 use std::collections::{HashMap, HashSet};
@@ -107,8 +107,9 @@ pub struct SerieHistorial {
 }
 
 impl Historiales {
-    pub fn series(&self, fuente: &str) -> Vec<SerieHistorial> {
-        let s = |nombre: &str, a: &Anillo| SerieHistorial { nombre: nombre.to_string(), valores: a.valores() };
+    pub fn series(&self, fuente: &str, intervalos: &Intervalos) -> Vec<SerieHistorial> {
+        let n = puntos_por_hora(if fuente == "disco" { intervalos.disco_ms } else { intervalos.cpu_ram_red_ms });
+        let s = |nombre: &str, a: &Anillo| SerieHistorial { nombre: nombre.to_string(), valores: a.ultimos(n) };
         match fuente {
             "cpu" => {
                 let mut v = vec![s("total", &self.cpu)];
@@ -345,6 +346,28 @@ fn widgets_suscritos(app: &AppHandle) -> HashSet<&'static str> {
         .collect()
 }
 
+fn intervalo_ms(id: &str, intervalos: &Intervalos, con_bateria: bool) -> u64 {
+    match id {
+        "procesos" => intervalos.procesos_ms,
+        "disco" => intervalos.disco_ms,
+        _ if con_bateria => intervalos.cpu_ram_red_ms.max(INTERVALO_BATERIA_MIN_MS),
+        _ => intervalos.cpu_ram_red_ms,
+    }
+}
+
+/// Con una app a pantalla completa o la recolección en pausa no vence ninguna fuente.
+fn vencidos(
+    suscritos: &HashSet<&'static str>,
+    proximo: &HashMap<&'static str, Instant>,
+    ahora: Instant,
+    pausar: bool,
+) -> Vec<&'static str> {
+    if pausar {
+        return Vec::new();
+    }
+    suscritos.iter().copied().filter(|id| proximo.get(id).map(|t| ahora >= *t).unwrap_or(true)).collect()
+}
+
 fn emitir(app: &AppHandle, id: &str, lectura: Lectura) {
     let _ = app.emit_to(catalogo::etiqueta(id), "gd://datos", lectura);
 }
@@ -376,36 +399,16 @@ fn ciclo(app: AppHandle) {
                 }
             }
         }
-        if ocupado || estado.pausado.load(Ordering::Relaxed) {
-            continue;
-        }
-        let suscritos = widgets_suscritos(&app);
-        if suscritos.is_empty() {
+        let pausar = ocupado || estado.pausado.load(Ordering::Relaxed);
+        let suscritos = if pausar { HashSet::new() } else { widgets_suscritos(&app) };
+        let ahora = Instant::now();
+        let vencidos = vencidos(&suscritos, &proximo, ahora, pausar);
+        if vencidos.is_empty() {
             continue;
         }
         let cfg = app.state::<AlmacenConfig>().leer();
         let bateria = cfg.pausar_con_bateria && estado.con_bateria.load(Ordering::Relaxed);
-        let rapido = if bateria {
-            cfg.intervalos.cpu_ram_red_ms.max(INTERVALO_BATERIA_MIN_MS)
-        } else {
-            cfg.intervalos.cpu_ram_red_ms
-        };
-        let intervalo = |id: &str| -> Duration {
-            Duration::from_millis(match id {
-                "procesos" => cfg.intervalos.procesos_ms,
-                "disco" => cfg.intervalos.disco_ms,
-                _ => rapido,
-            })
-        };
-        let ahora = Instant::now();
-        let vencidos: Vec<&'static str> = suscritos
-            .iter()
-            .copied()
-            .filter(|id| proximo.get(id).map(|t| ahora >= *t).unwrap_or(true))
-            .collect();
-        if vencidos.is_empty() {
-            continue;
-        }
+        let intervalo = |id: &str| Duration::from_millis(intervalo_ms(id, &cfg.intervalos, bateria));
         let politica = vencidos
             .contains(&"procesos")
             .then(|| Politica::nueva(&cfg.lista_negra_usuario, std::process::id()));
@@ -425,5 +428,46 @@ fn ciclo(app: AppHandle) {
             };
             emitir(&app, id, lectura);
         }
+    }
+}
+
+#[cfg(test)]
+mod pruebas {
+    use super::*;
+
+    #[test]
+    fn con_bateria_cpu_ram_y_red_no_bajan_de_3_s() {
+        let iv = Intervalos::default();
+        assert_eq!(intervalo_ms("cpu", &iv, false), 2_000);
+        assert_eq!(intervalo_ms("cpu", &iv, true), 3_000);
+        assert_eq!(intervalo_ms("red", &iv, true), 3_000);
+        assert_eq!(intervalo_ms("disco", &iv, true), 5_000);
+        assert_eq!(intervalo_ms("procesos", &iv, true), 3_000);
+        let lento = Intervalos { cpu_ram_red_ms: 5_000, ..iv };
+        assert_eq!(intervalo_ms("ram", &lento, true), 5_000);
+    }
+
+    #[test]
+    fn pantalla_completa_o_pausa_no_recolectan() {
+        let suscritos: HashSet<&'static str> = ["cpu", "red"].into_iter().collect();
+        let ahora = Instant::now();
+        let mut proximo = HashMap::new();
+        assert!(vencidos(&suscritos, &proximo, ahora, true).is_empty());
+        assert_eq!(vencidos(&suscritos, &proximo, ahora, false).len(), 2);
+        proximo.insert("cpu", ahora + Duration::from_secs(1));
+        assert_eq!(vencidos(&suscritos, &proximo, ahora, false), vec!["red"]);
+        assert!(vencidos(&HashSet::new(), &proximo, ahora, false).is_empty());
+    }
+
+    #[test]
+    fn la_serie_de_historial_entrega_solo_la_ultima_hora() {
+        let mut h = Historiales::default();
+        for v in 0..PUNTOS_UNA_HORA {
+            h.cpu.agregar(v as f32);
+        }
+        let iv = Intervalos::default();
+        let total = &h.series("cpu", &iv)[0];
+        assert_eq!(total.valores.len(), 1_800);
+        assert_eq!(total.valores[0], 1_800.0);
     }
 }

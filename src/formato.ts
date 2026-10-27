@@ -30,6 +30,13 @@ export function puntosPorMinuto(intervaloMs: number): number {
   return Math.max(10, Math.round(60_000 / ms));
 }
 
+export const PUNTOS_HORA_MAX = 3_600;
+
+export function puntosPorHora(intervaloMs: number): number {
+  const ms = Number.isFinite(intervaloMs) && intervaloMs > 0 ? intervaloMs : 2000;
+  return Math.min(PUNTOS_HORA_MAX, Math.max(1, Math.round(3_600_000 / ms)));
+}
+
 export function agregarAcotado(lista: readonly number[], valor: number, maximo: number): number[] {
   const siguiente = lista.length >= maximo ? lista.slice(lista.length - maximo + 1) : lista.slice();
   siguiente.push(valor);

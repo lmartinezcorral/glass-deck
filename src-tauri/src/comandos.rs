@@ -97,7 +97,8 @@ pub fn widget_cerrar(app: AppHandle, ventana: WebviewWindow) -> R<()> {
 
 #[tauri::command]
 pub fn historial(app: AppHandle, fuente: String) -> Vec<SerieHistorial> {
-    app.state::<EstadoRecoleccion>().historiales.lock().series(&fuente)
+    let intervalos = app.state::<AlmacenConfig>().leer().intervalos;
+    app.state::<EstadoRecoleccion>().historiales.lock().series(&fuente, &intervalos)
 }
 
 #[derive(Serialize)]

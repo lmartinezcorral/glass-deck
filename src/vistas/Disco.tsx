@@ -9,7 +9,7 @@ const MB = 1_048_576;
 
 export function VistaDisco() {
   const maximizado = useMaximizado();
-  const [series, agregar] = useHistorial('disco', maximizado);
+  const [series, agregar, capacidad] = useHistorial('disco', maximizado);
   const unidades = useLectura('disco', (lista) => {
     agregar(
       Object.fromEntries(
@@ -49,6 +49,7 @@ export function VistaDisco() {
               </span>
               {maximizado && (
                 <GraficaHistorial
+                  capacidad={capacidad}
                   series={[
                     { nombre: 'Lectura MB/s', datos: series[`${u.unidad} lectura`] ?? [], variante: 'acento' },
                     { nombre: 'Escritura MB/s', datos: series[`${u.unidad} escritura`] ?? [], variante: 'coral' },

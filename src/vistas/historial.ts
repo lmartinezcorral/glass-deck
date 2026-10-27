@@ -1,19 +1,32 @@
 import { useEffect, useRef, useState } from 'react';
-import { api, enTauri } from '../api';
-import { puntosPorMinuto } from '../formato';
+import { api, enTauri, type Config } from '../api';
+import { agregarAcotado, puntosPorHora, puntosPorMinuto } from '../formato';
 import { useConfig } from '../hooks';
 
-const PUNTOS_UNA_HORA = 3600;
+type FuenteHistorial = 'cpu' | 'ram' | 'red' | 'disco';
+
+function intervaloDe(config: Config | null, fuente: FuenteHistorial): number {
+  if (!config) return fuente === 'disco' ? 5000 : 2000;
+  return fuente === 'disco' ? config.intervalos.disco_ms : config.intervalos.cpu_ram_red_ms;
+}
 
 export function usePuntosUltimoMinuto(): number {
   const [config] = useConfig();
-  return puntosPorMinuto(config?.intervalos.cpu_ram_red_ms ?? 2000);
+  return puntosPorMinuto(intervaloDe(config, 'cpu'));
 }
 
-export function useHistorial(fuente: string, activo: boolean): [Record<string, number[]>, (muestras: Record<string, number>) => void] {
+/** Devuelve la última hora de cada serie y cuántos puntos caben en ella con el intervalo configurado. */
+export function useHistorial(
+  fuente: FuenteHistorial,
+  activo: boolean,
+): [Record<string, number[]>, (muestras: Record<string, number>) => void, number] {
+  const [config] = useConfig();
+  const capacidad = puntosPorHora(intervaloDe(config, fuente));
   const [series, setSeries] = useState<Record<string, number[]>>({});
   const activoRef = useRef(activo);
   activoRef.current = activo;
+  const capacidadRef = useRef(capacidad);
+  capacidadRef.current = capacidad;
 
   useEffect(() => {
     if (!activo || !enTauri()) return;
@@ -35,14 +48,11 @@ export function useHistorial(fuente: string, activo: boolean): [Record<string, n
     setSeries((previas) => {
       const siguientes: Record<string, number[]> = { ...previas };
       for (const [nombre, valor] of Object.entries(muestras)) {
-        const lista = previas[nombre] ?? [];
-        const nueva = lista.length >= PUNTOS_UNA_HORA ? lista.slice(lista.length - PUNTOS_UNA_HORA + 1) : lista.slice();
-        nueva.push(valor);
-        siguientes[nombre] = nueva;
+        siguientes[nombre] = agregarAcotado(previas[nombre] ?? [], valor, capacidadRef.current);
       }
       return siguientes;
     });
   };
 
-  return [series, agregar];
+  return [series, agregar, capacidad];
 }

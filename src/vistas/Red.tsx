@@ -11,7 +11,7 @@ export function VistaRed() {
   const puntos = usePuntosUltimoMinuto();
   const [bajadas, setBajadas] = useState<number[]>([]);
   const [subidas, setSubidas] = useState<number[]>([]);
-  const [series, agregar] = useHistorial('red', maximizado);
+  const [series, agregar, capacidad] = useHistorial('red', maximizado);
   const r = useLectura('red', (d) => {
     setBajadas((l) => agregarAcotado(l, d.bajada_bps, puntos));
     setSubidas((l) => agregarAcotado(l, d.subida_bps, puntos));
@@ -40,6 +40,7 @@ export function VistaRed() {
         </dl>
         {maximizado ? (
           <GraficaHistorial
+            capacidad={capacidad}
             series={[
               { nombre: 'Bajada KB/s', datos: series.bajada ?? [], variante: 'acento' },
               { nombre: 'Subida KB/s', datos: series.subida ?? [], variante: 'coral' },

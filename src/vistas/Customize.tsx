@@ -207,20 +207,27 @@ function Deslizador({ etiqueta, min, max, paso, valor, texto, alCambiar }: { eti
   );
 }
 
+/** Solo valores en o sobre el mínimo del backend (`Intervalos::validar`), así no hay entrada inválida. */
+export const OPCIONES_INTERVALO = {
+  cpu_ram_red_ms: [1000, 2000, 3000, 5000],
+  procesos_ms: [2000, 3000, 5000, 10000],
+  disco_ms: [1000, 2000, 5000, 10000],
+} as const satisfies Record<keyof Config['intervalos'], readonly number[]>;
+
 function SeccionIntervalos({ config, guardar }: PropsSeccion) {
   const i = config.intervalos;
   const cambiar = (parcial: Partial<Config['intervalos']>): void => guardar({ ...config, intervalos: { ...i, ...parcial } });
-  const opciones = (valores: number[]) => valores.map((v) => ({ valor: String(v), etiqueta: `${v / 1000} s` }));
+  const opciones = (valores: readonly number[]) => valores.map((v) => ({ valor: String(v), etiqueta: `${v / 1000} s` }));
   return (
     <div className="gd-vista gd-vista--pila">
       <h2 className="gd-customize__titulo">Cada cuánto se actualiza</h2>
       <p className="gd-etiqueta">Intervalos más largos consumen menos. Con batería se usan al menos 3 s.</p>
       <span className="gd-deslizador__cabecera">CPU, memoria y red</span>
-      <Selector etiqueta="CPU, memoria y red" opciones={opciones([1000, 2000, 3000, 5000])} valor={String(i.cpu_ram_red_ms)} onCambiar={(v) => cambiar({ cpu_ram_red_ms: Number(v) })} />
+      <Selector etiqueta="CPU, memoria y red" opciones={opciones(OPCIONES_INTERVALO.cpu_ram_red_ms)} valor={String(i.cpu_ram_red_ms)} onCambiar={(v) => cambiar({ cpu_ram_red_ms: Number(v) })} />
       <span className="gd-deslizador__cabecera">Procesos</span>
-      <Selector etiqueta="Procesos" opciones={opciones([2000, 3000, 5000, 10000])} valor={String(i.procesos_ms)} onCambiar={(v) => cambiar({ procesos_ms: Number(v) })} />
+      <Selector etiqueta="Procesos" opciones={opciones(OPCIONES_INTERVALO.procesos_ms)} valor={String(i.procesos_ms)} onCambiar={(v) => cambiar({ procesos_ms: Number(v) })} />
       <span className="gd-deslizador__cabecera">Disco</span>
-      <Selector etiqueta="Disco" opciones={opciones([1000, 2000, 5000, 10000])} valor={String(i.disco_ms)} onCambiar={(v) => cambiar({ disco_ms: Number(v) })} />
+      <Selector etiqueta="Disco" opciones={opciones(OPCIONES_INTERVALO.disco_ms)} valor={String(i.disco_ms)} onCambiar={(v) => cambiar({ disco_ms: Number(v) })} />
     </div>
   );
 }
