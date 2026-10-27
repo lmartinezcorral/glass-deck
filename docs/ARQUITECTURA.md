@@ -170,9 +170,14 @@ tools/glassdeck/
 
 ## 7. Entorno de desarrollo (fase 0)
 
+Estado revisado el 2026-10-27, antes de instalar (83 GB libres en `C:`).
+
 | Requisito | Estado en el equipo de Luis | Acción |
 |---|---|---|
-| Node 24 + npm | Instalado | — |
-| Rust (stable, `x86_64-pc-windows-msvc`) | No instalado | Instalar con `rustup` |
-| Visual Studio Build Tools con «Desarrollo para el escritorio con C++» | No instalado (~6 GB) | Instalar |
-| WebView2 Runtime | Incluido en Windows 10 actualizado | Verificar |
+| Node 24 + npm | Instalado (v24.14.1) | — |
+| Rust (stable, `x86_64-pc-windows-msvc`) | No instalado | `winget install Rustlang.Rustup` (por usuario, sin UAC) |
+| Visual Studio Build Tools 2022 con el workload `VCTools` | No instalado (~6 GB) | `winget install Microsoft.VisualStudio.2022.BuildTools` con `--add Microsoft.VisualStudio.Workload.VCTools` (pide UAC) |
+| WebView2 Runtime | Incluido en Windows 10 actualizado | Verificar versión en el registro |
+| Control de versiones | — | Git local en `tools/glassdeck`, rama `main`, sin remoto |
+
+Los resultados de la prueba de RAM y la estrategia de ventanas elegida quedan en `adr/ADR-001-estrategia-ventanas.md`.

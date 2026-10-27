@@ -2,11 +2,18 @@
 
 | Campo | Valor |
 |---|---|
-| Versión | 1.0 (borrador para VoBo del CEO) |
-| Fecha | 2026-10-25 |
+| Versión | 1.1 |
+| Fecha | 2026-10-27 |
 | Dueño | Luis Ángel Martínez Corral |
-| Estado | Pendiente de aprobación. No se escribe código de la app hasta el VoBo |
-| Paquete | `SPEC.md` (este), `ARQUITECTURA.md`, `FLUJOS.md`, `GUIA_GOOGLE_OAUTH.md`, `mockups/glassdeck_mockup.html` + `mockups/capturas/`, `referencias/MAXTO_ANALISIS.md` |
+| Estado | **Aprobado por el CEO el 2026-10-27.** Construcción en curso (fases 0 y 1) |
+| Paquete | `SPEC.md` (este), `ARQUITECTURA.md`, `FLUJOS.md`, `GUIA_GOOGLE_OAUTH.md`, `PLAN_FASES.md`, `QA_MATRIZ.md`, `adr/`, `mockups/glassdeck_mockup.html` + `mockups/capturas/`, `referencias/MAXTO_ANALISIS.md` |
+
+### Historial de cambios
+
+| Versión | Fecha | Cambio |
+|---|---|---|
+| 1.0 | 2026-10-25 | Borrador para VoBo, a partir del interrogatorio Q1–Q32 |
+| 1.1 | 2026-10-27 | VoBo del CEO. Se fija `ipapi.co` como geolocalización por IP. La fase 0 entrega la decisión de R-01 en `adr/ADR-001-estrategia-ventanas.md`. Se agregan `PLAN_FASES.md` (backlog por bloques) y `QA_MATRIZ.md` (verificación de cada CA). El repo es git local en `tools/glassdeck`, rama `main`, sin remoto |
 
 ## 0. Resumen
 
@@ -348,13 +355,13 @@ Basado en `referencias/MAXTO_ANALISIS.md`. Se aplica a las ventanas de **todas**
 | `claude.ai` | Límites de uso de la suscripción | **No** |
 | `api.anthropic.com` (opcional) | Informe de costos de la organización | Sí |
 | `api.open-meteo.com`, `geocoding-api.open-meteo.com` | Clima y búsqueda de ciudad | Sí |
-| Servicio de geolocalización por IP (configurable, p. ej. `ipapi.co`) | Ciudad aproximada | Sí (de terceros) |
+| `ipapi.co` (geolocalización por IP; se consulta solo con ubicación automática) | Ciudad aproximada | Sí (de terceros) |
 
 ## 6. Fases y criterios de salida
 
 | Fase | Contenido | Criterio de salida |
 |---|---|---|
-| 0 — Preparación | Instalar Rust y las herramientas de compilación de C++ de Visual Studio (~6 GB); crear el repo `tools/glassdeck`; **prueba de concepto de RAM** con 11 ventanas WebView2 (riesgo R-01) | La prueba de concepto mide la RAM real y se decide la estrategia de ventanas |
+| 0 — Preparación | Instalar Rust y las herramientas de compilación de C++ de Visual Studio (~6 GB); crear el repo `tools/glassdeck`; **prueba de concepto de RAM** con 11 ventanas WebView2 en 3 variantes (riesgo R-01), medida con `poc/medir.ps1` | La prueba mide la RAM real y `adr/ADR-001-estrategia-ventanas.md` registra la estrategia elegida. Si ninguna variante baja de 200 MB, decide Luis antes de la fase 1 |
 | 1 — Base | GD-WIN, GD-DOCK (sin cuentas), GD-CUST, GD-SYS, GD-PROC, GD-CLEAN, GD-SHORT-01, GD-HOT-01/02/04, GD-INST, GD-NFR | Instalador funcional; todos los CA de la fase cumplidos; VoBo de Luis |
 | 2 — Servicios | GD-DOCK-02, GD-CUR, GD-CLA, GD-ALERT, GD-MAIL, GD-CAL, GD-ROT, GD-WX | Igual |
 | 3 — Controles | GD-AUD, GD-MIC, GD-CAM, GD-BRI, GD-SHORT-02 a 06 | Igual |
