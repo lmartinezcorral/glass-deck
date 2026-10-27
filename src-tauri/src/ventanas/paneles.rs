@@ -37,6 +37,7 @@ fn crear(app: &AppHandle, def: &DefPanel) -> tauri::Result<WebviewWindow> {
     let url = WebviewUrl::App(format!("index.html?vista={}", def.vista).into());
     let v = WebviewWindowBuilder::new(app, def.etiqueta, url)
         .title(def.titulo)
+        .additional_browser_args(super::ARGUMENTOS_WEBVIEW)
         .decorations(false)
         .transparent(true)
         .shadow(false)

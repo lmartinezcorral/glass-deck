@@ -4,10 +4,17 @@ use tauri::{AppHandle, PhysicalPosition, WebviewUrl, WebviewWindowBuilder};
 const TOTAL: usize = 11;
 const QUITAR: usize = 6;
 
-fn crear(app: &AppHandle, etiqueta: &str, vista: &str, x: i32, y: i32, ancho: f64, alto: f64) -> Option<tauri::WebviewWindow> {
-    let url = WebviewUrl::App(format!("index.html?vista={vista}").into());
+struct Opciones {
+    modo: String,
+    efecto: bool,
+    argumentos: String,
+}
+
+fn crear(app: &AppHandle, o: &Opciones, etiqueta: &str, vista: &str, x: i32, y: i32, ancho: f64, alto: f64) -> Option<tauri::WebviewWindow> {
+    let url = WebviewUrl::App(format!("index.html?vista={vista}&modo={}", o.modo).into());
     let v = WebviewWindowBuilder::new(app, etiqueta, url)
         .title("Glassdeck POC")
+        .additional_browser_args(&o.argumentos)
         .decorations(false)
         .transparent(true)
         .shadow(false)
@@ -18,12 +25,24 @@ fn crear(app: &AppHandle, etiqueta: &str, vista: &str, x: i32, y: i32, ancho: f6
         .build()
         .ok()?;
     let _ = v.set_position(PhysicalPosition::new(x, y));
-    aplicar_efecto(app, &v, false);
+    if o.efecto {
+        aplicar_efecto(app, &v, false);
+    }
     Some(v)
 }
 
 pub fn ejecutar(app: &AppHandle, variante: &str) {
-    log::info!("Prueba de concepto R-01, variante {variante}");
+    let o = Opciones {
+        modo: std::env::var("GLASSDECK_POC_MODO").unwrap_or_default().trim().to_string(),
+        efecto: std::env::var("GLASSDECK_POC_EFECTO").map(|v| v.trim() != "no").unwrap_or(true),
+        argumentos: std::env::var("GLASSDECK_POC_ARGS").unwrap_or_else(|_| crate::ventanas::ARGUMENTOS_WEBVIEW.to_string()),
+    };
+    log::info!(
+        "Prueba de concepto R-01, variante {variante}, modo '{}', acrylic {}, argumentos '{}'",
+        o.modo,
+        o.efecto,
+        o.argumentos
+    );
     let Some(m) = app.primary_monitor().ok().flatten() else { return };
     let a = m.work_area();
     let paso_x = (240.0 * m.scale_factor()) as i32;
@@ -38,6 +57,7 @@ pub fn ejecutar(app: &AppHandle, variante: &str) {
                 let area = mon.work_area();
                 crear(
                     app,
+                    &o,
                     &format!("poc-c-{i}"),
                     &format!("poc&agrupados={widgets}"),
                     area.position.x + 20,
@@ -52,7 +72,7 @@ pub fn ejecutar(app: &AppHandle, variante: &str) {
             for i in 0..TOTAL {
                 let x = a.position.x + 20 + (i % por_fila) as i32 * paso_x;
                 let y = a.position.y + 20 + (i / por_fila) as i32 * paso_y;
-                if let Some(v) = crear(app, &format!("poc-{i}"), &format!("poc&n={i}"), x, y, 220.0, 200.0) {
+                if let Some(v) = crear(app, &o, &format!("poc-{i}"), &format!("poc&n={i}"), x, y, 220.0, 200.0) {
                     ventanas.push(v);
                 }
             }

@@ -29,6 +29,18 @@ export function useMontado(): boolean {
   return montado;
 }
 
+const ANIMACION_ENTRADA_MS = 1200;
+
+/** Tras la animación de entrada, las actualizaciones periódicas se pintan sin transición: animarlas recompone la ventana transparente en cada cuadro y dispara el CPU del proceso GPU de WebView2. */
+export function useAsentado(ms = ANIMACION_ENTRADA_MS): boolean {
+  const [asentado, setAsentado] = useState(false);
+  useEffect(() => {
+    const id = window.setTimeout(() => setAsentado(true), ms);
+    return () => window.clearTimeout(id);
+  }, [ms]);
+  return asentado;
+}
+
 export interface MedidorProps {
   valor: number;
   etiqueta: string;
@@ -54,6 +66,7 @@ export function Medidor({
 }: MedidorProps) {
   const idGradiente = useIdSvg('gd-medidor');
   const montado = useMontado();
+  const asentado = useAsentado();
   const pct = limitarPorcentaje(valor);
   const estado = estadoPorUmbral(pct, umbrales);
   const radio = (tamano - grosor) / 2;
@@ -64,7 +77,7 @@ export function Medidor({
 
   return (
     <div
-      className={['gd-medidor', `gd-medidor--${estado}`, className].filter(Boolean).join(' ')}
+      className={['gd-medidor', `gd-medidor--${estado}`, asentado && 'gd-medidor--vivo', className].filter(Boolean).join(' ')}
       style={{ width: tamano, height: tamano, '--gd-medidor-tamano': `${tamano}px` } as CSSProperties}
       role="meter"
       aria-label={etiqueta}

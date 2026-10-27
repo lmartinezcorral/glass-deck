@@ -20,6 +20,10 @@ const IGNORAR_MOVIMIENTO_PROPIO: Duration = Duration::from_millis(400);
 const DISTANCIA_IMAN: i32 = 12;
 const SEPARACION_IMAN: i32 = 8;
 
+/// Todas las ventanas comparten un entorno de WebView2, así que todas deben crearse con los mismos argumentos.
+pub const ARGUMENTOS_WEBVIEW: &str =
+    "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --renderer-process-limit=1";
+
 #[derive(Default)]
 struct EstadoRuntime {
     ultimo_movimiento: Option<Instant>,
@@ -196,6 +200,7 @@ pub fn abrir_widget(app: &AppHandle, id: &str) -> tauri::Result<()> {
     let url = WebviewUrl::App(format!("index.html?vista={id}").into());
     let ventana = WebviewWindowBuilder::new(app, catalogo::etiqueta(id), url)
         .title(format!("Glassdeck · {}", def.titulo))
+        .additional_browser_args(ARGUMENTOS_WEBVIEW)
         .decorations(false)
         .transparent(true)
         .shadow(false)

@@ -3,6 +3,7 @@ import {
   estadoPorUmbral,
   limitarPorcentaje,
   UMBRALES_PREDETERMINADOS,
+  useAsentado,
   useMontado,
   type UmbralesMedidor,
 } from './Medidor';
@@ -31,13 +32,14 @@ export function Barra({
   className,
 }: BarraProps) {
   const montado = useMontado();
+  const asentado = useAsentado();
   const pct = total > 0 ? limitarPorcentaje((usado / total) * 100) : 0;
   const estado = estadoPorUmbral(pct, umbrales);
   const valor = textoValor ?? `${Math.round(pct)} %`;
 
   return (
     <div
-      className={['gd-uso', `gd-uso--${estado}`, className].filter(Boolean).join(' ')}
+      className={['gd-uso', `gd-uso--${estado}`, asentado && 'gd-uso--vivo', className].filter(Boolean).join(' ')}
       style={{ '--gd-uso-alto': `${alto}px` } as CSSProperties}
     >
       {!ocultarCabecera && (

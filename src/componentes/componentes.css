@@ -335,6 +335,10 @@
   transition: stroke-dashoffset var(--gd-dur-medidor) var(--gd-curva);
 }
 
+.gd-medidor--vivo .gd-medidor__arco {
+  transition: none;
+}
+
 .gd-medidor__parada-1 {
   stop-color: var(--gd-acento-trazo);
 }
@@ -549,6 +553,10 @@
   background: linear-gradient(90deg, var(--gd-acento-trazo), var(--gd-acento-2-trazo));
   box-shadow: 0 0 10px rgba(var(--gd-acento-rgb), var(--gd-brillo-trazo));
   transition: width var(--gd-dur-barra) var(--gd-curva), background-color var(--gd-dur-media);
+}
+
+.gd-uso--vivo .gd-uso__relleno {
+  transition: none;
 }
 
 .gd-uso--aviso .gd-uso__relleno {

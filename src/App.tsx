@@ -62,8 +62,9 @@ export function App() {
     if (vista === 'galeria') return;
     const apariencia = config?.apariencia ?? OPCIONES_TEMA_PREDETERMINADAS;
     const ahorrar = (config?.pausar_con_bateria ?? true) && (enBateria || document.documentElement.dataset.bateria === '1');
-    aplicarTema({ ...apariencia, animaciones: !ahorrar });
-  }, [config, enBateria, vista]);
+    const sinTransicion = parametros.get('modo') === 'sin-transicion';
+    aplicarTema({ ...apariencia, animaciones: !ahorrar && !sinTransicion });
+  }, [config, enBateria, vista, parametros]);
 
   useEffect(() => {
     if (bateria !== null) document.documentElement.dataset.bateria = bateria ? '1' : '0';
