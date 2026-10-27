@@ -27,7 +27,9 @@ fn carpeta_logs(app: &tauri::App) -> PathBuf {
 pub fn run() {
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            let _ = paneles::mostrar_dock(app, true);
+            ventanas::diferir(app, |a| {
+                let _ = paneles::mostrar_dock(a, true);
+            });
         }))
         .plugin(tauri_plugin_autostart::init(
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
@@ -50,6 +52,7 @@ pub fn run() {
             let h = app.handle();
             if let Ok(variante) = std::env::var("GLASSDECK_POC") {
                 poc::ejecutar(h, variante.trim());
+                ventanas::marcar_arranque_listo();
                 return Ok(());
             }
             if let Err(e) = bandeja::crear(h) {
@@ -64,6 +67,7 @@ pub fn run() {
             }
             ventanas::iniciar_vigilancia(h);
             recolectores::iniciar(h);
+            ventanas::marcar_arranque_listo();
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

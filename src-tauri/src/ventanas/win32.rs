@@ -3,10 +3,12 @@ use windows::Win32::Foundation::HWND;
 use windows::Win32::Graphics::Gdi::{CreateRoundRectRgn, SetWindowRgn};
 use windows::Win32::UI::Accessibility::{SetWinEventHook, HWINEVENTHOOK};
 use windows::Win32::UI::WindowsAndMessaging::{
-    GetClassNameW, GetWindowLongPtrW, SetWindowLongPtrW, SetWindowPos, EVENT_SYSTEM_FOREGROUND,
+    GetClassNameW, GetWindowLongPtrW, SetWindowLongPtrW, SetWindowPos, ShowWindow, EVENT_SYSTEM_FOREGROUND,
+    SW_HIDE, SW_SHOWNOACTIVATE,
     GWL_EXSTYLE, GWL_STYLE, HWND_BOTTOM, HWND_NOTOPMOST, HWND_TOPMOST, SWP_FRAMECHANGED,
     SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOOWNERZORDER, SWP_NOSIZE, WINEVENT_OUTOFCONTEXT,
-    WINEVENT_SKIPOWNPROCESS, WS_EX_APPWINDOW, WS_EX_TOOLWINDOW, WS_MAXIMIZEBOX, WS_MINIMIZEBOX,
+    WINEVENT_SKIPOWNPROCESS, WS_CAPTION, WS_EX_APPWINDOW, WS_EX_TOOLWINDOW, WS_MAXIMIZEBOX, WS_MINIMIZEBOX,
+    WS_POPUP, WS_SYSMENU, WS_THICKFRAME,
 };
 
 pub fn hwnd_de(ventana: &tauri::WebviewWindow) -> Option<HWND> {
@@ -19,7 +21,8 @@ pub fn aplicar_estilos_widget(hwnd: HWND) {
         let ex = (ex | WS_EX_TOOLWINDOW.0 as isize) & !(WS_EX_APPWINDOW.0 as isize);
         SetWindowLongPtrW(hwnd, GWL_EXSTYLE, ex);
         let st = GetWindowLongPtrW(hwnd, GWL_STYLE);
-        let st = st & !((WS_MINIMIZEBOX.0 | WS_MAXIMIZEBOX.0) as isize);
+        let quitar = WS_CAPTION.0 | WS_THICKFRAME.0 | WS_SYSMENU.0 | WS_MINIMIZEBOX.0 | WS_MAXIMIZEBOX.0;
+        let st = (st & !(quitar as isize)) | WS_POPUP.0 as isize;
         SetWindowLongPtrW(hwnd, GWL_STYLE, st);
         let _ = SetWindowPos(
             hwnd,
@@ -30,6 +33,15 @@ pub fn aplicar_estilos_widget(hwnd: HWND) {
             0,
             SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_FRAMECHANGED | SWP_NOOWNERZORDER,
         );
+    }
+}
+
+/// La barra de título que Windows pinta mientras la ventana aún tiene WS_CAPTION queda en la superficie
+/// transparente; un ciclo nativo ocultar/mostrar la descarta sin tocar las banderas internas de tao.
+pub fn descartar_pintura_vieja(hwnd: HWND) {
+    unsafe {
+        let _ = ShowWindow(hwnd, SW_HIDE);
+        let _ = ShowWindow(hwnd, SW_SHOWNOACTIVATE);
     }
 }
 

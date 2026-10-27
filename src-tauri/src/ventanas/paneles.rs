@@ -128,10 +128,6 @@ pub fn mostrar_dock(app: &AppHandle, visible: bool) -> Result<(), String> {
         None => {
             let def = &PANELES[0];
             let v = crear(app, def).map_err(|e| e.to_string())?;
-            #[cfg(windows)]
-            if let Some(hwnd) = super::win32::hwnd_de(&v) {
-                super::win32::aplicar_estilos_widget(hwnd);
-            }
             let p = posicion_dock(app, &v);
             *app.state::<EstadoDock>().ignorar_hasta.lock() = Some(Instant::now() + Duration::from_millis(400));
             let _ = v.set_position(p);
@@ -148,7 +144,7 @@ pub fn mostrar_dock(app: &AppHandle, visible: bool) -> Result<(), String> {
             v
         }
     };
-    v.show().map_err(|e| e.to_string())?;
+    super::mostrar_ventana(&v).map_err(|e| e.to_string())?;
     aplicar_capa_dock(app);
     let _ = app.emit("gd://config", ());
     Ok(())

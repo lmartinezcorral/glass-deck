@@ -10,10 +10,16 @@ const ARCHIVOS_MAX: usize = 5;
 
 struct Registro {
     dir: PathBuf,
+    tamano_max: u64,
     archivo: Mutex<Option<File>>,
 }
 
 impl Registro {
+    fn nuevo(dir: &Path, tamano_max: u64) -> Self {
+        let _ = fs::create_dir_all(dir);
+        Self { dir: dir.to_path_buf(), tamano_max, archivo: Mutex::new(abrir(&dir.join("glassdeck.log"))) }
+    }
+
     fn ruta(&self, n: usize) -> PathBuf {
         if n == 0 {
             self.dir.join("glassdeck.log")
@@ -24,7 +30,7 @@ impl Registro {
 
     fn rotar_si_hace_falta(&self, f: &mut Option<File>) {
         let tam = f.as_ref().and_then(|a| a.metadata().ok()).map(|m| m.len()).unwrap_or(0);
-        if tam < TAMANO_MAX {
+        if tam < self.tamano_max {
             return;
         }
         *f = None;
@@ -69,9 +75,38 @@ impl Log for Registro {
 }
 
 pub fn iniciar(dir: &Path) {
-    let _ = fs::create_dir_all(dir);
-    let registro = Registro { dir: dir.to_path_buf(), archivo: Mutex::new(abrir(&dir.join("glassdeck.log"))) };
-    if log::set_boxed_logger(Box::new(registro)).is_ok() {
+    if log::set_boxed_logger(Box::new(Registro::nuevo(dir, TAMANO_MAX))).is_ok() {
         log::set_max_level(if cfg!(debug_assertions) { LevelFilter::Debug } else { LevelFilter::Info });
+    }
+}
+
+#[cfg(test)]
+mod pruebas {
+    use super::*;
+
+    #[test]
+    fn rota_y_conserva_como_maximo_cinco_archivos() {
+        let d = std::env::temp_dir().join(format!("glassdeck-prueba-log-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&d);
+        let r = Registro::nuevo(&d, 200);
+        for i in 0..200 {
+            r.log(
+                &Record::builder()
+                    .args(format_args!("linea de prueba {i} en C:\\Users\\hulkmtz\\x"))
+                    .target("glassdeck::prueba")
+                    .level(log::Level::Info)
+                    .build(),
+            );
+        }
+        r.flush();
+        drop(r);
+        let archivos: Vec<_> = fs::read_dir(&d).unwrap().filter_map(|e| e.ok()).collect();
+        assert_eq!(archivos.len(), ARCHIVOS_MAX);
+        for a in &archivos {
+            let texto = fs::read_to_string(a.path()).unwrap();
+            assert!(!texto.contains("hulkmtz"));
+            assert!(a.metadata().unwrap().len() < 400);
+        }
+        let _ = fs::remove_dir_all(&d);
     }
 }

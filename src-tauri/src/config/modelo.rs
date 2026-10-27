@@ -177,7 +177,9 @@ impl Config {
     pub fn normalizar(&mut self) {
         let base = Config::default();
         for (id, w) in base.widgets {
-            self.widgets.entry(id).or_insert(w);
+            let actual = self.widgets.entry(id).or_insert_with(|| w.clone());
+            actual.ancho = actual.ancho.max(w.ancho);
+            actual.alto = actual.alto.max(w.alto);
         }
         if self.intervalos.validar().is_err() {
             self.intervalos = Intervalos::default();
@@ -196,6 +198,17 @@ impl Config {
 #[cfg(test)]
 mod pruebas {
     use super::*;
+
+    #[test]
+    fn normalizar_sube_tamanos_guardados_al_minimo_del_catalogo() {
+        let mut c = Config::default();
+        c.widgets.get_mut("red").unwrap().alto = 120;
+        c.widgets.get_mut("red").unwrap().ancho = 900;
+        c.normalizar();
+        let red = crate::ventanas::catalogo::buscar("red").unwrap();
+        assert_eq!(c.widget("red").alto, red.alto);
+        assert_eq!(c.widget("red").ancho, 900);
+    }
 
     #[test]
     fn config_por_defecto_trae_widgets_de_fase_1() {

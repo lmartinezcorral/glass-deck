@@ -24,8 +24,8 @@ Complementa a `SPEC.md` (sección 6). Cada bloque termina con un commit en `main
 
 | Bloque | Contenido | Requerimientos | Estado |
 |---|---|---|---|
-| 1 · Núcleo | `settings.json` versionado con escritura atómica y respaldo; log rotativo con filtro; instancia única; bandeja; arranque con Windows | GD-DOCK-04/05, GD-CUST-07, GD-INST-02, GD-NFR-REL-03/04, GD-NFR-SEC-02 | Pendiente |
-| 2 · Ventanas | Sin marco, sin barra de tareas, *acrylic* y desenfoque simple al arrastrar; capa de escritorio (R-05) y pin; posiciones por monitor; DPI; regreso al principal; píldora, maximizar y cerrar | GD-WIN-01..15 | Pendiente |
+| 1 · Núcleo | `settings.json` versionado con escritura atómica y respaldo; log rotativo con filtro; instancia única; bandeja; arranque con Windows | GD-DOCK-04/05, GD-CUST-07, GD-INST-02, GD-NFR-REL-03/04, GD-NFR-SEC-02 | Implementado; pruebas automáticas pasan; pendientes manuales (bandeja, reinicio de Windows, revisiones de 1 día y 1 semana) |
+| 2 · Ventanas | Sin marco, sin barra de tareas, *acrylic* y desenfoque simple al arrastrar; capa de escritorio (R-05) y pin; posiciones por monitor; DPI; regreso al principal; píldora, maximizar y cerrar | GD-WIN-01..15 | Implementado; pruebas automáticas pasan; corregidos el marco nativo visible y la salida de Alt+Tab; pendientes manuales con 3 monitores (R-05, DPI, desconexión) |
 | 3 · Diseño | Tokens y componentes de vidrio del mockup: medidor, sparkline, gráfica, barra, píldora, diálogo, interruptor | GD-NFR-UX-01..05, GD-CUST-02 | Pendiente |
 | 4 · Datos del sistema | Planificador (intervalos, batería, visibilidad), bus de eventos, recolector, widgets CPU/RAM/Disco/Red con historial de 1 h en memoria | GD-SYS-01..09, GD-NFR-PERF-01..05, GD-CUST-03 | Pendiente |
 | 5 · Procesos | Política de 3 niveles revalidada en el backend; cierre amable y luego forzado; resumen por proceso; sin elevar | GD-PROC-01..09, GD-CUST-05 | Pendiente |

@@ -1,10 +1,12 @@
 pub mod catalogo;
+mod geometria;
 pub mod paneles;
 #[cfg(windows)]
 pub mod win32;
 
 use crate::config::{AlmacenConfig, Capa, EstadoWidget, Tema};
 use catalogo::{DefWidget, ALTO_PILDORA, ANCHO_PILDORA, RADIO_ESQUINA};
+use geometria::Rect;
 use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -23,6 +25,24 @@ const SEPARACION_IMAN: i32 = 8;
 /// Todas las ventanas comparten un entorno de WebView2, así que todas deben crearse con los mismos argumentos.
 pub const ARGUMENTOS_WEBVIEW: &str =
     "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --renderer-process-limit=1";
+
+static ARRANQUE_LISTO: AtomicBool = AtomicBool::new(false);
+
+pub fn marcar_arranque_listo() {
+    ARRANQUE_LISTO.store(true, Ordering::Release);
+}
+
+/// En Windows, crear un WebView2 desde un callback del hilo principal (bandeja, segunda instancia)
+/// mientras otro se está creando cuelga la app; esas acciones corren en otro hilo y tras el arranque.
+pub fn diferir(app: &AppHandle, f: impl FnOnce(&AppHandle) + Send + 'static) {
+    let app = app.clone();
+    std::thread::spawn(move || {
+        while !ARRANQUE_LISTO.load(Ordering::Acquire) {
+            std::thread::sleep(Duration::from_millis(50));
+        }
+        f(&app);
+    });
+}
 
 #[derive(Default)]
 struct EstadoRuntime {
@@ -87,6 +107,18 @@ pub fn aplicar_efecto(app: &AppHandle, ventana: &WebviewWindow, arrastrando: boo
     let _ = ventana.set_effects(EffectsBuilder::new().effect(efecto).color(color_acrylic(tema)).build());
 }
 
+/// tao reescribe GWL_STYLE y GWL_EXSTYLE en cada cambio de visibilidad y vuelve a poner WS_CAPTION,
+/// así que los estilos propios (fuera de Alt+Tab, sin barra de título) se aplican después de mostrar.
+pub fn mostrar_ventana(ventana: &WebviewWindow) -> tauri::Result<()> {
+    ventana.show()?;
+    #[cfg(windows)]
+    if let Some(h) = win32::hwnd_de(ventana) {
+        win32::aplicar_estilos_widget(h);
+        win32::descartar_pintura_vieja(h);
+    }
+    Ok(())
+}
+
 fn redondear(ventana: &WebviewWindow) {
     #[cfg(windows)]
     if let (Some(hwnd), Ok(tam), Ok(escala)) = (win32::hwnd_de(ventana), ventana.inner_size(), ventana.scale_factor()) {
@@ -148,17 +180,14 @@ fn tamano_fisico(def: &DefWidget, ancho: u32, alto: u32, escala: f64) -> Physica
 
 fn posicion_por_defecto(app: &AppHandle, indice: usize) -> Option<(PhysicalPosition<i32>, f64)> {
     let m = monitor_principal(app)?;
-    let area = m.work_area();
     let escala = m.scale_factor();
-    let margen = (24.0 * escala) as i32;
-    let columna_ancho = (320.0 * escala) as i32;
-    let fila_alto = (290.0 * escala) as i32;
-    let filas = ((area.size.height as i32 - margen) / fila_alto).max(1) as usize;
-    let col = (indice / filas) as i32;
-    let fila = (indice % filas) as i32;
-    let x = area.position.x + area.size.width as i32 - margen - (col + 1) * columna_ancho;
-    let y = area.position.y + margen + fila * fila_alto;
+    let (x, y) = geometria::celda_por_defecto(area_de(&m), escala, indice);
     Some((PhysicalPosition::new(x, y), escala))
+}
+
+fn area_de(m: &Monitor) -> Rect {
+    let a = m.work_area();
+    Rect::nuevo(a.position.x, a.position.y, a.size.width as i32, a.size.height as i32)
 }
 
 fn posicion_guardada_valida(app: &AppHandle, id: &str) -> Option<PhysicalPosition<i32>> {
@@ -176,7 +205,7 @@ fn posicion_guardada_valida(app: &AppHandle, id: &str) -> Option<PhysicalPositio
 pub fn abrir_widget(app: &AppHandle, id: &str) -> tauri::Result<()> {
     let Some(def) = catalogo::buscar(id) else { return Ok(()) };
     if let Some(v) = ventana_widget(app, id) {
-        v.show()?;
+        mostrar_ventana(&v)?;
         aplicar_capa(app, id);
         return Ok(());
     }
@@ -217,10 +246,6 @@ pub fn abrir_widget(app: &AppHandle, id: &str) -> tauri::Result<()> {
         ventana.set_position(p)?;
     }
     gestor(app).con_runtime(id, |r| r.desplazado = desplazado);
-    #[cfg(windows)]
-    if let Some(hwnd) = win32::hwnd_de(&ventana) {
-        win32::aplicar_estilos_widget(hwnd);
-    }
     aplicar_efecto(app, &ventana, false);
     redondear(&ventana);
     let app2 = app.clone();
@@ -235,7 +260,7 @@ pub fn abrir_widget(app: &AppHandle, id: &str) -> tauri::Result<()> {
         _ => {}
     });
     if gestor(app).todos_visibles.load(Ordering::Relaxed) {
-        ventana.show()?;
+        mostrar_ventana(&ventana)?;
     }
     aplicar_capa(app, id);
     Ok(())
@@ -334,27 +359,19 @@ fn fin_de_arrastre(app: &AppHandle, id: &str) {
 fn imantar(app: &AppHandle, id: &str, v: &WebviewWindow, pos: PhysicalPosition<i32>) -> Option<PhysicalPosition<i32>> {
     let tam = v.outer_size().ok()?;
     let m = monitor_de_punto(app, pos.x + 20, pos.y + 20)?;
-    let area = m.work_area();
     let sep = (SEPARACION_IMAN as f64 * m.scale_factor()) as i32;
     let dist = (DISTANCIA_IMAN as f64 * m.scale_factor()) as i32;
-    let (w, h) = (tam.width as i32, tam.height as i32);
-    let mut xs = vec![area.position.x + sep, area.position.x + area.size.width as i32 - w - sep];
-    let mut ys = vec![area.position.y + sep, area.position.y + area.size.height as i32 - h - sep];
-    for otro in catalogo::WIDGETS_FASE_1.iter().filter(|o| o.id != id) {
-        let Some(ov) = ventana_widget(app, otro.id) else { continue };
-        let (Ok(op), Ok(os)) = (ov.outer_position(), ov.outer_size()) else { continue };
-        xs.extend([op.x + os.width as i32 + sep, op.x - w - sep, op.x]);
-        ys.extend([op.y + os.height as i32 + sep, op.y - h - sep, op.y]);
-    }
-    let cerca = |actual: i32, candidatos: &[i32]| {
-        candidatos.iter().copied().filter(|c| (c - actual).abs() <= dist).min_by_key(|c| (c - actual).abs())
-    };
-    let nx = cerca(pos.x, &xs);
-    let ny = cerca(pos.y, &ys);
-    if nx.is_none() && ny.is_none() {
-        return None;
-    }
-    Some(PhysicalPosition::new(nx.unwrap_or(pos.x), ny.unwrap_or(pos.y)))
+    let otros: Vec<Rect> = catalogo::WIDGETS_FASE_1
+        .iter()
+        .filter(|o| o.id != id)
+        .filter_map(|o| ventana_widget(app, o.id))
+        .filter_map(|ov| {
+            let (op, os) = (ov.outer_position().ok()?, ov.outer_size().ok()?);
+            Some(Rect::nuevo(op.x, op.y, os.width as i32, os.height as i32))
+        })
+        .collect();
+    let actual = Rect::nuevo(pos.x, pos.y, tam.width as i32, tam.height as i32);
+    geometria::ajustar_iman(actual, area_de(&m), &otros, sep, dist).map(|(x, y)| PhysicalPosition::new(x, y))
 }
 
 pub fn cambiar_estado(app: &AppHandle, id: &str, estado: EstadoWidget) -> Result<(), String> {
@@ -441,7 +458,7 @@ pub fn mostrar_ocultar_todo(app: &AppHandle) {
     g.todos_visibles.store(visibles, Ordering::Relaxed);
     for w in catalogo::WIDGETS_FASE_1 {
         if let Some(v) = ventana_widget(app, w.id) {
-            let _ = if visibles { v.show() } else { v.hide() };
+            let _ = if visibles { mostrar_ventana(&v) } else { v.hide() };
             if visibles {
                 aplicar_capa(app, w.id);
             }

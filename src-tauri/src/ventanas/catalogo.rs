@@ -12,7 +12,7 @@ pub const WIDGETS_FASE_1: &[DefWidget] = &[
     DefWidget { id: "cpu", titulo: "CPU", ancho: 220, alto: 210, ancho_max: 760, alto_max: 520 },
     DefWidget { id: "ram", titulo: "Memoria", ancho: 220, alto: 210, ancho_max: 680, alto_max: 480 },
     DefWidget { id: "disco", titulo: "Disco", ancho: 260, alto: 200, ancho_max: 680, alto_max: 480 },
-    DefWidget { id: "red", titulo: "Red", ancho: 260, alto: 180, ancho_max: 680, alto_max: 460 },
+    DefWidget { id: "red", titulo: "Red", ancho: 260, alto: 200, ancho_max: 680, alto_max: 460 },
     DefWidget { id: "procesos", titulo: "Procesos", ancho: 300, alto: 270, ancho_max: 860, alto_max: 600 },
 ];
 

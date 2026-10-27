@@ -40,16 +40,16 @@ pub fn crear(app: &AppHandle) -> tauri::Result<()> {
         .show_menu_on_left_click(false)
         .on_menu_event(|app, evento| match evento.id().as_ref() {
             "mostrar" => ventanas::mostrar_ocultar_todo(app),
-            "dock" => {
-                let _ = paneles::mostrar_dock(app, true);
-            }
-            "customize" => {
-                let _ = paneles::abrir(app, paneles::CUSTOMIZE);
-            }
-            "limpiar" => {
-                let _ = paneles::abrir(app, paneles::LIMPIEZA);
-            }
-            "procesos" => crate::comandos::abrir_procesos_maximizado(app),
+            "dock" => ventanas::diferir(app, |a| {
+                let _ = paneles::mostrar_dock(a, true);
+            }),
+            "customize" => ventanas::diferir(app, |a| {
+                let _ = paneles::abrir(a, paneles::CUSTOMIZE);
+            }),
+            "limpiar" => ventanas::diferir(app, |a| {
+                let _ = paneles::abrir(a, paneles::LIMPIEZA);
+            }),
+            "procesos" => ventanas::diferir(app, crate::comandos::abrir_procesos_maximizado),
             "privacidad" => {
                 crate::atajos::alternar_privacidad(app);
             }
@@ -64,7 +64,9 @@ pub fn crear(app: &AppHandle) -> tauri::Result<()> {
         })
         .on_tray_icon_event(|tray, evento| {
             if let TrayIconEvent::Click { button: MouseButton::Left, button_state: MouseButtonState::Up, .. } = evento {
-                let _ = paneles::mostrar_dock(tray.app_handle(), true);
+                ventanas::diferir(tray.app_handle(), |a| {
+                    let _ = paneles::mostrar_dock(a, true);
+                });
             }
         });
     if let Some(icono) = app.default_window_icon() {

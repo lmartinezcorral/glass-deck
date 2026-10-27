@@ -52,11 +52,11 @@ export function VistaRed() {
           <div className="gd-vista__doble">
             <div className="gd-vista__unidad">
               <Sparkline datos={bajadas} maxPuntos={PUNTOS_SPARK} etiqueta="Bajada, último minuto" />
-              <span className="gd-etiqueta">Bajada · último minuto</span>
+              <span className="gd-etiqueta">Último minuto</span>
             </div>
             <div className="gd-vista__unidad">
               <Sparkline datos={subidas} maxPuntos={PUNTOS_SPARK} variante="coral" etiqueta="Subida, último minuto" />
-              <span className="gd-etiqueta">Subida · último minuto</span>
+              <span className="gd-etiqueta">Último minuto</span>
             </div>
           </div>
         )}
