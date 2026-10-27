@@ -81,7 +81,20 @@ pub fn cambiar(app: &AppHandle, accion: Accion, combinacion: &str) -> Result<Vec
     if anterior == combinacion {
         return Ok(estado(app));
     }
-    let nuevo = intentar(app, accion, combinacion)?;
+    let nuevo = registrar_y_guardar(
+        || intentar(app, accion, combinacion),
+        || {
+            app.state::<AlmacenConfig>()
+                .modificar(|c| match accion {
+                    Accion::MostrarOcultar => c.atajos.mostrar_ocultar = combinacion.to_string(),
+                    Accion::Privacidad => c.atajos.privacidad = combinacion.to_string(),
+                })
+                .map(|_| ())
+        },
+        |atajo| {
+            let _ = app.global_shortcut().unregister(*atajo);
+        },
+    )?;
     if let Ok(viejo) = anterior.parse::<Shortcut>() {
         let atajos = app.state::<Atajos>();
         let mut reg = atajos.registrados.lock();
@@ -90,12 +103,23 @@ pub fn cambiar(app: &AppHandle, accion: Accion, combinacion: &str) -> Result<Vec
             let _ = app.global_shortcut().unregister(viejo);
         }
     }
-    app.state::<AlmacenConfig>().modificar(|c| match accion {
-        Accion::MostrarOcultar => c.atajos.mostrar_ocultar = combinacion.to_string(),
-        Accion::Privacidad => c.atajos.privacidad = combinacion.to_string(),
-    })?;
     anotar(app, accion, combinacion, &Ok(nuevo));
     Ok(estado(app))
+}
+
+/// La configuración solo guarda una combinación que el sistema aceptó; si el guardado falla,
+/// el registro se deshace para no dejar un atajo activo que no está en la configuración.
+fn registrar_y_guardar<T>(
+    registrar: impl FnOnce() -> Result<T, String>,
+    guardar: impl FnOnce() -> Result<(), String>,
+    deshacer: impl FnOnce(&T),
+) -> Result<T, String> {
+    let registrado = registrar()?;
+    if let Err(e) = guardar() {
+        deshacer(&registrado);
+        return Err(e);
+    }
+    Ok(registrado)
 }
 
 pub fn al_pulsar(app: &AppHandle, atajo: &Shortcut, evento: ShortcutEvent) {
@@ -121,4 +145,48 @@ pub fn alternar_privacidad(app: &AppHandle) -> bool {
     let _ = app.emit("gd://privacidad", nuevo);
     crate::bandeja::sincronizar(app);
     nuevo
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::cell::Cell;
+
+    #[test]
+    fn si_el_registro_falla_la_configuracion_no_se_escribe() {
+        let guardado = Cell::new(false);
+        let r = registrar_y_guardar(
+            || Err::<u32, _>(MENSAJE_CONFLICTO.to_string()),
+            || {
+                guardado.set(true);
+                Ok(())
+            },
+            |_| panic!("no hay nada que deshacer"),
+        );
+        assert_eq!(r.unwrap_err(), MENSAJE_CONFLICTO);
+        assert!(!guardado.get());
+    }
+
+    #[test]
+    fn si_el_guardado_falla_el_atajo_se_libera() {
+        let liberado = Cell::new(None);
+        let r = registrar_y_guardar(|| Ok(7u32), || Err("disco lleno".into()), |a| liberado.set(Some(*a)));
+        assert!(r.is_err());
+        assert_eq!(liberado.get(), Some(7));
+    }
+
+    #[test]
+    fn un_cambio_valido_registra_y_guarda() {
+        let guardado = Cell::new(false);
+        let r = registrar_y_guardar(
+            || Ok(3u32),
+            || {
+                guardado.set(true);
+                Ok(())
+            },
+            |_| panic!("no se debe deshacer"),
+        );
+        assert_eq!(r, Ok(3));
+        assert!(guardado.get());
+    }
 }

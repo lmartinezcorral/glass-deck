@@ -334,16 +334,25 @@ impl Recolector {
 }
 
 fn widgets_suscritos(app: &AppHandle) -> HashSet<&'static str> {
-    let g = app.state::<Gestor>();
-    if !g.todos_visibles.load(Ordering::Relaxed) {
+    let todos_visibles = app.state::<Gestor>().todos_visibles.load(Ordering::Relaxed);
+    let cfg = app.state::<AlmacenConfig>().leer();
+    suscribibles(
+        todos_visibles,
+        catalogo::WIDGETS_FASE_1
+            .iter()
+            .map(|w| (w.id, cfg.widget(w.id).activo, ventanas::ventana_widget(app, w.id).is_some())),
+    )
+}
+
+/// Un widget desactivado o sin ventana no recibe lecturas: su recolector ni siquiera corre.
+fn suscribibles(
+    todos_visibles: bool,
+    widgets: impl Iterator<Item = (&'static str, bool, bool)>,
+) -> HashSet<&'static str> {
+    if !todos_visibles {
         return HashSet::new();
     }
-    let cfg = app.state::<AlmacenConfig>().leer();
-    catalogo::WIDGETS_FASE_1
-        .iter()
-        .filter(|w| cfg.widget(w.id).activo && ventanas::ventana_widget(app, w.id).is_some())
-        .map(|w| w.id)
-        .collect()
+    widgets.filter(|(_, activo, abierto)| *activo && *abierto).map(|(id, _, _)| id).collect()
 }
 
 fn intervalo_ms(id: &str, intervalos: &Intervalos, con_bateria: bool) -> u64 {
@@ -457,6 +466,18 @@ mod pruebas {
         proximo.insert("cpu", ahora + Duration::from_secs(1));
         assert_eq!(vencidos(&suscritos, &proximo, ahora, false), vec!["red"]);
         assert!(vencidos(&HashSet::new(), &proximo, ahora, false).is_empty());
+    }
+
+    #[test]
+    fn un_widget_desactivado_o_cerrado_no_se_recolecta() {
+        let widgets = || [("cpu", true, true), ("procesos", false, true), ("disco", true, false)].into_iter();
+        let s = suscribibles(true, widgets());
+        assert!(s.contains("cpu"));
+        assert!(!s.contains("procesos"));
+        assert!(!s.contains("disco"));
+        assert!(suscribibles(false, widgets()).is_empty());
+        let ahora = Instant::now();
+        assert_eq!(vencidos(&s, &HashMap::new(), ahora, false), vec!["cpu"]);
     }
 
     #[test]

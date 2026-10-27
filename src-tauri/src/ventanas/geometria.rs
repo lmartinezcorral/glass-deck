@@ -77,6 +77,25 @@ mod pruebas {
     }
 
     #[test]
+    fn los_widgets_de_fase_1_caben_en_el_area_del_principal() {
+        let casos = [
+            (Rect::nuevo(0, 0, 1920, 1040), 1.0),
+            (Rect::nuevo(0, 0, 1920, 1032), 1.5),
+            (Rect::nuevo(0, 0, 1366, 728), 1.0),
+        ];
+        for (area, escala) in casos {
+            let fisica = |v: u32| (v as f64 * escala) as i32;
+            for (i, def) in WIDGETS_FASE_1.iter().enumerate() {
+                let (x, y) = celda_por_defecto(area, escala, i);
+                let r = Rect::nuevo(x, y, fisica(def.ancho), fisica(def.alto));
+                assert!(r.x >= area.x && r.y >= area.y, "{} sale por arriba o la izquierda: {r:?}", def.id);
+                assert!(r.x + r.ancho <= area.x + area.ancho, "{} sale por la derecha: {r:?}", def.id);
+                assert!(r.y + r.alto <= area.y + area.alto, "{} sale por abajo: {r:?}", def.id);
+            }
+        }
+    }
+
+    #[test]
     fn el_iman_alinea_a_11_px_y_no_a_13() {
         let area = Rect::nuevo(0, 0, 1920, 1040);
         let otro = Rect::nuevo(100, 400, 200, 200);
