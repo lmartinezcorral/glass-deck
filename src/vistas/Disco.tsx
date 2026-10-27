@@ -27,6 +27,7 @@ export function VistaDisco() {
     <MarcoWidget
       id="disco"
       titulo="Disco"
+      subtitulo="Espacio usado y actividad por unidad"
       icono={<IconoDisco />}
       textoPildora={principal ? `${principal.unidad} ${porcentaje(usoPrincipal)}` : '—'}
       maximizado={maximizado}

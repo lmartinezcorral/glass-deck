@@ -31,7 +31,14 @@ export function VistaRam() {
   );
 
   return (
-    <MarcoWidget id="ram" titulo="Memoria" icono={<IconoRam />} textoPildora={porcentaje(pct)} maximizado={maximizado}>
+    <MarcoWidget
+      id="ram"
+      titulo="Memoria"
+      subtitulo={maximizado ? 'Memoria RAM en la última hora' : 'Memoria RAM en uso (GB)'}
+      icono={<IconoRam />}
+      textoPildora={porcentaje(pct)}
+      maximizado={maximizado}
+    >
       {maximizado ? (
         <div className="gd-vista gd-vista--detalle">
           <GraficaHistorial

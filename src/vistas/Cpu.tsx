@@ -24,10 +24,16 @@ export function VistaCpu() {
     .map((k) => ({ nombre: `Núcleo ${Number(k.slice(1)) + 1}`, datos: series[k] ?? [] }));
 
   return (
-    <MarcoWidget id="cpu" titulo="CPU" icono={<IconoCpu />} textoPildora={porcentaje(total)} maximizado={maximizado}>
+    <MarcoWidget
+      id="cpu"
+      titulo="CPU"
+      subtitulo={maximizado ? (muestra?.nombre ?? 'Procesador') : 'Uso total del procesador'}
+      icono={<IconoCpu />}
+      textoPildora={porcentaje(total)}
+      maximizado={maximizado}
+    >
       {maximizado ? (
         <div className="gd-vista gd-vista--detalle">
-          <p className="gd-vista__subtitulo">{muestra?.nombre ?? 'Procesador'}</p>
           <GraficaHistorial
             series={[{ nombre: 'Total', datos: series.total ?? [] }]}
             etiqueta="Uso total de CPU, última hora"
@@ -44,6 +50,7 @@ export function VistaCpu() {
               {muestra ? `${muestra.nucleos.length} núcleos lógicos` : 'Midiendo…'}
             </span>
             <Sparkline datos={reciente} maxPuntos={PUNTOS_SPARK} max={100} etiqueta="CPU, último minuto" />
+            <span className="gd-etiqueta">Último minuto</span>
           </div>
         </div>
       )}

@@ -64,7 +64,7 @@ pub struct Intervalos {
 
 impl Default for Intervalos {
     fn default() -> Self {
-        Self { cpu_ram_red_ms: 1_000, procesos_ms: 3_000, disco_ms: 5_000 }
+        Self { cpu_ram_red_ms: 2_000, procesos_ms: 3_000, disco_ms: 5_000 }
     }
 }
 

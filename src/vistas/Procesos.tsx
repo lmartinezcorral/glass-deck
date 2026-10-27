@@ -101,6 +101,7 @@ export function VistaProcesos() {
     <MarcoWidget
       id="procesos"
       titulo="Procesos"
+      subtitulo={maximizado ? 'Todos los procesos: marca los que quieras cerrar' : `Los ${TOP} que más consumen`}
       icono={<IconoProcesos />}
       textoPildora={pesado ? `${pesado.nombre.replace(/\.exe$/i, '')} ${porcentaje(pesado.cpu)}` : '—'}
       maximizado={maximizado}

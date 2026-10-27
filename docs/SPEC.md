@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Versión | 1.1 |
+| Versión | 1.2 |
 | Fecha | 2026-10-27 |
 | Dueño | Luis Ángel Martínez Corral |
 | Estado | **Aprobado por el CEO el 2026-10-27.** Construcción en curso (fases 0 y 1) |
@@ -14,6 +14,7 @@
 |---|---|---|
 | 1.0 | 2026-10-25 | Borrador para VoBo, a partir del interrogatorio Q1–Q32 |
 | 1.1 | 2026-10-27 | VoBo del CEO. Se fija `ipapi.co` como geolocalización por IP. La fase 0 entrega la decisión de R-01 en `adr/ADR-001-estrategia-ventanas.md`. Se agregan `PLAN_FASES.md` (backlog por bloques) y `QA_MATRIZ.md` (verificación de cada CA). El repo es git local en `tools/glassdeck`, rama `main`, sin remoto |
+| 1.2 | 2026-10-27 | Decisión de Luis sobre R-01 (ADR-001 aceptado): una ventana por widget; RAM < 200 MB en la fase 1 y < 250 MB con los 11 widgets; CPU, RAM y red a 2 s por defecto. Se agrega GD-NFR-UX-06 (título y subtítulo visibles en cada widget), a pedido de Luis |
 
 ## 0. Resumen
 
@@ -51,7 +52,7 @@ Glassdeck es un panel de widgets flotantes de vidrio oscuro para el escritorio d
 | D-12 | Brillo independiente por monitor (DDC/CI en externos) | Q12 |
 | D-13 | Mezclador por aplicación con salida propia por app, micrófono y cámara completos | Q13 (ampliada), Q22, Q23 |
 | D-14 | Solo uso personal, instalador sin firma, sin actualización automática | Q14 |
-| D-15 | Presupuesto: CPU < 2 % en reposo, RAM < 200 MB, animaciones pausadas con batería | Q16 |
+| D-15 | Presupuesto: CPU < 2 % en reposo, RAM < 200 MB en la fase 1 y < 250 MB con los 11 widgets (ADR-001), animaciones pausadas con batería | Q16, ADR-001 |
 | D-16 | Vidrio oscuro que sigue el modo de Windows, acento configurable | Q17 |
 | D-17 | Avisos de umbral de gasto solo por notificación de Windows | Q19 |
 | D-18 | Módulo Zonas tipo MaxTo, construido en la fase 4 | Q20, Q21 |
@@ -286,10 +287,10 @@ Basado en `referencias/MAXTO_ANALISIS.md`. Se aplica a las ventanas de **todas**
 | ID | Requerimiento | CA |
 |---|---|---|
 | GD-NFR-PERF-01 | CPU < 2 % en reposo con todos los widgets visibles | Promedio de 10 min medido con el Monitor de rendimiento, sin interactuar |
-| GD-NFR-PERF-02 | RAM < 200 MB en total (proceso principal + WebView2) | Suma del conjunto de trabajo privado de todos los procesos de Glassdeck. Ver riesgo R-01 |
-| GD-NFR-PERF-03 | Con batería, las animaciones se pausan y los intervalos de 1 s pasan a 3 s | Desconectar el cargador cambia el comportamiento en < 5 s |
+| GD-NFR-PERF-02 | RAM en total (proceso principal + WebView2): < 200 MB con los widgets de la fase 1 y < 250 MB con los 11 widgets de la fase 4 (ADR-001) | Suma del conjunto de trabajo privado de todos los procesos de Glassdeck. Ver riesgo R-01 |
+| GD-NFR-PERF-03 | Con batería, las animaciones se pausan y los intervalos menores a 3 s pasan a 3 s | Desconectar el cargador cambia el comportamiento en < 5 s |
 | GD-NFR-PERF-04 | Los widgets ocultos, cerrados o tapados por una app a pantalla completa no recolectan ni dibujan | Con un juego o presentación a pantalla completa, CPU < 0.5 % |
-| GD-NFR-PERF-05 | Intervalos por defecto: CPU, RAM y red 1 s; procesos 3 s; disco 5 s; correo 5 min; calendario 10 min; spending 15 min; clima 30 min | Configuración inicial |
+| GD-NFR-PERF-05 | Intervalos por defecto: CPU, RAM y red 2 s; procesos 3 s; disco 5 s; correo 5 min; calendario 10 min; spending 15 min; clima 30 min | Configuración inicial |
 | GD-NFR-PERF-06 | Arranque en frío < 3 s hasta ver los widgets | Medido desde el inicio del proceso |
 
 ### 4.2 Seguridad y privacidad (`GD-NFR-SEC`)
@@ -322,6 +323,7 @@ Basado en `referencias/MAXTO_ANALISIS.md`. Se aplica a las ventanas de **todas**
 | GD-NFR-UX-03 | Se respeta «Mostrar animaciones en Windows» y `prefers-reduced-motion` | Con animaciones desactivadas en Windows, no hay transiciones |
 | GD-NFR-UX-04 | Números con ancho fijo (`tabular-nums`) para que no salten | Revisión visual |
 | GD-NFR-UX-05 | El diseño sigue el mockup aprobado (`mockups/glassdeck_mockup.html`) | Comparación visual al cierre de cada fase |
+| GD-NFR-UX-06 | Cada widget muestra siempre un título y un subtítulo que dicen qué mide; la píldora incluye el nombre del widget | Sin abrir ningún menú, Luis identifica cada widget en el escritorio |
 
 ## 5. Datos, almacenamiento y fuentes externas
 

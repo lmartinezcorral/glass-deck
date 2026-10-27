@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | Propuesto: medición hecha, falta la decisión de Luis |
+| Estado | **Aceptado** por Luis el 2026-10-27 |
 | Fecha | 2026-10-27 |
 | Riesgo | R-01 (`SPEC.md` §7) |
 | Requerimientos | GD-NFR-PERF-02: RAM < 200 MB en total (proceso principal + WebView2). GD-NFR-PERF-01: CPU en reposo < 2 % |
@@ -65,9 +65,13 @@ Desglose de CPU de la app real a 1 s (muestra de 30 s): recolector en Rust 0.49 
 
 ## Decisión
 
-Pendiente de Luis. Ninguna variante con ventanas independientes cumple los dos presupuestos con 11 widgets; la variante C cumple la RAM pero no el CPU, y obliga a rehacer el gestor de ventanas (zonas de clic transparentes y arrastre dentro de una sola ventana).
+Ninguna variante con ventanas independientes cumple los dos presupuestos con 11 widgets; la variante C cumple la RAM pero no el CPU, y obliga a rehacer el gestor de ventanas (zonas de clic transparentes y arrastre dentro de una sola ventana).
 
-**Propuesta:** mantener una ventana por widget (D-02) con la variante B y un solo proceso de render; destruir siempre las ventanas cerradas; presupuesto de RAM de 200 MB para la fase 1 (se mide ~198 MB, con picos de 202 MB) y de 250 MB con los 11 widgets de la fase 4; intervalo por defecto de CPU, RAM y red de 2 s para quedar bajo 2 % de CPU.
+Luis eligió (2026-10-27):
+
+1. **Una ventana por widget** (D-02) con la variante B y un solo proceso de render; las ventanas de widgets cerrados se destruyen.
+2. **Presupuesto de RAM:** < 200 MB con los widgets de la fase 1 (se mide ~198 MB, con picos de 202 MB) y < 250 MB con los 11 widgets de la fase 4 (GD-NFR-PERF-02, SPEC v1.2).
+3. **Intervalo por defecto de CPU, RAM y red: 2 s** (GD-NFR-PERF-05), para quedar bajo 2 % de CPU.
 
 ## Consecuencias
 

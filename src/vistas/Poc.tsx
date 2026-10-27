@@ -24,6 +24,10 @@ function TarjetaPoc({ n, estatico }: { n: number; estatico: boolean }) {
   const [valor, serie] = useSimulado(n, estatico);
   return (
     <div className="gd-poc__tarjeta">
+      <div className="gd-poc__titulos">
+        <b>Widget de prueba {n + 1}</b>
+        <span className="gd-etiqueta">Datos simulados · prueba de RAM</span>
+      </div>
       <Medidor valor={valor} etiqueta={`Widget de prueba ${n + 1}`} subetiqueta="%" tamano={84} />
       <Sparkline datos={serie} maxPuntos={PUNTOS} max={100} etiqueta={`Serie ${n + 1}`} />
     </div>

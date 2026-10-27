@@ -23,6 +23,7 @@ export function VistaRed() {
     <MarcoWidget
       id="red"
       titulo="Red"
+      subtitulo="Velocidad de bajada y subida"
       icono={<IconoRed />}
       textoPildora={r ? `↓ ${velocidad(r.bajada_bps)}` : '—'}
       maximizado={maximizado}
@@ -49,8 +50,14 @@ export function VistaRed() {
           />
         ) : (
           <div className="gd-vista__doble">
-            <Sparkline datos={bajadas} maxPuntos={PUNTOS_SPARK} etiqueta="Bajada, último minuto" />
-            <Sparkline datos={subidas} maxPuntos={PUNTOS_SPARK} variante="coral" etiqueta="Subida, último minuto" />
+            <div className="gd-vista__unidad">
+              <Sparkline datos={bajadas} maxPuntos={PUNTOS_SPARK} etiqueta="Bajada, último minuto" />
+              <span className="gd-etiqueta">Bajada · último minuto</span>
+            </div>
+            <div className="gd-vista__unidad">
+              <Sparkline datos={subidas} maxPuntos={PUNTOS_SPARK} variante="coral" etiqueta="Subida, último minuto" />
+              <span className="gd-etiqueta">Subida · último minuto</span>
+            </div>
           </div>
         )}
         <span className="gd-etiqueta gd-privado">

@@ -16,7 +16,7 @@ Complementa a `SPEC.md` (sección 6). Cada bloque termina con un commit en `main
 | 0.1 | Rust stable MSVC + Visual Studio Build Tools 2022 (`VCTools`) instalados y verificados | Hecho (Rust 1.99.1, MSVC 14.44, SDK 10.0.26100, WebView2 156) |
 | 0.2 | Repo git local y proyecto Tauri 2 + React + TypeScript (Vite) con la estructura de `ARQUITECTURA.md` §6 | Hecho |
 | 0.3 | Prueba de concepto R-01: 11 ventanas transparentes con *acrylic*, en 3 variantes, medidas con `poc/medir.ps1` | Hecho (1 monitor; repetir con 3) |
-| 0.4 | `adr/ADR-001-estrategia-ventanas.md` con la medición y la estrategia elegida | Medición escrita; falta la decisión de Luis |
+| 0.4 | `adr/ADR-001-estrategia-ventanas.md` con la medición y la estrategia elegida | Hecho: aceptado por Luis (ventana por widget; 200 MB en fase 1, 250 MB en fase 4; 2 s por defecto) |
 
 **Salida:** ADR-001 aceptado. Si ninguna variante baja de 200 MB, Luis decide entre agrupar widgets o subir el presupuesto.
 

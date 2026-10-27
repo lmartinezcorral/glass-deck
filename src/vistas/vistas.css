@@ -16,6 +16,16 @@
   user-select: none;
 }
 
+.gd-widget__subtitulo {
+  flex: none;
+  margin: calc(var(--gd-esp-2) * -1) 0 var(--gd-esp-4);
+  overflow: hidden;
+  font-size: var(--gd-txt-xs);
+  color: var(--gd-texto-3);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
 .gd-widget__cuerpo {
   flex: 1;
   min-height: 0;
@@ -481,4 +491,10 @@
   justify-items: center;
   gap: var(--gd-esp-4);
   width: 180px;
+}
+
+.gd-poc__titulos {
+  display: grid;
+  justify-items: center;
+  font-size: var(--gd-txt-sm);
 }

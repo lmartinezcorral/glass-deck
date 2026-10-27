@@ -10,13 +10,14 @@ export function useMaximizado(): boolean {
 interface Props {
   id: string;
   titulo: string;
+  subtitulo: string;
   icono: ReactNode;
   textoPildora: string;
   maximizado: boolean;
   children: ReactNode;
 }
 
-export function MarcoWidget({ id, titulo, icono, textoPildora, maximizado, children }: Props) {
+export function MarcoWidget({ id, titulo, subtitulo, icono, textoPildora, maximizado, children }: Props) {
   const [config] = useConfig();
   const [estado, setEstado] = useState<EstadoWidget>('normal');
   const [fijado, setFijado] = useState(false);
@@ -58,7 +59,7 @@ export function MarcoWidget({ id, titulo, icono, textoPildora, maximizado, child
     return (
       <Pildora
         icono={icono}
-        texto={textoPildora}
+        texto={`${titulo} ${textoPildora}`}
         etiqueta={`Restaurar ${titulo}: ${textoPildora}`}
         onRestaurar={() => cambiarEstado('normal')}
       />
@@ -83,6 +84,9 @@ export function MarcoWidget({ id, titulo, icono, textoPildora, maximizado, child
         onMaximizar={() => ejecutar(api.widgetMaximizar(!maximizado))}
         onCerrar={() => ejecutar(api.widgetCerrar())}
       />
+      <p className="gd-widget__subtitulo" data-tauri-drag-region="">
+        {subtitulo}
+      </p>
       <div className={`gd-widget__cuerpo${maximizado ? ' gd-widget__cuerpo--detalle' : ''}`}>{children}</div>
       {error && (
         <p className="gd-widget__error" role="alert">
