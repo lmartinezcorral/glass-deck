@@ -1,0 +1,106 @@
+# Guía paso a paso: proyecto de Google Cloud para Glassdeck
+
+Glassdeck lee tus correos no leídos (solo remitente, asunto y fecha) y tus eventos de Google Calendar. Para eso necesita un **proyecto propio de Google Cloud** con un cliente OAuth de escritorio. Lo haces una sola vez; después conectas todas las cuentas de Google que quieras desde el dock.
+
+Tiempo estimado: 15 minutos. Costo: gratis.
+
+## Antes de empezar
+
+- Usa la cuenta de Google con la que quieras administrar el proyecto. Puede ser distinta de las cuentas cuyos correos vas a leer.
+- **Cuentas de Google Workspace** (dominio propio): si alguna de tus cuentas es de un dominio de empresa, su administrador puede bloquear apps no verificadas. En ese caso ve al paso 8.
+- La consola de Google cambia su interfaz con frecuencia. Si un nombre no coincide exactamente, busca la opción equivalente en el menú **Google Auth Platform**.
+
+## Paso 1. Crear el proyecto
+
+1. Abre [console.cloud.google.com](https://console.cloud.google.com/) e inicia sesión.
+2. En el selector de proyectos (arriba a la izquierda), elige **Proyecto nuevo**.
+3. Nombre: `Glassdeck personal`. Organización: «Sin organización» (si aparece).
+4. Pulsa **Crear** y selecciona el proyecto cuando termine.
+
+## Paso 2. Activar las APIs
+
+1. Menú ☰ → **APIs y servicios** → **Biblioteca**.
+2. Busca **Gmail API** → **Habilitar**.
+3. Regresa a la biblioteca, busca **Google Calendar API** → **Habilitar**.
+
+## Paso 3. Configurar la pantalla de consentimiento
+
+1. Menú ☰ → **Google Auth Platform** → **Descripción general** → **Comenzar** (o **Branding**).
+2. Información de la app:
+   - Nombre de la app: `Glassdeck`
+   - Correo de asistencia: tu correo.
+3. Público (**Audience**): elige **Externo**.
+4. Información de contacto: tu correo.
+5. Acepta la política de datos de usuario y pulsa **Crear**.
+
+## Paso 4. Declarar los permisos (scopes)
+
+1. **Google Auth Platform** → **Acceso a los datos** (*Data Access*) → **Agregar o quitar permisos**.
+2. Agrega solo estos dos:
+
+| Permiso | Para qué | Tipo según Google |
+|---|---|---|
+| `https://www.googleapis.com/auth/gmail.metadata` | Leer encabezados (remitente, asunto, fecha) y etiquetas. **No permite leer el cuerpo de los correos** | Restringido |
+| `https://www.googleapis.com/auth/calendar.events.readonly` | Leer eventos de tus calendarios | Sensible |
+
+3. Pulsa **Actualizar** y luego **Guardar**.
+
+No agregues permisos de escritura ni `gmail.readonly`: Glassdeck no los necesita y ampliarías lo que la app puede ver.
+
+## Paso 5. Publicar como «producción sin verificar»
+
+Esto evita que Google te pida volver a iniciar sesión cada 7 días, que es lo que pasa en modo de prueba.
+
+1. **Google Auth Platform** → **Público** (*Audience*).
+2. En **Estado de publicación** pulsa **Publicar app** → **Confirmar**.
+3. Google mostrará que la app necesita verificación. **No la envíes a verificar.** Para uso personal (menos de 100 usuarios) no es obligatorio: la app funciona y solo verás una advertencia al iniciar sesión.
+
+## Paso 6. Crear el cliente OAuth de escritorio
+
+1. **Google Auth Platform** → **Clientes** → **Crear cliente**.
+2. Tipo de aplicación: **App de escritorio**.
+3. Nombre: `Glassdeck escritorio`.
+4. Pulsa **Crear** y luego **Descargar JSON**.
+5. Guarda el archivo temporalmente, por ejemplo en Descargas. Contiene el ID y el secreto del cliente.
+
+En una app de escritorio, el «secreto» del cliente no es realmente secreto (Google lo sabe y por eso exige PKCE). Aun así, Glassdeck lo guarda en el Administrador de credenciales de Windows y no lo deja en archivos.
+
+## Paso 7. Conectar Glassdeck
+
+1. En Glassdeck: **Customize** → **Cuentas** → **Importar cliente de Google** → elige el JSON del paso 6.
+2. **Borra el JSON** de Descargas: Glassdeck ya lo guardó en la bóveda.
+3. En el dock pulsa **Conectar Google**. Se abre tu navegador.
+4. Elige la cuenta. Aparecerá **«Google no verificó esta app»**:
+   - Pulsa **Configuración avanzada** (*Advanced*).
+   - Pulsa **Ir a Glassdeck (no seguro)**. Es tu propia app.
+5. Revisa los dos permisos y pulsa **Continuar**.
+6. El navegador muestra «Glassdeck conectado, puedes cerrar esta pestaña». En el dock, la cuenta aparece en verde.
+7. Repite los pasos 3 a 6 para cada cuenta adicional.
+
+## Paso 8. Solo si una cuenta es de Google Workspace
+
+Si al conectar una cuenta de dominio propio ves «Acceso bloqueado» o «Esta app está bloqueada»:
+
+1. Inicia sesión en [admin.google.com](https://admin.google.com/) como administrador del dominio.
+2. **Seguridad** → **Acceso y control de datos** → **Controles de API** → **Administrar acceso de apps de terceros**.
+3. **Configurar app nueva** → busca por el **ID del cliente** del paso 6.
+4. Marca la app como **Confiable** para tu usuario o unidad organizativa.
+5. Vuelve a intentar el paso 7.
+
+Si no eres administrador del dominio, esa cuenta no se podrá conectar sin la ayuda de quien lo sea.
+
+## Cómo revocar el acceso
+
+- **Una cuenta:** en el dock, **Desconectar**. Glassdeck borra su token de la bóveda.
+- **Desde Google:** [myaccount.google.com/permissions](https://myaccount.google.com/permissions) → Glassdeck → **Quitar acceso**. El dock mostrará esa cuenta en ámbar en el siguiente ciclo.
+- **Todo:** borra el proyecto en la consola de Google Cloud.
+
+## Problemas frecuentes
+
+| Síntoma | Causa probable | Solución |
+|---|---|---|
+| Te pide iniciar sesión cada 7 días | La app quedó en modo de prueba | Paso 5 |
+| `access_denied` o «app bloqueada» | Cuenta de Workspace con apps no verificadas bloqueadas | Paso 8 |
+| `redirect_uri_mismatch` | El cliente no es de tipo «App de escritorio» | Crea otro cliente, paso 6 |
+| La cuenta queda en ámbar | Revocaste el acceso o cambiaste la contraseña | Desconectar y volver a conectar |
+| «Esta API no se usó antes o está deshabilitada» | Falta habilitar Gmail API o Calendar API | Paso 2 |

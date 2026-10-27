@@ -1,0 +1,1662 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Glassdeck · Mockup interactivo (solo diseño)</title>
+<link rel="icon" href="data:,">
+<style>
+:root{
+  --acc:#22d3ee; --acc-rgb:34,211,238; --acc2:#6d8bff;
+  --claude:#f39a6b; --ok:#34d399; --warn:#fbbf24; --bad:#fb7185;
+  --txt:#f3f6fb; --txt2:rgba(232,238,248,.82); --txt3:rgba(214,224,240,.68);
+  --line:rgba(255,255,255,.10);
+  --font:"Segoe UI Variable","Segoe UI",system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:#05070d;color:var(--txt);font:13px/1.35 var(--font);-webkit-font-smoothing:antialiased}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+.num,b.big,.tab{font-variant-numeric:tabular-nums}
+:focus{outline:none}
+:focus-visible{outline:2px solid var(--acc);outline-offset:2px;border-radius:8px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+svg.i{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+
+/* ---------- Escritorio Windows 10 ---------- */
+.desktop{position:fixed;inset:0;overflow:hidden}
+.wall{position:absolute;inset:0;background:
+  radial-gradient(1100px 760px at 16% 24%,rgba(14,104,132,.62),transparent 62%),
+  radial-gradient(980px 720px at 82% 72%,rgba(96,44,168,.60),transparent 62%),
+  radial-gradient(760px 520px at 58% 14%,rgba(10,150,146,.34),transparent 62%),
+  radial-gradient(820px 620px at 34% 92%,rgba(176,44,118,.34),transparent 62%),
+  linear-gradient(160deg,#050913,#0a1020 42%,#0c0818)}
+.blob{position:absolute;border-radius:50%;filter:blur(50px);opacity:.75;animation:drift 38s ease-in-out infinite alternate}
+.b1{width:520px;height:420px;left:42%;top:30%;background:radial-gradient(circle at 30% 30%,#19c3d8,#0b5f8c 60%,transparent 70%)}
+.b2{width:460px;height:520px;left:62%;top:-6%;background:radial-gradient(circle at 60% 40%,#7c4dff,#3b1d8f 60%,transparent 72%);animation-duration:46s}
+.b3{width:600px;height:380px;left:-4%;top:62%;background:radial-gradient(circle at 50% 50%,#e0408a,#6a1b6e 58%,transparent 72%);animation-duration:52s}
+.b4{width:380px;height:380px;left:24%;top:4%;background:radial-gradient(circle,#1fd1a5,#0b6b62 60%,transparent 72%);opacity:.5}
+@keyframes drift{0%{transform:translate(0,0) scale(1)}100%{transform:translate(60px,-40px) scale(1.12)}}
+.waves{position:absolute;inset:0;width:100%;height:100%;opacity:.55}
+.dicons{position:absolute;left:10px;top:12px;display:flex;flex-direction:column;gap:14px;z-index:2}
+.dicon{width:84px;display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px 2px;border-radius:4px;color:#fff;font-size:12px;text-align:center;text-shadow:0 1px 3px rgba(0,0,0,.9);background:none;border:0}
+.dicon:hover{background:rgba(255,255,255,.12)}
+.dicon svg{width:40px;height:40px}
+
+/* ---------- Barra de tareas Windows 10 ---------- */
+.taskbar{position:fixed;left:0;right:0;bottom:0;height:40px;z-index:3500;display:flex;align-items:stretch;background:rgba(18,18,22,.88);backdrop-filter:blur(20px) saturate(140%);-webkit-backdrop-filter:blur(20px) saturate(140%);border-top:1px solid rgba(255,255,255,.05);font-size:12px;color:#fff}
+.tb{background:none;border:0;width:48px;display:grid;place-items:center;position:relative}
+.tb:hover{background:rgba(255,255,255,.10)}
+.tb.run::after{content:"";position:absolute;left:6px;right:6px;bottom:0;height:2px;background:#8ab4f8}
+.tb.run.act{background:rgba(255,255,255,.08)}
+.tb svg{width:22px;height:22px}
+.tsearch{width:344px;margin:0;display:flex;align-items:center;gap:10px;padding:0 12px;background:#2b2b2e;color:#c9c9c9;border-right:1px solid #1a1a1a}
+.tsearch svg{width:16px;height:16px}
+.tspacer{flex:1}
+.tray{display:flex;align-items:stretch}
+.tray .tb{width:30px}
+.tray .tb svg{width:16px;height:16px}
+.tclock{background:none;border:0;padding:0 10px;display:flex;flex-direction:column;justify-content:center;align-items:center;line-height:1.25;font-size:12px}
+.tclock:hover,.tlang:hover{background:rgba(255,255,255,.1)}
+.tlang{background:none;border:0;padding:0 8px;font-size:12px}
+.tshow{width:6px;border-left:1px solid #555}
+.tglass{position:relative}
+.tglass.on{background:rgba(255,255,255,.12)}
+
+/* ---------- Vidrio líquido ---------- */
+.glass{position:absolute;isolation:isolate;border-radius:22px;color:var(--txt);
+  background:linear-gradient(180deg,rgba(255,255,255,.11),rgba(255,255,255,.035) 40%,rgba(255,255,255,.02)),rgba(14,19,30,.44);
+  backdrop-filter:blur(24px) saturate(160%);-webkit-backdrop-filter:blur(24px) saturate(160%);
+  box-shadow:0 24px 60px -18px rgba(0,0,0,.65),0 4px 14px rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.22),inset 0 -1px 0 rgba(255,255,255,.04)}
+.glass::before{content:"";position:absolute;inset:0;border-radius:inherit;padding:1px;pointer-events:none;z-index:2;
+  background:linear-gradient(155deg,rgba(255,255,255,.55),rgba(255,255,255,.08) 34%,rgba(255,255,255,.03) 62%,rgba(255,255,255,.26));
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude}
+.glass::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:-1;
+  background:radial-gradient(380px circle at var(--mx,30%) var(--my,-10%),rgba(255,255,255,.13),rgba(var(--acc-rgb),.05) 35%,transparent 60%),
+  linear-gradient(180deg,rgba(255,255,255,.12),transparent 26%)}
+.glass.solid{background:linear-gradient(180deg,rgba(255,255,255,.10),rgba(255,255,255,.03) 40%),rgba(12,16,26,.66)}
+
+/* ---------- Widgets ---------- */
+.layer{position:absolute;inset:0 0 40px 0;z-index:10}
+.layer{transition:opacity .3s}
+.layer.hidden-all{opacity:0;pointer-events:none}
+.widget{position:absolute;padding:0 14px 14px;animation:wIn .55s cubic-bezier(.2,.9,.25,1.05) both;transition:opacity .3s,transform .3s,box-shadow .3s}
+.widget.off{display:none}
+.widget.dragging{box-shadow:0 34px 80px -16px rgba(0,0,0,.8),0 0 0 1px rgba(var(--acc-rgb),.35),inset 0 1px 0 rgba(255,255,255,.25);cursor:grabbing}
+.widget.pinned{box-shadow:0 24px 60px -18px rgba(0,0,0,.65),0 0 0 1px rgba(var(--acc-rgb),.45),0 0 22px -4px rgba(var(--acc-rgb),.45),inset 0 1px 0 rgba(255,255,255,.22)}
+@keyframes wIn{from{opacity:0;transform:scale(.92) translateY(8px)}to{opacity:1;transform:none}}
+.wbar{display:flex;align-items:center;gap:7px;height:38px;margin:0 -6px 0 -2px;cursor:grab;user-select:none;touch-action:none}
+.wbar .wico{width:16px;height:16px;color:var(--acc)}
+.wtitle{margin:0;font-size:12.5px;font-weight:600;letter-spacing:.2px;color:var(--txt2);white-space:nowrap}
+.wpill{display:none;font-weight:600;font-variant-numeric:tabular-nums;color:var(--txt);white-space:nowrap}
+.wbtns{margin-left:auto;display:flex;gap:1px}
+.bi{width:26px;height:26px;display:grid;place-items:center;border:0;border-radius:8px;background:transparent;color:var(--txt2);opacity:.62;transition:opacity .15s,background .15s}
+.bi svg{width:15px;height:15px}
+.bi:hover,.bi:focus-visible{opacity:1;background:rgba(255,255,255,.12)}
+.bi[aria-pressed="true"]{opacity:1;color:var(--acc)}
+.widget.mini{padding:0 8px 0 14px;border-radius:999px;width:auto!important}
+.widget.mini .wbody,.widget.mini [data-act="pin"],.widget.mini [data-act="max"]{display:none}
+.widget.mini .wpill{display:inline}
+.widget.mini .wbar{margin:0}
+.wbody{position:relative}
+.lbl{font-size:11px;color:var(--txt3);letter-spacing:.2px}
+.big{font-size:28px;font-weight:600;letter-spacing:-.5px;line-height:1}
+.gauge{position:relative;flex:none}
+.gauge .gc{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.gauge .gc small{font-size:11px;color:var(--txt3);margin-top:2px}
+.ring circle[data-ring]{transition:stroke-dashoffset 1.1s cubic-bezier(.2,.8,.2,1);filter:drop-shadow(0 0 5px rgba(var(--acc-rgb),.55))}
+.g-row{display:flex;align-items:center;gap:12px}
+.kv{margin:0;display:grid;gap:6px;min-width:0}
+.kv dt{font-size:10.5px;color:var(--txt3)}
+.kv dd{margin:0;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
+.sparkbox{margin-top:10px;position:relative}
+.spark{display:block;width:100%;height:38px;overflow:hidden}
+.spark .sl{fill:none;stroke:var(--acc);stroke-width:1.6;vector-effect:non-scaling-stroke;stroke-linejoin:round}
+.spark .sa{fill:url(#gArea)}
+.spark.alt .sl{stroke:var(--acc2)} .spark.alt .sa{fill:url(#gArea2)}
+.spark.coral .sl{stroke:var(--claude)} .spark.coral .sa{fill:url(#gArea3)}
+.sparklbl{position:absolute;right:0;top:-2px;font-size:10px;color:var(--txt3)}
+.bar{height:7px;border-radius:7px;background:rgba(255,255,255,.10);overflow:hidden}
+.bar i{display:block;height:100%;width:0;border-radius:inherit;background:linear-gradient(90deg,var(--acc),var(--acc2));box-shadow:0 0 10px rgba(var(--acc-rgb),.5);transition:width 1.2s cubic-bezier(.2,.8,.2,1)}
+.drive{margin-bottom:10px}
+.dhead{display:flex;align-items:baseline;gap:6px;margin-bottom:5px}
+.dhead b{font-size:14px}
+.dhead span{font-size:11px;color:var(--txt3)}
+.dhead .num{margin-left:auto;color:var(--txt2)}
+.rw{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px}
+.rw b{display:block;font-size:15px;font-variant-numeric:tabular-nums}
+.netrow{display:flex;align-items:center;gap:10px}
+.arrowc{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:rgba(var(--acc-rgb),.16);color:var(--acc)}
+.arrowc.alt{background:rgba(109,139,255,.18);color:#a9b9ff}
+.netrow b{font-size:17px;font-variant-numeric:tabular-nums}
+.seg{display:inline-flex;padding:2px;border-radius:10px;background:rgba(255,255,255,.07);border:1px solid var(--line)}
+.seg button{border:0;background:none;padding:3px 10px;border-radius:8px;font-size:11.5px;color:var(--txt2)}
+.seg button[aria-pressed="true"]{background:rgba(255,255,255,.16);color:#fff;box-shadow:inset 0 1px 0 rgba(255,255,255,.18)}
+.ptop{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:4px}
+.ptop li{display:grid;grid-template-columns:22px 1fr 110px 62px;align-items:center;gap:8px;padding:5px 6px;border-radius:10px;background:rgba(255,255,255,.035)}
+.ptop .pv{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+.appg{width:20px;height:20px;border-radius:6px;display:grid;place-items:center;font-size:10px;font-weight:700;color:#fff;flex:none}
+.ag-cursor{background:#111;border:1px solid #444}.ag-edge{background:linear-gradient(135deg,#1fb5a8,#2563eb)}.ag-spot{background:#1db954;color:#0b2b16}.ag-teams{background:#5b5fc7}
+.ag-node{background:#3c873a}.ag-py{background:linear-gradient(135deg,#3776ab,#ffd43b)}.ag-gd{background:linear-gradient(135deg,var(--acc),var(--acc2));color:#041018}.ag-sys{background:#3a4255}.ag-doc{background:#1d63ed}.ag-wa{background:#25d366;color:#05301a}.ag-obs{background:#7c3aed}.ag-od{background:#0f6cbd}.ag-ps{background:#012456}
+.chip{display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border-radius:999px;font-size:10.5px;font-weight:600;letter-spacing:.2px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:var(--txt2);white-space:nowrap}
+.chip.warn{border-color:rgba(251,191,36,.5);background:rgba(251,191,36,.12);color:#fde68a}
+.chip.acc{border-color:rgba(var(--acc-rgb),.5);background:rgba(var(--acc-rgb),.12);color:#c9f6ff}
+.chip.ok{border-color:rgba(52,211,153,.5);background:rgba(52,211,153,.12);color:#b7f5dc}
+.chip.bad{border-color:rgba(251,113,133,.5);background:rgba(251,113,133,.12);color:#ffd0d8}
+.chip svg{width:11px;height:11px}
+.spend{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.spend .g-row{gap:10px;align-items:center}
+.spend .stxt{min-width:0}
+.spend h3{margin:0 0 3px;font-size:13px;display:flex;align-items:center;gap:6px;white-space:nowrap}
+.spend p{margin:1px 0;font-size:11.5px;color:var(--txt2);white-space:nowrap}
+.spend p b{color:var(--txt);font-variant-numeric:tabular-nums}
+.smnum{font-size:16px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.3px}
+.thr{display:flex;gap:4px;margin-top:6px}
+.thr span{font-size:10px;padding:1px 6px;border-radius:6px;background:rgba(255,255,255,.07);color:var(--txt3);white-space:nowrap}
+.thr span.hit{background:rgba(var(--acc-rgb),.2);color:#d6f9ff}
+.mailtop{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.rot{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--txt3);margin-left:auto}
+.mailcard{display:grid;grid-template-columns:34px 1fr;gap:10px;align-items:start;padding:10px;border-radius:14px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.07);transition:filter .3s,opacity .35s}
+.mailcard .mi{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;background:rgba(var(--acc-rgb),.16);color:var(--acc)}
+.mailcard .mi.ev{background:rgba(243,154,107,.16);color:var(--claude)}
+.mailcard .from{font-weight:600;font-size:13px;display:flex;gap:8px;align-items:baseline}
+.mailcard .from time{margin-left:auto;font-size:11px;color:var(--txt3);font-weight:400;font-variant-numeric:tabular-nums;white-space:nowrap}
+.mailcard .subj{color:var(--txt2);font-size:12px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.priv .mailcard .from span,.priv .mailcard .subj,.priv [data-privtext]{filter:blur(6px);user-select:none}
+.mailnav{display:flex;align-items:center;justify-content:space-between;margin-top:8px}
+.dots{display:flex;gap:5px}
+.dots i{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.22)}
+.dots i.on{background:var(--acc);box-shadow:0 0 6px var(--acc)}
+.wx{display:flex;justify-content:space-between;align-items:flex-start}
+.city{display:flex;align-items:center;gap:4px;font-size:13px}
+.city input{width:120px;background:rgba(255,255,255,.08);border:1px solid var(--line);border-radius:8px;padding:2px 6px}
+.temp{font-size:52px;font-weight:300;line-height:1;letter-spacing:-2px;font-variant-numeric:tabular-nums;margin-top:4px}
+.cond{font-size:12px;color:var(--txt2);margin-top:4px}
+.wxico{width:74px;height:74px;filter:drop-shadow(0 0 18px rgba(255,236,170,.45))}
+.wxrow{display:flex;gap:12px;margin-top:10px;font-size:11.5px;color:var(--txt2);flex-wrap:wrap}
+.wxhours{display:grid;grid-template-columns:repeat(6,1fr);gap:4px;margin-top:10px}
+.wxhours div{display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 0;border-radius:10px;background:rgba(255,255,255,.045);font-size:11px;color:var(--txt3)}
+.wxhours b{color:var(--txt);font-size:13px;font-variant-numeric:tabular-nums}
+.wxhours svg{width:16px;height:16px;color:#ffe9a8}
+.scgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.sc{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-height:66px;padding:8px 4px;border-radius:14px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.05);font-size:11.5px;color:var(--txt2);text-align:center;line-height:1.2;transition:background .15s,transform .15s}
+.sc:hover{background:rgba(var(--acc-rgb),.14);color:#fff;transform:translateY(-1px)}
+.sc svg.i{color:var(--acc);width:20px;height:20px}
+.volrow{display:flex;align-items:center;gap:8px}
+.volrow b{width:46px;flex:none;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.minirow{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:11.5px;color:var(--txt2)}
+.meter{display:flex;gap:2px;align-items:flex-end;height:14px;flex:1}
+.meter i{flex:1;height:100%;border-radius:2px;background:rgba(255,255,255,.12);transition:background .1s}
+.meter i.on{background:var(--ok)} .meter i.on.hi{background:var(--warn)} .meter i.on.pk{background:var(--bad)}
+.brow{margin-bottom:10px}
+.brow .bh{display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;font-size:11.5px;color:var(--txt2)}
+.brow .bh b{font-variant-numeric:tabular-nums;color:var(--txt)}
+.brow.dis{opacity:.55}
+
+/* ---------- Controles ---------- */
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:20px;background:transparent;--v:50%;margin:0}
+input[type=range]::-webkit-slider-runnable-track{height:6px;border-radius:6px;background:linear-gradient(90deg,var(--acc) 0 var(--v),rgba(255,255,255,.16) var(--v) 100%)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:#fff;margin-top:-5px;box-shadow:0 0 0 3px rgba(var(--acc-rgb),.35),0 2px 6px rgba(0,0,0,.45)}
+input[type=range]::-moz-range-track{height:6px;border-radius:6px;background:rgba(255,255,255,.16)}
+input[type=range]::-moz-range-progress{height:6px;border-radius:6px;background:var(--acc)}
+input[type=range]::-moz-range-thumb{width:16px;height:16px;border:0;border-radius:50%;background:#fff}
+input[type=range]:disabled{opacity:.45;cursor:not-allowed}
+input[type=range]:focus-visible{outline-offset:4px}
+select,.inp{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);border-radius:10px;padding:6px 10px;color:var(--txt);width:100%}
+select{-webkit-appearance:none;appearance:none;padding-right:28px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23cfd8e6' stroke-width='2.4' stroke-linecap='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center}
+option{background:#141a26;color:#fff}
+.inp::placeholder{color:rgba(214,224,240,.55)}
+input[type=checkbox]{accent-color:var(--acc);width:16px;height:16px;margin:0}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:7px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.08);font-weight:600;font-size:12.5px;color:var(--txt);white-space:nowrap;transition:background .15s,transform .1s}
+.btn:hover{background:rgba(255,255,255,.15)}
+.btn:active{transform:scale(.98)}
+.btn.primary{background:linear-gradient(180deg,rgba(255,255,255,.25),rgba(255,255,255,0)),var(--acc);border-color:transparent;color:#03141b;box-shadow:0 6px 20px -6px rgba(var(--acc-rgb),.7)}
+.btn.danger{background:linear-gradient(180deg,rgba(255,255,255,.18),rgba(255,255,255,0)),#e5485f;border-color:transparent;color:#fff}
+.btn:disabled{opacity:.45;cursor:not-allowed;box-shadow:none}
+.btn.sm{padding:4px 10px;font-size:11.5px;border-radius:9px}
+.btn svg.i{width:15px;height:15px}
+.switch{position:relative;width:38px;height:22px;border-radius:999px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.12);flex:none;transition:background .2s}
+.switch::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.5);transition:transform .2s}
+.switch[aria-checked="true"]{background:var(--acc);border-color:transparent}
+.switch[aria-checked="true"]::after{transform:translateX(16px)}
+.switch:disabled{opacity:.4}
+.kbd{display:inline-flex;align-items:center;min-width:22px;justify-content:center;padding:1px 7px;border-radius:7px;border:1px solid rgba(255,255,255,.22);border-bottom-width:2px;background:rgba(255,255,255,.08);font-size:11px;font-weight:600;color:#fff;white-space:nowrap}
+.uac{width:16px;height:16px;flex:none;vertical-align:-3px}
+
+/* ---------- Dock y menús ---------- */
+.dock{left:50%;bottom:54px;transform:translateX(-50%);z-index:2000;display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:24px;animation:dockIn .6s .3s cubic-bezier(.2,.9,.25,1.05) both}
+@keyframes dockIn{from{opacity:0;transform:translate(-50%,20px)}to{opacity:1;transform:translate(-50%,0)}}
+.dlogo{display:flex;align-items:center;gap:7px;font-weight:700;letter-spacing:.3px;padding-right:2px}
+.dlogo svg{width:26px;height:26px}
+.dsep{width:1px;height:28px;background:rgba(255,255,255,.14)}
+.dacc{display:flex;align-items:center;gap:6px;border:0;background:rgba(255,255,255,.05);padding:4px 10px 4px 5px;border-radius:14px}
+.dacc:hover,.dacc[aria-expanded="true"]{background:rgba(255,255,255,.13)}
+.av{position:relative;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:12px;flex:none}
+.av.g{background:#fff;color:#4285f4}.av.g2{background:#fff;color:#ea4335}.av.cu{background:#0d0d0f;color:#fff;border:1px solid #555}.av.cl{background:#d97757;color:#fff}
+.av svg{width:15px;height:15px}
+.av .dot{position:absolute;right:-1px;bottom:-1px;width:9px;height:9px;border-radius:50%;border:2px solid #1a2030}
+.dot.on{background:var(--ok);box-shadow:0 0 6px var(--ok)}.dot.off{background:#8a93a6}
+.dacc-txt{font-size:11.5px;color:var(--txt2);margin-left:2px;white-space:nowrap}
+.dwidgets{display:flex;gap:3px}
+.dbtn{width:34px;height:34px;border-radius:11px;border:0;display:grid;place-items:center;background:transparent;color:var(--txt3);position:relative;transition:background .15s,color .15s}
+.dbtn svg{width:18px;height:18px}
+.dbtn:hover{background:rgba(255,255,255,.12);color:#fff}
+.dbtn[aria-pressed="true"]{color:#fff;background:rgba(var(--acc-rgb),.15)}
+.dbtn[aria-pressed="true"]::after{content:"";position:absolute;bottom:2px;left:50%;width:4px;height:4px;margin-left:-2px;border-radius:50%;background:var(--acc);box-shadow:0 0 6px var(--acc)}
+.dbtn.big{color:#fff;background:rgba(255,255,255,.06)}
+.pop{z-index:2500;display:none;padding:10px;border-radius:20px;animation:popIn .25s cubic-bezier(.2,.9,.25,1.1)}
+.pop.open{display:block}
+@keyframes popIn{from{opacity:0;transform:translateY(8px) scale(.97)}to{opacity:1;transform:none}}
+.acc-pop{width:420px}
+.pop h3{margin:4px 6px 8px;font-size:12px;letter-spacing:.4px;text-transform:uppercase;color:var(--txt3)}
+.acrow{display:grid;grid-template-columns:30px 1fr auto;gap:10px;align-items:center;padding:8px 6px;border-radius:12px}
+.acrow:hover{background:rgba(255,255,255,.05)}
+.acrow .t{font-weight:600}
+.acrow .s{font-size:11px;color:var(--txt3)}
+.stat{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--txt2)}
+.stat i{width:8px;height:8px;border-radius:50%}
+.tray-menu{width:280px;padding:6px}
+.mitem{display:flex;align-items:center;gap:10px;width:100%;padding:9px 10px;border:0;border-radius:11px;background:none;text-align:left;font-size:13px}
+.mitem:hover,.mitem:focus-visible{background:rgba(255,255,255,.1)}
+.mitem .kbd{margin-left:auto}
+.mitem svg.i{color:var(--txt2)}
+.msep{height:1px;background:rgba(255,255,255,.1);margin:5px 8px}
+.mhead{display:flex;align-items:center;gap:10px;padding:8px 10px 10px}
+.mhead svg{width:28px;height:28px}
+.mhead small{display:block;color:var(--txt3);font-size:11px}
+
+/* ---------- Overlays ---------- */
+.ov{position:fixed;inset:0 0 40px 0;z-index:3000;display:none;place-items:center;background:rgba(3,6,12,.42)}
+.ov.open{display:grid;animation:fade .25s ease}
+.ov.top{z-index:3200;background:rgba(3,6,12,.38)}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+.panel{position:relative;border-radius:24px;padding:0 22px 20px;max-height:calc(100vh - 72px);display:flex;flex-direction:column;animation:pIn .4s cubic-bezier(.2,.9,.25,1.06) both}
+@keyframes pIn{from{opacity:0;transform:scale(.95) translateY(10px)}to{opacity:1;transform:none}}
+.phead{display:flex;align-items:center;gap:12px;padding:16px 0 14px;flex:none}
+.phead .pico{width:36px;height:36px;border-radius:12px;display:grid;place-items:center;background:rgba(var(--acc-rgb),.16);color:var(--acc)}
+.phead h2{margin:0;font-size:18px;font-weight:600}
+.phead p{margin:2px 0 0;font-size:12px;color:var(--txt3)}
+.phead .pact{margin-left:auto;display:flex;align-items:center;gap:8px}
+.pbody{overflow:auto;min-height:0;flex:1}
+.card{border-radius:16px;padding:14px;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.08)}
+.card h3{margin:0 0 10px;font-size:13px;font-weight:600;display:flex;align-items:center;gap:8px}
+.card h3 svg.i{color:var(--acc);width:16px;height:16px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.kpi{padding:12px;border-radius:14px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.07)}
+.kpi b{display:block;font-size:20px;font-weight:600;font-variant-numeric:tabular-nums;margin-top:3px}
+.kpi small{color:var(--txt3);font-size:11px}
+.chart{position:relative;border-radius:12px;background:
+  repeating-linear-gradient(0deg,rgba(255,255,255,.06) 0 1px,transparent 1px 25%),rgba(255,255,255,.02);overflow:hidden}
+.chart svg{position:absolute;inset:0;width:100%;height:calc(100% - 18px)}
+.chart .spark{height:calc(100% - 18px)}
+.axis{position:absolute;left:0;right:0;bottom:0;height:18px;display:flex;justify-content:space-between;padding:0 8px;font-size:10px;color:var(--txt3);align-items:center}
+.cores{display:grid;grid-template-columns:repeat(8,1fr);gap:10px;height:190px}
+.core{display:flex;flex-direction:column;align-items:center;gap:6px}
+.core .ct{flex:1;width:100%;border-radius:10px;background:rgba(255,255,255,.06);position:relative;overflow:hidden}
+.core .cf{position:absolute;left:0;right:0;bottom:0;border-radius:10px;background:linear-gradient(0deg,rgba(var(--acc-rgb),.35),var(--acc));box-shadow:0 0 14px rgba(var(--acc-rgb),.5);transition:height .8s cubic-bezier(.2,.8,.2,1)}
+.core b{font-size:12px;font-variant-numeric:tabular-nums}
+.core span{font-size:10.5px;color:var(--txt3)}
+.stack{display:flex;height:16px;border-radius:8px;overflow:hidden;background:rgba(255,255,255,.08)}
+.stack i{display:block;height:100%;transition:width 1s}
+.legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:8px;font-size:12px;color:var(--txt2)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:10px;height:10px;border-radius:3px}
+table.pt{width:100%;border-collapse:separate;border-spacing:0 3px;font-size:12.5px}
+.pt th{position:sticky;top:0;z-index:1;text-align:left;font-size:11px;font-weight:600;color:var(--txt3);padding:6px 10px;background:rgba(18,23,35,.92)}
+.pt td{padding:6px 10px;background:rgba(255,255,255,.035)}
+.pt tr td:first-child{border-radius:10px 0 0 10px}.pt tr td:last-child{border-radius:0 10px 10px 0}
+.pt tr.sel td{background:rgba(var(--acc-rgb),.12)}
+.pt tr.locked td{color:var(--txt3)}
+.pt td.n{text-align:right;font-variant-numeric:tabular-nums}
+.pt .pn{display:flex;align-items:center;gap:9px;font-weight:600}
+.lockc{display:grid;place-items:center;width:16px;color:#9aa6bb}
+.lockc svg{width:15px;height:15px}
+.toolbar{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.search{position:relative;width:280px}
+.search svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);width:15px;height:15px;color:var(--txt3)}
+.search .inp{padding-left:32px}
+.note{font-size:11.5px;color:var(--txt3);display:flex;align-items:center;gap:8px}
+.note svg.i{width:14px;height:14px;flex:none}
+.list{display:grid;gap:6px}
+.lrow{display:grid;grid-template-columns:34px 1fr auto;gap:10px;align-items:center;padding:9px 10px;border-radius:12px;background:rgba(255,255,255,.04)}
+.lrow .t{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lrow .s{font-size:11.5px;color:var(--txt3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lrow time{font-size:11.5px;color:var(--txt3);font-variant-numeric:tabular-nums}
+.ico34{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;background:rgba(var(--acc-rgb),.14);color:var(--acc)}
+.ico34.ev{background:rgba(243,154,107,.15);color:var(--claude)}
+.timeline{position:relative;padding-left:18px}
+.timeline::before{content:"";position:absolute;left:5px;top:6px;bottom:6px;width:2px;background:linear-gradient(var(--claude),rgba(243,154,107,.1))}
+.tl{position:relative;padding:8px 10px;margin-bottom:8px;border-radius:12px;background:rgba(255,255,255,.04)}
+.tl::before{content:"";position:absolute;left:-17px;top:14px;width:10px;height:10px;border-radius:50%;background:var(--claude);box-shadow:0 0 8px var(--claude)}
+.tl b{display:block}
+.tl small{color:var(--txt3)}
+.mixrow{display:grid;grid-template-columns:30px 120px 1fr 44px 30px 210px;gap:10px;align-items:center;padding:9px 6px;border-bottom:1px solid rgba(255,255,255,.06)}
+.mixrow:last-child{border-bottom:0}
+.mixrow b{font-variant-numeric:tabular-nums;text-align:right}
+.mixrow .appg{width:28px;height:28px;border-radius:9px;font-size:12px}
+.campv{position:relative;aspect-ratio:16/9;border-radius:16px;overflow:hidden;border:1px solid rgba(255,255,255,.12);background:#111}
+.camscene{position:absolute;inset:0;transform-origin:50% 45%;transition:transform .3s,filter .2s;background:
+  radial-gradient(120px 140px at 50% 112%,#2c3b52 60%,transparent 61%),
+  radial-gradient(46px 54px at 50% 46%,#c7a58c 96%,transparent 100%),
+  radial-gradient(54px 40px at 50% 36%,#2a2220 90%,transparent 100%),
+  linear-gradient(90deg,transparent 64%,rgba(255,220,160,.25) 64% 80%,transparent 80%),
+  radial-gradient(300px 180px at 80% 20%,rgba(255,214,150,.35),transparent 70%),
+  linear-gradient(180deg,#5b5146,#3b342e 70%,#2a2622)}
+.camscene::after{content:"";position:absolute;left:8%;top:18%;width:22%;height:46%;border-radius:6px;background:linear-gradient(180deg,#6d7f63,#4b5a44);box-shadow:inset 0 0 0 6px #3a3128}
+.camlbl{position:absolute;left:12px;top:10px;display:flex;align-items:center;gap:6px;padding:3px 9px;border-radius:999px;background:rgba(0,0,0,.5);font-size:11px;font-weight:600}
+.camlbl i{width:8px;height:8px;border-radius:50%;background:#ef4444;box-shadow:0 0 6px #ef4444}
+.camoff{position:absolute;inset:0;display:none;place-items:center;align-content:center;gap:8px;background:#0b0e14;color:var(--txt2);text-align:center}
+.campv.privacy .camoff{display:grid}
+.camoff svg{width:40px;height:40px}
+.ctl{display:grid;grid-template-columns:96px 1fr 40px;gap:10px;align-items:center;margin-top:8px;font-size:12px;color:var(--txt2)}
+.ctl b{text-align:right;font-variant-numeric:tabular-nums;color:var(--txt)}
+.rowflex{display:flex;align-items:center;gap:10px}
+.between{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.mt8{margin-top:8px}.mt12{margin-top:12px}.mt16{margin-top:16px}
+.monb{display:grid;grid-template-columns:110px 1fr 50px;gap:12px;align-items:center;padding:14px;border-radius:14px;background:rgba(255,255,255,.04);margin-bottom:10px}
+.monb .mini{height:62px;border-radius:8px;border:2px solid rgba(255,255,255,.3);background:linear-gradient(135deg,rgba(var(--acc-rgb),.35),rgba(109,139,255,.25));display:grid;place-items:center;font-weight:700}
+.monb.dis{opacity:.55}
+.days{display:grid;gap:6px}
+.day{display:grid;grid-template-columns:70px 26px 40px 1fr 40px;gap:10px;align-items:center;font-size:12.5px}
+.day .rng{height:6px;border-radius:6px;background:rgba(255,255,255,.08);position:relative}
+.day .rng i{position:absolute;top:0;bottom:0;border-radius:6px;background:linear-gradient(90deg,#60a5fa,#fbbf24)}
+.day b{font-variant-numeric:tabular-nums}
+.hours{display:grid;grid-template-columns:repeat(12,1fr);gap:4px;text-align:center;font-size:11px;color:var(--txt3)}
+.hours b{display:block;color:var(--txt);font-size:13px;font-variant-numeric:tabular-nums}
+.hours svg{width:18px;height:18px;margin:3px auto;display:block;color:#ffe9a8}
+.scl{display:grid;grid-template-columns:40px 1fr auto auto;gap:12px;align-items:center;padding:10px;border-radius:12px;background:rgba(255,255,255,.04)}
+.scl .t{font-weight:600}.scl .s{font-size:11.5px;color:var(--txt3)}
+
+/* Customize */
+.cz{width:min(1560px,96vw)}
+.czgrid{display:grid;grid-template-columns:1fr 1.15fr 1.25fr;gap:14px}
+.czcol{display:grid;gap:14px;align-content:start}
+.srow{display:flex;align-items:center;gap:10px;padding:6px 2px;font-size:12.5px}
+.srow .grow{flex:1;min-width:0}
+.srow small{display:block;color:var(--txt3);font-size:11px}
+.srow svg.i{width:16px;height:16px;color:var(--txt2)}
+.swatches{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.sw{width:28px;height:28px;border-radius:50%;border:2px solid rgba(255,255,255,.2);position:relative}
+.sw[aria-pressed="true"]{border-color:#fff;box-shadow:0 0 0 3px rgba(255,255,255,.18),0 0 14px currentColor}
+.sw input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.intv{display:grid;grid-template-columns:1fr 120px;gap:8px 10px;align-items:center;font-size:12.5px}
+.tags{display:flex;flex-wrap:wrap;gap:6px}
+.tag{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:9px;font-size:11.5px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1)}
+.tag svg.i{width:12px;height:12px}
+.tag button{border:0;background:none;padding:0 0 0 2px;color:var(--txt3);display:grid;place-items:center}
+.tag button svg{width:12px;height:12px}
+.hk{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;padding:8px 10px;border-radius:12px;background:rgba(255,255,255,.04);margin-bottom:6px}
+.hk .keys{display:flex;gap:4px}
+.hk.conf{background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.35)}
+.hkwarn{grid-column:1/-1;font-size:11.5px;color:#fde68a;display:flex;gap:6px;align-items:center}
+.thrbtns{display:flex;gap:6px}
+.thrbtns button{padding:4px 10px;border-radius:9px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.05);font-weight:600;font-size:12px;font-variant-numeric:tabular-nums}
+.thrbtns button[aria-pressed="true"]{background:rgba(var(--acc-rgb),.2);border-color:rgba(var(--acc-rgb),.6);color:#e3fbff}
+
+/* Login */
+.lg{width:min(1320px,96vw)}
+.svc{display:flex;flex-direction:column;gap:10px}
+.svch{display:flex;align-items:center;gap:12px}
+.svch .logo{width:42px;height:42px;border-radius:13px;display:grid;place-items:center;font-weight:800;font-size:18px}
+.svch h3{margin:0;font-size:15px}
+.svch p{margin:2px 0 0;font-size:11.5px;color:var(--txt3)}
+.sub{padding:10px 12px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07)}
+.sub .between b{font-size:12.5px}
+.sub p{margin:4px 0 0;font-size:11.5px;color:var(--txt3)}
+
+/* Confirmación */
+.cf{width:600px}
+.cfl{display:grid;gap:6px;margin:6px 0 12px}
+.cfl div{display:grid;grid-template-columns:22px 1fr auto auto;gap:10px;align-items:center;padding:8px 10px;border-radius:11px;background:rgba(255,255,255,.05)}
+.warnbox{display:flex;gap:10px;padding:12px;border-radius:14px;background:rgba(251,191,36,.10);border:1px solid rgba(251,191,36,.4);font-size:12.5px;color:#fdecc0}
+.warnbox svg.i{color:var(--warn);width:20px;height:20px}
+.typein{margin-top:10px;font-size:20px;font-weight:700;letter-spacing:3px;text-align:center;text-transform:uppercase}
+
+/* Limpieza */
+.clp{width:760px}
+.clrow{display:grid;grid-template-columns:22px 34px 1fr auto;gap:12px;align-items:center;padding:12px;border-radius:14px;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.07);margin-bottom:8px}
+.clrow .t{font-weight:600;display:flex;align-items:center;gap:6px}
+.clrow .s{font-size:11.5px;color:var(--txt3);font-family:Consolas,"Cascadia Mono",monospace}
+.clrow .sz{font-size:16px;font-weight:700;font-variant-numeric:tabular-nums;text-align:right}
+.clrow .sz small{display:block;font-size:11px;color:var(--txt3);font-weight:400}
+.cltotal{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;padding:14px;border-radius:16px;background:linear-gradient(135deg,rgba(var(--acc-rgb),.14),rgba(109,139,255,.10));border:1px solid rgba(var(--acc-rgb),.3)}
+.cltotal b{font-size:34px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-1px}
+.prog{height:8px;border-radius:8px;background:rgba(255,255,255,.1);overflow:hidden;margin-top:10px;display:none}
+.prog i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--acc),var(--acc2));transition:width .2s linear}
+
+/* Zonas */
+.zn{width:min(1840px,97vw);height:min(970px,calc(100vh - 60px))}
+.zlay{display:grid;grid-template-columns:1fr 360px;gap:16px;flex:1;min-height:0}
+.zmain{display:flex;flex-direction:column;gap:12px;min-height:0}
+.zstage{flex:1;border-radius:18px;background:radial-gradient(800px 300px at 50% 100%,rgba(var(--acc-rgb),.08),transparent),rgba(0,0,0,.18);border:1px solid rgba(255,255,255,.07);display:grid;place-items:center;padding:18px 20px;min-height:0;overflow:auto}
+.zrow{display:flex;align-items:flex-end;justify-content:center;gap:30px}
+.zmon{display:flex;flex-direction:column;align-items:center;gap:8px}
+.zbslot{height:30px;display:flex;align-items:flex-end}
+.zbadge{display:inline-flex;align-items:center;gap:8px;padding:5px 12px;border-radius:999px;font-size:12px;font-weight:600;background:rgba(var(--acc-rgb),.18);border:1px solid rgba(var(--acc-rgb),.55);color:#e2fbff;box-shadow:0 0 18px -4px rgba(var(--acc-rgb),.7);white-space:nowrap}
+.zbadge.rem{background:rgba(52,211,153,.16);border-color:rgba(52,211,153,.6);color:#d1fae5;box-shadow:0 0 18px -4px rgba(52,211,153,.7)}
+.zbadge.pre{background:rgba(251,191,36,.16);border-color:rgba(251,191,36,.6);color:#fef3c7;box-shadow:0 0 18px -4px rgba(251,191,36,.7)}
+.zscreen{position:relative;border-radius:8px;border:3px solid #23293a;box-shadow:0 0 0 1px rgba(255,255,255,.12),0 20px 40px -10px rgba(0,0,0,.7);background:linear-gradient(150deg,#123a52,#2a1d55 60%,#3a1840);overflow:hidden}
+.zmon.active .zscreen{border-color:rgba(var(--acc-rgb),.85);box-shadow:0 0 0 1px rgba(var(--acc-rgb),.5),0 0 30px -4px rgba(var(--acc-rgb),.55),0 20px 40px -10px rgba(0,0,0,.7)}
+.zgrid{position:absolute;inset:6px;display:grid;gap:6px}
+.zcell{border-radius:6px;border:1px dashed rgba(255,255,255,.28);background:rgba(255,255,255,.05);cursor:crosshair;transition:background .12s}
+.zcell:hover{background:rgba(255,255,255,.12)}
+.zsel{position:absolute;display:none;border-radius:8px;background:rgba(var(--acc-rgb),.30);border:2px solid var(--acc);box-shadow:0 0 24px rgba(var(--acc-rgb),.6),inset 0 0 30px rgba(var(--acc-rgb),.3);pointer-events:none;transition:left .08s,top .08s,width .08s,height .08s;place-items:center;text-align:center;font-size:12px;font-weight:700;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.6)}
+.zsel.rem{background:rgba(52,211,153,.28);border-color:#34d399;box-shadow:0 0 24px rgba(52,211,153,.55)}
+.zsel.pre{background:rgba(251,191,36,.26);border-color:#fbbf24;box-shadow:0 0 24px rgba(251,191,36,.55)}
+.zsel.show{display:grid}
+.zsel small{display:block;font-weight:500;font-size:11px;opacity:.9}
+.znum{position:absolute;right:8px;bottom:6px;font-size:28px;font-weight:800;color:rgba(255,255,255,.18);pointer-events:none}
+.zmeta{text-align:center;font-size:12px}
+.zmeta b{display:block;font-size:13px}
+.zmeta span{color:var(--txt3);font-variant-numeric:tabular-nums}
+.zsteps{display:flex;gap:10px}
+.stepper{display:flex;align-items:center;gap:6px;padding:3px 6px;border-radius:10px;background:rgba(255,255,255,.06);font-size:11.5px;color:var(--txt2)}
+.stepper button{width:22px;height:22px;border-radius:7px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);display:grid;place-items:center;font-weight:700;line-height:1}
+.stepper b{min-width:14px;text-align:center;color:#fff;font-variant-numeric:tabular-nums}
+.zfoot{display:flex;gap:12px;align-items:stretch}
+.zlegend{flex:1;display:flex;gap:18px;flex-wrap:wrap;align-items:center;padding:12px 14px;border-radius:14px;background:rgba(255,255,255,.04);font-size:12px;color:var(--txt2)}
+.zlegend span{display:inline-flex;gap:7px;align-items:center}
+.zres{padding:12px 14px;border-radius:14px;background:rgba(var(--acc-rgb),.08);border:1px solid rgba(var(--acc-rgb),.3);font-size:12.5px;min-width:440px;display:flex;align-items:center;gap:10px}
+.zside{display:flex;flex-direction:column;gap:12px;min-height:0;overflow:auto}
+.prow{display:grid;grid-template-columns:52px 1fr auto;gap:10px;align-items:center;padding:8px;border-radius:12px;background:rgba(255,255,255,.04);margin-bottom:6px}
+.prow .t{font-weight:600;font-size:12.5px}.prow .s{font-size:11px;color:var(--txt3)}
+.pmini{width:52px;height:32px;border-radius:5px;border:1.5px solid rgba(255,255,255,.3);position:relative;overflow:hidden;background:rgba(255,255,255,.04)}
+.pmini i{position:absolute;background:rgba(var(--acc-rgb),.55);border-radius:2px}
+.arow{display:grid;grid-template-columns:28px 1fr auto;gap:10px;align-items:center;padding:8px;border-radius:12px;background:rgba(255,255,255,.04);margin-bottom:6px}
+.arow .t{font-weight:600;font-size:12.5px}.arow .s{font-size:11px;color:var(--txt3)}
+
+/* Notificación Windows 10 */
+.w10t{position:fixed;right:12px;bottom:52px;width:364px;z-index:4000;background:rgba(31,31,31,.97);color:#fff;border:1px solid #3a3a3a;box-shadow:0 10px 30px rgba(0,0,0,.6);font-family:"Segoe UI",system-ui,sans-serif;transform:translateX(120%);transition:transform .45s cubic-bezier(.2,.9,.25,1);display:block}
+.w10t.show{transform:none}
+.w10h{display:flex;align-items:center;gap:8px;padding:10px 12px 4px;font-size:12px;color:#cfcfcf}
+.w10h svg{width:16px;height:16px}
+.w10h button{margin-left:auto;background:none;border:0;color:#cfcfcf;width:24px;height:24px;display:grid;place-items:center}
+.w10h button:hover{background:#3a3a3a}
+.w10b{display:grid;grid-template-columns:48px 1fr;gap:12px;padding:8px 14px 12px}
+.w10b b{display:block;font-size:14.5px;font-weight:600;margin-bottom:3px}
+.w10b p{margin:0;font-size:13px;color:#d6d6d6;line-height:1.35}
+.w10a{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:0 12px 12px}
+.w10a button{background:#454545;border:2px solid transparent;color:#fff;padding:6px;font-size:13px}
+.w10a button:hover{border-color:#7a7a7a}
+
+.mtoast{left:50%;top:22px;transform:translate(-50%,-20px);z-index:4600;padding:10px 16px;border-radius:16px;display:flex;align-items:center;gap:10px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .25s,transform .25s}
+.mtoast.show{opacity:1;transform:translate(-50%,0)}
+.mtoast svg.i{color:var(--acc)}
+
+.scenenav{left:50%;top:10px;transform:translateX(-50%);z-index:4500;display:flex;align-items:center;gap:8px;padding:6px 8px 6px 14px;border-radius:999px;font-size:12px}
+.scenenav select{width:auto;padding:4px 28px 4px 10px;border-radius:999px}
+body.captura .scenenav{display:none}
+
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}
+}
+body.paused .blob{animation-play-state:paused}
+</style>
+</head>
+<body>
+<!-- Iconos y gradientes compartidos -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <linearGradient id="gAcc" x1="0" y1="0" x2="1" y2="1"><stop offset="0" style="stop-color:var(--acc)"/><stop offset="1" style="stop-color:var(--acc2)"/></linearGradient>
+    <linearGradient id="gArea" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--acc);stop-opacity:.42"/><stop offset="1" style="stop-color:var(--acc);stop-opacity:0"/></linearGradient>
+    <linearGradient id="gArea2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--acc2);stop-opacity:.42"/><stop offset="1" style="stop-color:var(--acc2);stop-opacity:0"/></linearGradient>
+    <linearGradient id="gArea3" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f39a6b" stop-opacity=".45"/><stop offset="1" stop-color="#f39a6b" stop-opacity="0"/></linearGradient>
+    <linearGradient id="gClaude" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f8b27c"/><stop offset="1" stop-color="#e25d7c"/></linearGradient>
+    <linearGradient id="gClaude2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#c4b5fd"/><stop offset="1" stop-color="#8b5cf6"/></linearGradient>
+    <linearGradient id="gLogo" x1="0" y1="0" x2="1" y2="1"><stop offset="0" style="stop-color:var(--acc)"/><stop offset="1" style="stop-color:var(--acc2)"/></linearGradient>
+    <radialGradient id="gMoon" cx=".4" cy=".35" r=".7"><stop offset="0" stop-color="#fff8dc"/><stop offset="1" stop-color="#e8d48a"/></radialGradient>
+  </defs>
+  <symbol id="i-cpu" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/><rect x="9.5" y="9.5" width="5" height="5" rx="1"/><path d="M9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3"/></symbol>
+  <symbol id="i-ram" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="10" rx="2"/><path d="M6 11v2M10 11v2M14 11v2M18 11v2M5 17v3M9 17v3M15 17v3M19 17v3"/></symbol>
+  <symbol id="i-disk" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M3 13h18"/><circle cx="17" cy="16" r=".8"/></symbol>
+  <symbol id="i-net" viewBox="0 0 24 24"><path d="M8 4v16M8 20l-4-4M8 20l4-4M16 20V4M16 4l-4 4M16 4l4 4"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 4v16M5 13l7 7 7-7"/></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24"><path d="M12 20V4M5 11l7-7 7 7"/></symbol>
+  <symbol id="i-list" viewBox="0 0 24 24"><path d="M9 6h12M9 12h12M9 18h12"/><circle cx="4.5" cy="6" r="1.2"/><circle cx="4.5" cy="12" r="1.2"/><circle cx="4.5" cy="18" r="1.2"/></symbol>
+  <symbol id="i-wallet" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="14" rx="3"/><path d="M16 13h2M6 6l9-3 1.5 3"/></symbol>
+  <symbol id="i-mail" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M4 7.5l8 5.5 8-5.5"/></symbol>
+  <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></symbol>
+  <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M7 18h10a4 4 0 0 0 .5-7.97A6 6 0 0 0 6.1 11 3.5 3.5 0 0 0 7 18z"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+  <symbol id="i-pcloud" viewBox="0 0 24 24"><path d="M8 5V3M3.5 7.5 2 6M12.5 7.5 14 6"/><path d="M5 11a3 3 0 0 1 5.6-1.5"/><path d="M9 20h8a3.5 3.5 0 0 0 .4-6.98A5 5 0 0 0 8 13.5 3.2 3.2 0 0 0 9 20z"/></symbol>
+  <symbol id="i-vol" viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></symbol>
+  <symbol id="i-mute" viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M17 9l5 6M22 9l-5 6"/></symbol>
+  <symbol id="i-bright" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.5"/><path d="M12 3v1.5M12 19.5V21M3 12h1.5M19.5 12H21M5.6 5.6l1 1M17.4 17.4l1 1M5.6 18.4l1-1M17.4 6.6l1-1"/></symbol>
+  <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M9 3h6l-1 6 3.5 3.5h-11L10 9z"/><path d="M12 12.5V21"/></symbol>
+  <symbol id="i-min" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="3.5" rx="1.75"/></symbol>
+  <symbol id="i-max" viewBox="0 0 24 24"><path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7"/></symbol>
+  <symbol id="i-restore" viewBox="0 0 24 24"><path d="M4 14h6v6M20 10h-6V4M10 14l-6 6M14 10l6-6"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 2l8 3v6c0 5-3.5 9-8 11-4.5-2-8-6-8-11V5z"/></symbol>
+  <symbol id="i-uac" viewBox="0 0 24 24"><path d="M12 2l8 3v6c0 5-3.5 9-8 11-4.5-2-8-6-8-11V5z" fill="#2f6fd8"/><path d="M12 2l8 3v6h-8z" fill="#f4c542"/><path d="M4 11h8v11c-4.5-2-8-6-8-11z" fill="#f4c542"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-eyeoff" viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7c2 0 3.7.6 5.1 1.5M22 12s-3.5 7-10 7c-2 0-3.7-.6-5.1-1.5"/><path d="M3 3l18 18"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></symbol>
+  <symbol id="i-zones" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M11 4v16M11 12h10"/></symbol>
+  <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></symbol>
+  <symbol id="i-cam" viewBox="0 0 24 24"><rect x="3" y="6" width="13" height="12" rx="3"/><path d="M16 10.5l5-3v9l-5-3"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/></symbol>
+  <symbol id="i-power" viewBox="0 0 24 24"><path d="M12 3v8M6.3 6.3a8 8 0 1 0 11.4 0"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
+  <symbol id="i-pulse" viewBox="0 0 24 24"><path d="M3 12h4l3-7 4 14 3-7h4"/></symbol>
+  <symbol id="i-leaf" viewBox="0 0 24 24"><path d="M5 19c0-9 6-14 15-14 0 9-5 15-14 15M5 19l7-7"/></symbol>
+  <symbol id="i-warn" viewBox="0 0 24 24"><path d="M12 3.5 22 20.5H2z"/><path d="M12 10v4.5M12 17.5v.3"/></symbol>
+  <symbol id="i-chev-l" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></symbol>
+  <symbol id="i-chev-r" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+  <symbol id="i-chev-up" viewBox="0 0 24 24"><path d="M6 15l6-6 6 6"/></symbol>
+  <symbol id="i-wifi" viewBox="0 0 24 24"><path d="M2 9a15 15 0 0 1 20 0M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0"/><circle cx="12" cy="19.5" r=".8"/></symbol>
+  <symbol id="i-msg" viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></symbol>
+  <symbol id="i-pencil" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/></symbol>
+  <symbol id="i-monitor" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></symbol>
+  <symbol id="i-key" viewBox="0 0 24 24"><circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3M14 9l2 2"/></symbol>
+  <symbol id="i-drop" viewBox="0 0 24 24"><path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/></symbol>
+  <symbol id="i-wind" viewBox="0 0 24 24"><path d="M3 8h11a3 3 0 1 0-3-3M3 12h16a3 3 0 1 1-3 3M3 16h8"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></symbol>
+  <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24"><path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/></symbol>
+  <symbol id="i-battery" viewBox="0 0 24 24"><rect x="2" y="7" width="18" height="10" rx="2"/><path d="M22 11v2M5 10h6v4H5z"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+  <symbol id="i-recall" viewBox="0 0 24 24"><path d="M4 4h7v7H4zM13 13h7v7h-7z"/><path d="M15 4h5v5M9 20H4v-5"/></symbol>
+  <symbol id="i-claude" viewBox="0 0 24 24"><path d="M12 2.5v19M2.5 12h19M5.3 5.3l13.4 13.4M18.7 5.3 5.3 18.7" stroke-width="2.6"/></symbol>
+  <symbol id="i-logo" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="6.5" fill="url(#gLogo)"/><rect x="2" y="2" width="20" height="10" rx="6" fill="#fff" fill-opacity=".18"/><rect x="6" y="7" width="12" height="4" rx="2" fill="#fff" fill-opacity=".95"/><rect x="6" y="13" width="7" height="4" rx="2" fill="#fff" fill-opacity=".6"/></symbol>
+</svg>
+
+<div class="desktop" id="desktop">
+  <div class="wall" aria-hidden="true">
+    <div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div><div class="blob b4"></div>
+    <svg class="waves" viewBox="0 0 1920 1080" preserveAspectRatio="none">
+      <defs><linearGradient id="wv" x1="0" x2="1"><stop offset="0" stop-color="#22d3ee" stop-opacity="0"/><stop offset=".5" stop-color="#9be7ff" stop-opacity=".55"/><stop offset="1" stop-color="#a78bfa" stop-opacity="0"/></linearGradient></defs>
+      <path d="M-40 760 C 320 600, 620 900, 980 700 S 1620 520, 1980 640" fill="none" stroke="url(#wv)" stroke-width="2"/>
+      <path d="M-40 800 C 360 660, 640 940, 1000 750 S 1640 580, 1980 690" fill="none" stroke="url(#wv)" stroke-width="1.2" opacity=".7"/>
+      <path d="M-40 840 C 400 720, 660 980, 1020 800 S 1660 640, 1980 740" fill="none" stroke="url(#wv)" stroke-width=".8" opacity=".5"/>
+      <path d="M200 -20 C 420 260, 260 420, 560 620" fill="none" stroke="url(#wv)" stroke-width="1" opacity=".35"/>
+    </svg>
+  </div>
+
+  <div class="dicons" aria-label="Iconos del escritorio">
+    <button class="dicon" aria-label="Este equipo"><svg viewBox="0 0 40 40"><rect x="4" y="7" width="32" height="20" rx="2" fill="#4aa3df"/><rect x="6" y="9" width="28" height="16" fill="#9fd8ff"/><rect x="14" y="29" width="12" height="3" fill="#cfd8e3"/><rect x="10" y="32" width="20" height="2" fill="#cfd8e3"/></svg>Este equipo</button>
+    <button class="dicon" aria-label="Papelera de reciclaje"><svg viewBox="0 0 40 40"><path d="M10 10h20l-2 26H12z" fill="#dfe8f2" opacity=".85"/><rect x="8" y="7" width="24" height="4" rx="1" fill="#eef4fa"/><path d="M16 14v18M20 14v18M24 14v18" stroke="#9fb2c8" stroke-width="1.5"/></svg>Papelera de reciclaje</button>
+    <button class="dicon" aria-label="Carpeta Proyectos"><svg viewBox="0 0 40 40"><path d="M4 10a2 2 0 0 1 2-2h9l3 3h16a2 2 0 0 1 2 2v19a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" fill="#f5c84c"/><path d="M4 15h32v17a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" fill="#ffd96a"/></svg>Proyectos</button>
+    <button class="dicon" aria-label="Acceso directo a Cursor"><svg viewBox="0 0 40 40"><rect x="5" y="5" width="30" height="30" rx="8" fill="#111"/><path d="M20 10l9 5v10l-9 5-9-5V15z" fill="none" stroke="#eee" stroke-width="2"/><path d="M20 20l9-5M20 20v10M20 20l-9-5" stroke="#eee" stroke-width="1.4"/></svg>Cursor</button>
+  </div>
+
+  <div id="layer" class="layer" aria-label="Widgets de Glassdeck"></div>
+
+  <div id="dock" class="dock glass" role="toolbar" aria-label="Dock de Glassdeck">
+    <div class="dlogo"><svg aria-hidden="true"><use href="#i-logo"/></svg><span>Glassdeck</span></div>
+    <span class="dsep"></span>
+    <button class="dacc" id="accBtn" data-act="accounts" aria-expanded="false" aria-controls="accPop" aria-label="Estado de cuentas: 3 de 4 conectadas">
+      <span class="av g" aria-hidden="true">G<i class="dot on"></i></span>
+      <span class="av g2" aria-hidden="true">G<i class="dot on"></i></span>
+      <span class="av cu" aria-hidden="true"><svg class="i"><use href="#i-cpu"/></svg><i class="dot on"></i></span>
+      <span class="av cl" aria-hidden="true"><svg class="i"><use href="#i-claude"/></svg><i class="dot off" data-claude-dot></i></span>
+      <span class="dacc-txt" data-v="accTxt">3 de 4 conectadas</span>
+    </button>
+    <span class="dsep"></span>
+    <div class="dwidgets" id="dockWidgets"></div>
+    <span class="dsep"></span>
+    <button class="dbtn big" data-act="open-zones" aria-label="Abrir editor de zonas" title="Zonas (Win+Alt+Z)"><svg class="i"><use href="#i-zones"/></svg></button>
+    <button class="dbtn big" data-act="open-customize" aria-label="Abrir Customize" title="Customize"><svg class="i"><use href="#i-gear"/></svg></button>
+  </div>
+
+  <div id="accPop" class="pop glass solid acc-pop" role="dialog" aria-label="Estado de cuentas">
+    <h3>Cuentas conectadas</h3>
+    <div class="acrow"><span class="av g">G</span><div><div class="t">Google · personal</div><div class="s">personal.demo@gmail.com · solo lectura</div></div><span class="stat"><i style="background:var(--ok)"></i>Conectada</span></div>
+    <div class="acrow"><span class="av g2">G</span><div><div class="t">Google · trabajo</div><div class="s">trabajo.demo@gmail.com · solo lectura</div></div><span class="stat"><i style="background:var(--ok)"></i>Conectada</span></div>
+    <div class="acrow"><span class="av cu"><svg class="i"><use href="#i-cpu"/></svg></span><div><div class="t">Cursor</div><div class="s">cursor.com · lectura no oficial · hace 4 min</div></div><span class="stat"><i style="background:var(--ok)"></i>Conectada</span></div>
+    <div class="acrow"><span class="av cl"><svg class="i"><use href="#i-claude"/></svg></span><div><div class="t">Claude</div><div class="s" data-v="claudeAccS">Claude Code local detectado · Claude.ai sin sesión</div></div><button class="btn sm primary" data-act="connect" data-svc="claudeai" data-claude-btn>Conectar</button></div>
+    <div class="msep"></div>
+    <button class="mitem" data-act="open-login"><svg class="i"><use href="#i-key"/></svg>Administrar inicios de sesión…</button>
+  </div>
+
+  <div id="trayMenu" class="pop glass solid tray-menu" role="menu" aria-label="Menú de Glassdeck en la bandeja">
+    <div class="mhead"><svg aria-hidden="true"><use href="#i-logo"/></svg><div><b>Glassdeck</b><small>v0.1 · mockup de diseño</small></div></div>
+    <div class="msep"></div>
+    <button class="mitem" role="menuitem" data-act="toggle-all"><svg class="i"><use href="#i-eye"/></svg><span data-v="toggleAllTxt">Ocultar todo</span><span class="kbd">Win+Alt+G</span></button>
+    <button class="mitem" role="menuitem" data-act="privacy"><svg class="i"><use href="#i-eyeoff"/></svg>Modo privacidad<span class="kbd">Win+Alt+P</span></button>
+    <button class="mitem" role="menuitem" data-act="open-zones"><svg class="i"><use href="#i-zones"/></svg>Editor de zonas<span class="kbd">Win+Alt+Z</span></button>
+    <button class="mitem" role="menuitem" data-act="open-customize"><svg class="i"><use href="#i-gear"/></svg>Customize…</button>
+    <button class="mitem" role="menuitem" data-act="open-login"><svg class="i"><use href="#i-key"/></svg>Cuentas e inicios de sesión…</button>
+    <div class="msep"></div>
+    <button class="mitem" role="menuitem" data-act="quit"><svg class="i"><use href="#i-power"/></svg>Salir</button>
+  </div>
+</div>
+
+<!-- Barra de tareas de Windows 10 (simulada) -->
+<div class="taskbar" role="toolbar" aria-label="Barra de tareas de Windows (simulada)">
+  <button class="tb" aria-label="Inicio"><svg viewBox="0 0 24 24"><path d="M3 5.2 10.4 4v7.4H3zM11.4 3.9 21 2.5v8.9h-9.6zM3 12.4h7.4v7.4L3 18.8zM11.4 12.4H21v9l-9.6-1.4z" fill="#fff"/></svg></button>
+  <div class="tsearch" aria-hidden="true"><svg class="i"><use href="#i-search"/></svg>Escribe aquí para buscar</div>
+  <button class="tb" aria-label="Vista de tareas"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.4"><rect x="3" y="6" width="8" height="11"/><rect x="13" y="6" width="8" height="11"/><path d="M5 4h14"/></svg></button>
+  <button class="tb run" aria-label="Explorador de archivos"><svg viewBox="0 0 24 24"><path d="M2 6a1 1 0 0 1 1-1h6l2 2h10a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1z" fill="#f5c84c"/><path d="M2 10h20v9a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1z" fill="#ffd96a"/></svg></button>
+  <button class="tb run" aria-label="Microsoft Edge"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="url(#gEdge)"/><defs><linearGradient id="gEdge" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#36c2a5"/><stop offset="1" stop-color="#1b6fd6"/></linearGradient></defs><path d="M7 13c0-3 2.5-5 5.5-5S17 10 17 12h-6c0 2 1.6 3 3.5 3 1 0 2-.3 2.6-.7-.8 2.3-3 3.7-5.1 3.7C9 18 7 16 7 13z" fill="#fff" opacity=".9"/></svg></button>
+  <button class="tb run act" aria-label="Cursor"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="5" fill="#111" stroke="#555"/><path d="M12 6.5l5 2.8v5.4l-5 2.8-5-2.8V9.3z" fill="none" stroke="#eee" stroke-width="1.3"/></svg></button>
+  <button class="tb run" aria-label="Spotify"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#1db954"/><path d="M7 9.5c3.5-1 7.5-.6 10.3 1M7.6 12.6c2.9-.8 6.1-.4 8.4 1M8.3 15.4c2.2-.6 4.6-.3 6.4.8" stroke="#0b2b16" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg></button>
+  <button class="tb run" aria-label="Microsoft Teams"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="13" height="14" rx="2" fill="#5b5fc7"/><path d="M6.5 9h6M9.5 9v7" stroke="#fff" stroke-width="1.8"/><circle cx="18.5" cy="8" r="2.2" fill="#7b83eb"/><rect x="16" y="11" width="5.5" height="7" rx="2" fill="#7b83eb"/></svg></button>
+  <div class="tspacer"></div>
+  <div class="tray">
+    <button class="tb" aria-label="Mostrar iconos ocultos"><svg class="i" style="stroke:#fff"><use href="#i-chev-up"/></svg></button>
+    <button class="tb tglass" id="trayBtn" data-act="tray" aria-haspopup="menu" aria-expanded="false" aria-controls="trayMenu" aria-label="Glassdeck: abrir menú de la bandeja"><svg aria-hidden="true"><use href="#i-logo"/></svg></button>
+    <button class="tb" aria-label="Red: conectado"><svg class="i" style="stroke:#fff"><use href="#i-wifi"/></svg></button>
+    <button class="tb" aria-label="Volumen"><svg class="i" style="stroke:#fff"><use href="#i-vol"/></svg></button>
+  </div>
+  <button class="tlang" aria-label="Idioma de entrada: Español">ESP</button>
+  <button class="tclock" aria-label="Fecha y hora"><span id="clkT" class="num">10:49 p. m.</span><span id="clkD" class="num">25/10/2026</span></button>
+  <button class="tb" style="width:40px" aria-label="Centro de actividades"><svg class="i" style="stroke:#fff;width:18px;height:18px"><use href="#i-msg"/></svg></button>
+  <div class="tshow" aria-hidden="true"></div>
+</div>
+
+<!-- Vista maximizada -->
+<div class="ov" id="ov-max" aria-hidden="true">
+  <section class="panel glass solid" role="dialog" aria-modal="true" aria-labelledby="maxTitle" style="width:min(1260px,95vw)">
+    <header class="phead">
+      <span class="pico"><svg class="i"><use id="maxIco" href="#i-cpu"/></svg></span>
+      <div><h2 id="maxTitle">CPU</h2><p id="maxSub">Vista detallada</p></div>
+      <div class="pact" id="maxAct"></div>
+      <button class="bi" data-act="max-restore" aria-label="Restaurar a vista normal" title="Restaurar"><svg class="i"><use href="#i-restore"/></svg></button>
+      <button class="bi" data-act="ov-close" aria-label="Cerrar vista detallada" title="Cerrar"><svg class="i"><use href="#i-x"/></svg></button>
+    </header>
+    <div class="pbody" id="maxBody"></div>
+  </section>
+</div>
+
+<!-- Confirmación de cierre de procesos -->
+<div class="ov top" id="ov-confirm" aria-hidden="true">
+  <section class="panel glass solid cf" role="alertdialog" aria-modal="true" aria-labelledby="cfTitle">
+    <header class="phead">
+      <span class="pico" style="background:rgba(251,113,133,.16);color:var(--bad)"><svg class="i"><use href="#i-warn"/></svg></span>
+      <div><h2 id="cfTitle">¿Cerrar procesos?</h2><p>Esta acción puede hacer que pierdas trabajo sin guardar.</p></div>
+      <button class="bi" style="margin-left:auto" data-act="ov-close" aria-label="Cancelar y cerrar diálogo"><svg class="i"><use href="#i-x"/></svg></button>
+    </header>
+    <div id="cfBody"></div>
+  </section>
+</div>
+
+<!-- Customize -->
+<div class="ov" id="ov-custom" aria-hidden="true">
+  <section class="panel glass solid cz" role="dialog" aria-modal="true" aria-labelledby="czTitle">
+    <header class="phead">
+      <span class="pico"><svg class="i"><use href="#i-gear"/></svg></span>
+      <div><h2 id="czTitle">Customize</h2><p>Los cambios se aplican al instante y se guardan en %AppData%\Glassdeck\settings.json</p></div>
+      <div class="pact"><button class="btn" data-act="cz-reset"><svg class="i"><use href="#i-refresh"/></svg>Restablecer</button><button class="btn primary" data-act="ov-close"><svg class="i"><use href="#i-check"/></svg>Listo</button></div>
+      <button class="bi" data-act="ov-close" aria-label="Cerrar Customize"><svg class="i"><use href="#i-x"/></svg></button>
+    </header>
+    <div class="pbody">
+      <div class="czgrid">
+        <div class="czcol">
+          <div class="card"><h3><svg class="i"><use href="#i-layers"/></svg>Widgets</h3><div id="czWidgets"></div></div>
+        </div>
+        <div class="czcol">
+          <div class="card"><h3><svg class="i"><use href="#i-bright"/></svg>Apariencia</h3>
+            <div class="lbl">Color de acento</div>
+            <div class="swatches mt8" id="swatches" role="group" aria-label="Color de acento"></div>
+            <div class="lbl mt12">Capa de los widgets</div>
+            <div class="seg mt8" role="group" aria-label="Capa"><button aria-pressed="true" data-act="layer" data-v="desk">Escritorio (debajo de ventanas)</button><button aria-pressed="false" data-act="layer" data-v="top">Siempre encima</button></div>
+            <div class="srow mt8"><svg class="i"><use href="#i-battery"/></svg><div class="grow">Pausar animaciones con batería<small>Congela sparklines y medidores al desconectar el cargador</small></div><button class="switch" role="switch" aria-checked="true" aria-label="Pausar animaciones con batería" data-act="sw"></button></div>
+            <div class="srow"><svg class="i"><use href="#i-pulse"/></svg><div class="grow">Pausar animaciones ahora<small>Vista previa del ahorro (también respeta “reducir movimiento” de Windows)</small></div><button class="switch" role="switch" aria-checked="false" aria-label="Pausar animaciones ahora" data-act="pause-anim"></button></div>
+          </div>
+          <div class="card"><h3><svg class="i"><use href="#i-clock"/></svg>Intervalos de actualización</h3>
+            <div class="intv">
+              <label for="iv1">CPU, RAM, disco y red</label><select id="iv1"><option>500 ms</option><option selected>1 s</option><option>2 s</option><option>5 s</option></select>
+              <label for="iv2">Procesos</label><select id="iv2"><option>1 s</option><option selected>2 s</option><option>5 s</option></select>
+              <label for="iv3">Gasto (Cursor y Claude)</label><select id="iv3"><option>5 min</option><option selected>15 min</option><option>30 min</option><option>1 h</option></select>
+              <label for="iv4">Rotación de correo y agenda</label><select id="iv4"><option>5 min</option><option selected>10 min</option><option>15 min</option></select>
+              <label for="iv5">Clima</label><select id="iv5"><option>15 min</option><option selected>30 min</option><option>1 h</option></select>
+            </div>
+          </div>
+          <div class="card"><h3><svg class="i"><use href="#i-power"/></svg>Sistema</h3>
+            <div class="srow"><div class="grow">Arrancar con Windows<small>Se inicia minimizado en la bandeja</small></div><button class="switch" role="switch" aria-checked="true" aria-label="Arrancar con Windows" data-act="sw"></button></div>
+            <div class="srow"><div class="grow">Excluir widgets del editor de zonas<small>Los widgets tienen su propio anclaje</small></div><button class="switch" role="switch" aria-checked="true" aria-label="Excluir widgets del editor de zonas" data-act="sw"></button></div>
+          </div>
+        </div>
+        <div class="czcol">
+          <div class="card"><h3><svg class="i"><use href="#i-wallet"/></svg>Alertas de gasto</h3>
+            <div class="srow"><div class="grow">Cursor · presupuesto mensual<small>Notificación de Windows al cruzar cada umbral</small></div><input class="inp tab" style="width:90px;text-align:right" value="$60.00" aria-label="Presupuesto mensual de Cursor"></div>
+            <div class="thrbtns" role="group" aria-label="Umbrales de Cursor"><button aria-pressed="true" data-act="thr">50 %</button><button aria-pressed="true" data-act="thr">80 %</button><button aria-pressed="true" data-act="thr">100 %</button></div>
+            <div class="srow mt8"><div class="grow">Claude · límite de 5 h y semanal<small>Aviso cuando el uso de Claude.ai alcance</small></div><div class="thrbtns"><button aria-pressed="true" data-act="thr">80 %</button></div></div>
+          </div>
+          <div class="card"><h3><svg class="i"><use href="#i-lock"/></svg>Lista negra de procesos</h3>
+            <div class="lbl">Fijos del sistema (no se pueden quitar)</div>
+            <div class="tags mt8" id="blFixed"></div>
+            <div class="lbl mt12">Personalizados</div>
+            <div class="tags mt8" id="blCustom"></div>
+            <form class="rowflex mt8" id="blForm"><input class="inp" id="blInput" placeholder="nombre.exe" aria-label="Agregar proceso a la lista negra"><button class="btn" type="submit"><svg class="i"><use href="#i-plus"/></svg>Agregar</button></form>
+          </div>
+          <div class="card"><h3><svg class="i"><use href="#i-key"/></svg>Atajos de teclado</h3>
+            <div class="hk"><span>Mostrar u ocultar Glassdeck</span><span class="keys"><span class="kbd">Win</span><span class="kbd">Alt</span><span class="kbd">G</span></span><span class="chip ok"><svg class="i"><use href="#i-check"/></svg>Libre</span></div>
+            <div class="hk"><span>Modo privacidad</span><span class="keys"><span class="kbd">Win</span><span class="kbd">Alt</span><span class="kbd">P</span></span><span class="chip ok"><svg class="i"><use href="#i-check"/></svg>Libre</span></div>
+            <div class="hk conf"><span>Editor de zonas</span><span class="keys"><span class="kbd">Win</span><span class="kbd">Alt</span><span class="kbd">Z</span></span><button class="btn sm">Cambiar</button>
+              <div class="hkwarn"><svg class="i"><use href="#i-warn"/></svg>Posible conflicto: otra aplicación ya registró esta combinación (p. ej. una superposición de GPU).</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- Login de servicios -->
+<div class="ov" id="ov-login" aria-hidden="true">
+  <section class="panel glass solid lg" role="dialog" aria-modal="true" aria-labelledby="lgTitle">
+    <header class="phead">
+      <span class="pico"><svg class="i"><use href="#i-key"/></svg></span>
+      <div><h2 id="lgTitle">Cuentas e inicios de sesión</h2><p>Credenciales guardadas en el Administrador de credenciales de Windows (cifrado DPAPI). Nada sale del equipo salvo hacia cada servicio.</p></div>
+      <button class="bi" style="margin-left:auto" data-act="ov-close" aria-label="Cerrar cuentas"><svg class="i"><use href="#i-x"/></svg></button>
+    </header>
+    <div class="pbody">
+      <div class="grid3">
+        <div class="card svc">
+          <div class="svch"><span class="logo" style="background:#fff;color:#4285f4">G</span><div><h3>Google</h3><p>Gmail y Calendar · varias cuentas</p></div><span class="chip ok" style="margin-left:auto">2 conectadas</span></div>
+          <div class="sub"><div class="between"><b>personal.demo@gmail.com</b><span class="stat"><i style="background:var(--ok)"></i>Conectada</span></div><p>Gmail: remitente, asunto y hora · Calendar: eventos</p><div class="rowflex mt8"><button class="btn sm">Permisos</button><button class="btn sm">Desconectar</button></div></div>
+          <div class="sub"><div class="between"><b>trabajo.demo@gmail.com</b><span class="stat"><i style="background:var(--ok)"></i>Conectada</span></div><p>Gmail: remitente, asunto y hora · Calendar: eventos</p><div class="rowflex mt8"><button class="btn sm">Permisos</button><button class="btn sm">Desconectar</button></div></div>
+          <button class="btn primary"><svg class="i"><use href="#i-plus"/></svg>Agregar otra cuenta de Google</button>
+          <p class="note"><svg class="i"><use href="#i-shield"/></svg>Permisos de solo lectura (metadatos de Gmail y Calendar). Nunca se lee el cuerpo de los correos.</p>
+        </div>
+        <div class="card svc">
+          <div class="svch"><span class="logo" style="background:#0d0d0f;color:#fff;border:1px solid #555"><svg class="i" style="width:22px;height:22px"><use href="#i-cpu"/></svg></span><div><h3>Cursor</h3><p>Gasto mensual y uso</p></div><span class="chip ok" style="margin-left:auto">Conectada</span></div>
+          <div class="sub"><div class="between"><b>Sesión en cursor.com</b><span class="stat"><i style="background:var(--ok)"></i>Activa · hace 4 min</span></div><p>Se abre una ventana para iniciar sesión en cursor.com y Glassdeck lee el panel de uso.</p><div class="rowflex mt8"><button class="btn sm">Volver a iniciar sesión</button><button class="btn sm">Cerrar sesión</button></div></div>
+          <div class="warnbox"><svg class="i"><use href="#i-warn"/></svg><div><b>Lectura no oficial del dashboard.</b> Cursor no ofrece una API pública de gasto; si cambia su web, este dato puede dejar de actualizarse. Se marca siempre como “no oficial”.</div></div>
+        </div>
+        <div class="card svc">
+          <div class="svch"><span class="logo" style="background:#d97757;color:#fff"><svg class="i" style="width:22px;height:22px"><use href="#i-claude"/></svg></span><div><h3>Claude</h3><p>Claude Code, Claude.ai y API</p></div><span class="chip" style="margin-left:auto" data-v="claudeChip">1 de 3</span></div>
+          <div class="sub"><div class="between"><b>Claude Code (local)</b><span class="stat"><i style="background:var(--ok)"></i>Detectado</span></div><p>Lee los registros locales de uso del equipo. No requiere iniciar sesión.</p></div>
+          <div class="sub"><div class="between"><b>Claude.ai</b><span class="stat" data-claude-stat><i style="background:#8a93a6"></i>Sin conectar</span></div><p>Necesario para ver el % del límite de 5 h y el semanal.</p><div class="rowflex mt8"><button class="btn sm primary" data-act="connect" data-svc="claudeai" data-claude-btn>Conectar</button></div></div>
+          <div class="sub"><div class="between"><b>Consola API</b><span class="chip">Opcional</span></div><p>Para costo real de la API. Pega una clave de solo lectura si la tienes.</p><form class="rowflex mt8" data-noop><input class="inp" type="password" autocomplete="off" placeholder="Clave de API (opcional)" aria-label="Clave de API de Claude (opcional)"><button class="btn sm" type="submit">Guardar</button></form></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- Limpieza de temporales -->
+<div class="ov" id="ov-clean" aria-hidden="true">
+  <section class="panel glass solid clp" role="dialog" aria-modal="true" aria-labelledby="clTitle">
+    <header class="phead">
+      <span class="pico"><svg class="i"><use href="#i-trash"/></svg></span>
+      <div><h2 id="clTitle">Limpiar temporales</h2><p>Vista previa del análisis · los archivos en uso se omiten automáticamente</p></div>
+      <button class="bi" style="margin-left:auto" data-act="ov-close" aria-label="Cerrar limpieza"><svg class="i"><use href="#i-x"/></svg></button>
+    </header>
+    <div class="pbody">
+      <label class="clrow"><input type="checkbox" checked data-clean="2840" aria-label="Incluir temporales del usuario"><span class="ico34"><svg class="i"><use href="#i-folder"/></svg></span><div><div class="t">Temporales del usuario (%TEMP%)</div><div class="s">C:\Users\usuario\AppData\Local\Temp</div></div><div class="sz">2.84 GB<small>14 212 archivos</small></div></label>
+      <label class="clrow"><input type="checkbox" checked data-clean="640" aria-label="Incluir temporales de Windows"><span class="ico34"><svg class="i"><use href="#i-folder"/></svg></span><div><div class="t">Temporales de Windows <svg class="uac" aria-label="Requiere permisos de administrador"><use href="#i-uac"/></svg><span class="chip">Requiere administrador</span></div><div class="s">C:\Windows\Temp</div></div><div class="sz">640 MB<small>2 381 archivos</small></div></label>
+      <label class="clrow"><input type="checkbox" data-clean="1210" aria-label="Incluir papelera de reciclaje"><span class="ico34"><svg class="i"><use href="#i-trash"/></svg></span><div><div class="t">Papelera de reciclaje <span class="chip">Opcional</span></div><div class="s">Todas las unidades</div></div><div class="sz">1.21 GB<small>318 elementos</small></div></label>
+      <div class="cltotal mt12">
+        <div><div class="lbl">Espacio a liberar</div><b data-v="cleanTotal">3.48 GB</b><div class="note mt8" data-v="cleanMsg">Se pedirá confirmación de UAC para C:\Windows\Temp.</div></div>
+        <div class="rowflex"><button class="btn" data-act="clean-scan"><svg class="i"><use href="#i-refresh"/></svg>Volver a analizar</button><button class="btn primary" data-act="clean-run"><svg class="i"><use href="#i-trash"/></svg>Limpiar</button></div>
+      </div>
+      <div class="prog" id="cleanProg"><i></i></div>
+    </div>
+  </section>
+</div>
+
+<!-- Editor de zonas -->
+<div class="ov" id="ov-zones" aria-hidden="true">
+  <section class="panel glass solid zn" role="dialog" aria-modal="true" aria-labelledby="znTitle">
+    <header class="phead">
+      <span class="pico"><svg class="i"><use href="#i-zones"/></svg></span>
+      <div><h2 id="znTitle">Editor de zonas</h2><p>Arrastra sobre la cuadrícula para elegir un rectángulo de celdas · Ventana activa: <b>Cursor</b></p></div>
+      <div class="pact"><span class="chip acc"><svg class="i"><use href="#i-monitor"/></svg>3 monitores detectados</span><button class="btn" data-act="zone-recall"><svg class="i"><use href="#i-recall"/></svg>Recuperar todo</button></div>
+      <button class="bi" data-act="ov-close" aria-label="Cerrar editor de zonas"><svg class="i"><use href="#i-x"/></svg></button>
+    </header>
+    <div class="zlay">
+      <div class="zmain">
+        <div class="zstage" id="zStage"></div>
+        <div class="zfoot">
+          <div class="zlegend" aria-label="Leyenda de teclas">
+            <span><span class="kbd">Arrastrar</span>Seleccionar celdas</span>
+            <span><span class="kbd">Shift</span>Recordar ventana para esa app</span>
+            <span><span class="kbd">Ctrl</span>Guardar como preset</span>
+            <span><span class="kbd">PageUp</span><span class="kbd">PageDown</span>Cambiar de monitor</span>
+            <span><span class="kbd">Esc</span>Cancelar</span>
+          </div>
+          <div class="zres" id="zRes" aria-live="polite"></div>
+        </div>
+      </div>
+      <aside class="zside">
+        <div class="card"><h3><svg class="i"><use href="#i-layers"/></svg>Presets</h3><div id="zPresets"></div></div>
+        <div class="card"><h3><svg class="i"><use href="#i-pin"/></svg>Apps recordadas</h3><div id="zApps"></div><p class="note mt8"><svg class="i"><use href="#i-refresh"/></svg>Al abrirse, cada app vuelve sola a su zona.</p></div>
+      </aside>
+    </div>
+  </section>
+</div>
+
+<!-- Notificación tipo Windows 10 -->
+<div class="w10t" id="w10t" role="status" aria-live="polite" aria-hidden="true">
+  <div class="w10h"><svg aria-hidden="true"><use href="#i-logo"/></svg>Glassdeck<button data-act="toast-close" aria-label="Descartar notificación"><svg class="i" style="width:14px;height:14px"><use href="#i-x"/></svg></button></div>
+  <div class="w10b">
+    <div class="gauge" aria-hidden="true"><svg width="48" height="48" viewBox="0 0 48 48"><circle cx="24" cy="24" r="19" fill="none" stroke="#3a3a3a" stroke-width="6"/><circle cx="24" cy="24" r="19" fill="none" stroke="#fbbf24" stroke-width="6" stroke-linecap="round" stroke-dasharray="119.4" stroke-dashoffset="23.9" transform="rotate(-90 24 24)"/></svg><div class="gc" style="font-size:11px;font-weight:700">80%</div></div>
+    <div><b>Cursor llegó al 80 % de tu presupuesto</b><p>$48.12 de $60.00 este mes · faltan 6 días para el corte. Lectura no oficial del dashboard.</p></div>
+  </div>
+  <div class="w10a"><button data-act="toast-spend">Ver gasto</button><button data-act="toast-close">Descartar</button></div>
+</div>
+
+<div class="mtoast glass solid" id="mtoast" role="status" aria-live="polite"><svg class="i"><use href="#i-check"/></svg><span></span></div>
+
+<nav class="scenenav glass solid" aria-label="Navegación de escenas del mockup">
+  <b>Mockup</b>
+  <button class="bi" data-act="scene-prev" aria-label="Escena anterior"><svg class="i"><use href="#i-chev-l"/></svg></button>
+  <select id="sceneSel" aria-label="Elegir escena"></select>
+  <button class="bi" data-act="scene-next" aria-label="Escena siguiente"><svg class="i"><use href="#i-chev-r"/></svg></button>
+</nav>
+
+<script>
+(() => {
+'use strict';
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const rnd = mulberry32(20261025);
+const walk = (v, step, min, max) => clamp(v + (rnd() - .5) * step, min, max);
+const reduceMQ = matchMedia('(prefers-reduced-motion: reduce)');
+const motionOK = () => !reduceMQ.matches && !S.paused;
+const ico = (id, cls = 'i') => `<svg class="${cls}" aria-hidden="true"><use href="#${id}"/></svg>`;
+const fmtMB = mb => mb >= 1000 ? (mb / 1024).toFixed(1) + ' GB' : Math.round(mb) + ' MB';
+const fmtRate = mbps => mbps >= 1 ? mbps.toFixed(1) + ' MB/s' : Math.round(mbps * 1024) + ' KB/s';
+const pad = n => String(n).padStart(2, '0');
+
+/* ---------- Estado simulado ---------- */
+const N = 61;
+const series = (n, start, step, min, max) => { const a = []; let v = start; for (let i = 0; i < n; i++) { v = walk(v, step, min, max); a.push(v); } return a; };
+const S = {
+  paused:false, privacy:false, hiddenAll:false,
+  cpu:34, cores:Array.from({length:8},()=>20+rnd()*40),
+  cpuHist:series(N,32,14,8,85), cpuHour:series(120,30,12,6,90),
+  ram:12.4, ramCache:9.6, ramHist:series(N,12.2,.5,10.5,15), ramHour:series(120,11.8,.6,9,16),
+  dR:12.4, dW:3.1, dRHist:series(N,10,16,0,80), dWHist:series(N,4,8,0,40),
+  nD:4.8, nU:.62, nDHist:series(N,4,4,.1,14), nUHist:series(N,.6,.8,.05,3), nDHour:series(120,3,3,.1,14), nUHour:series(120,.5,.6,.05,3),
+  procSort:'cpu', selected:new Set(), procQuery:'',
+  mailIdx:0, mailCd:462, uptime:285262,
+  cursor:38.40, budget:60, plan:'Equilibrado',
+  vol:64, muted:false, mic:72, micMuted:false, camPriv:false,
+  claudeAi:false,
+};
+const PROCS0 = [
+  {n:'Cursor.exe',pid:14820,cpu:11.8,ram:1840,tag:'ref',g:'ag-cursor',l:'C'},
+  {n:'msedge.exe',pid:9132,cpu:7.6,ram:1260,g:'ag-edge',l:'e'},
+  {n:'node.exe',pid:21604,cpu:6.1,ram:540,g:'ag-node',l:'n'},
+  {n:'python.exe',pid:18872,cpu:4.4,ram:380,g:'ag-py',l:'py'},
+  {n:'ms-teams.exe',pid:7716,cpu:3.7,ram:690,g:'ag-teams',l:'T'},
+  {n:'Spotify.exe',pid:11240,cpu:2.2,ram:410,g:'ag-spot',l:'S'},
+  {n:'dwm.exe',pid:1384,cpu:2.0,ram:160,lock:true,g:'ag-sys',l:'W'},
+  {n:'Docker Desktop.exe',pid:6620,cpu:1.6,ram:780,g:'ag-doc',l:'D'},
+  {n:'svchost.exe',pid:1092,cpu:1.2,ram:210,lock:true,g:'ag-sys',l:'W'},
+  {n:'Glassdeck.exe',pid:4408,cpu:1.1,ram:140,tag:'ref',g:'ag-gd',l:'G'},
+  {n:'explorer.exe',pid:5520,cpu:0.9,ram:230,lock:true,g:'ag-sys',l:'W'},
+  {n:'WhatsApp.exe',pid:12960,cpu:0.8,ram:310,g:'ag-wa',l:'W'},
+  {n:'System',pid:4,cpu:0.7,ram:4,lock:true,g:'ag-sys',l:'W'},
+  {n:'Obsidian.exe',pid:15308,cpu:0.6,ram:260,g:'ag-obs',l:'O'},
+  {n:'OneDrive.exe',pid:8844,cpu:0.4,ram:95,g:'ag-od',l:'od'},
+  {n:'powershell.exe',pid:19440,cpu:0.3,ram:80,g:'ag-ps',l:'>_'},
+  {n:'csrss.exe',pid:712,cpu:0.2,ram:6,lock:true,g:'ag-sys',l:'W'},
+  {n:'RuntimeBroker.exe',pid:10020,cpu:0.1,ram:30,g:'ag-sys',l:'W'},
+  {n:'lsass.exe',pid:896,cpu:0.1,ram:18,lock:true,g:'ag-sys',l:'W'},
+];
+let PROCS = PROCS0.map(p => ({...p}));
+const MAILS = [
+  {t:'mail',acc:'Gmail · personal',from:'Banco Ejemplo',subj:'Tu estado de cuenta de octubre está disponible',time:'10:32 p. m.'},
+  {t:'event',acc:'Calendar · trabajo',from:'Revisión semanal de producto',subj:'Sala virtual · 45 min',time:'Mañana 9:00 a. m.'},
+  {t:'mail',acc:'Gmail · trabajo',from:'Notificaciones GitHub',subj:'[glassdeck] Se solicitó tu revisión en el PR #12',time:'10:05 p. m.'},
+  {t:'mail',acc:'Gmail · personal',from:'Proveedor Ficticio S.A.',subj:'Confirmación de pedido 48213',time:'9:41 p. m.'},
+  {t:'event',acc:'Calendar · personal',from:'Entrenamiento (bloque personal)',subj:'Recordatorio 30 min antes',time:'Mañana 7:00 a. m.'},
+  {t:'mail',acc:'Gmail · trabajo',from:'Equipo de Operaciones (demo)',subj:'Reporte semanal listo para revisión',time:'8:17 p. m.'},
+];
+const EVENTS = [
+  {t:'7:00 a. m.',n:'Entrenamiento (bloque personal)',a:'Calendar · personal',d:'1 h'},
+  {t:'9:00 a. m.',n:'Revisión semanal de producto',a:'Calendar · trabajo',d:'45 min'},
+  {t:'11:30 a. m.',n:'Llamada con proveedor (demo)',a:'Calendar · trabajo',d:'30 min'},
+  {t:'1:00 p. m.',n:'Comida',a:'Calendar · personal',d:'1 h'},
+  {t:'4:00 p. m.',n:'Bloque de enfoque · Glassdeck',a:'Calendar · trabajo',d:'2 h'},
+];
+const ICON_W = ['i-moon','i-moon','i-moon','i-moon','i-moon','i-moon','i-sun','i-sun','i-pcloud','i-sun','i-sun','i-sun'];
+const HOURS = ['23','01','03','05','07','09','11','13','15','17','19','21'];
+const HTEMP = [13,11,10,9,8,12,18,23,26,25,20,16];
+const DAYS = [['Hoy','i-sun',8,26],['Lun','i-sun',9,27],['Mar','i-pcloud',10,25],['Mié','i-cloud',11,22],['Jue','i-pcloud',9,23],['Vie','i-sun',7,24],['Sáb','i-sun',8,26]];
+const OUTS = ['Predeterminado del sistema','Bocinas del equipo (Realtek)','Altavoces USB','Audífonos Bluetooth'];
+const APPS_AUDIO = [
+  {n:'Spotify',g:'ag-spot',l:'S',v:72,o:1},
+  {n:'Microsoft Edge',g:'ag-edge',l:'e',v:55,o:2},
+  {n:'Cursor',g:'ag-cursor',l:'C',v:30,o:0},
+  {n:'Teams',g:'ag-teams',l:'T',v:85,o:3},
+];
+const cursorDaily = (() => { const a = Array.from({length:25},()=>.4+rnd()*1.8); const s = a.reduce((x,y)=>x+y,0); return a.map(v=>v*38.40/s); })();
+const claudeDaily = Array.from({length:25},(_,i)=> i===24 ? 7.92 : 1.5+rnd()*7);
+
+/* ---------- Componentes ---------- */
+function ringSVG(key, size, sw, stroke = 'url(#gAcc)', inner = false){
+  const r = (size - sw) / 2, c = 2 * Math.PI * r, h = size / 2;
+  return `<svg class="ring" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" aria-hidden="true" style="${inner?'position:absolute;inset:0':''}">
+    <circle cx="${h}" cy="${h}" r="${r}" fill="none" stroke="rgba(255,255,255,.10)" stroke-width="${sw}"/>
+    <circle data-ring="${key}" data-c="${c}" cx="${h}" cy="${h}" r="${r}" fill="none" stroke="${stroke}" stroke-width="${sw}" stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${c}" transform="rotate(-90 ${h} ${h})"/></svg>`;
+}
+function ringPair(k1, k2, size){
+  const a = ringSVG(k1, size, 9, 'url(#gClaude)');
+  const sw = 7, s2 = size - 26, r = (s2 - sw) / 2, c = 2 * Math.PI * r, h = size / 2;
+  const b = `<svg class="ring" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" aria-hidden="true" style="position:absolute;inset:0">
+    <circle cx="${h}" cy="${h}" r="${r}" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="${sw}"/>
+    <circle data-ring="${k2}" data-c="${c}" cx="${h}" cy="${h}" r="${r}" fill="none" stroke="url(#gClaude2)" stroke-width="${sw}" stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${c}" transform="rotate(-90 ${h} ${h})"/></svg>`;
+  return a + b;
+}
+function setRing(key, pct){ $$(`[data-ring="${key}"]`).forEach(c => { c.style.strokeDashoffset = (+c.dataset.c) * (1 - clamp(pct, 0, 1)); }); }
+function setV(key, val){ $$(`[data-v="${key}"]`).forEach(e => { if (e.textContent !== String(val)) e.textContent = val; }); }
+function sparkSVG(key, h = 38, cls = ''){ return `<svg class="spark ${cls}" data-spark="${key}" viewBox="0 0 200 ${h}" preserveAspectRatio="none" aria-hidden="true"><g><path class="sa"/><path class="sl"/></g></svg>`; }
+function chartSVG(key, cls = ''){ return `<svg class="spark ${cls}" data-chart="${key}" viewBox="0 0 600 160" preserveAspectRatio="none" aria-hidden="true"><g><path class="sa"/><path class="sl"/></g></svg>`; }
+function chartBox(keys, h, labels = ['−60 min','−45','−30','−15','ahora'], label = ''){
+  return `<div class="chart" style="height:${h}px" role="img" aria-label="${label}">${keys.map(([k,c]) => chartSVG(k, c)).join('')}<div class="axis">${labels.map(l => `<span>${l}</span>`).join('')}</div></div>`;
+}
+const SPARKS = {
+  cpu:{a:()=>S.cpuHist,m:100}, ram:{a:()=>S.ramHist,m:32}, dR:{a:()=>S.dRHist,m:90}, dW:{a:()=>S.dWHist,m:90},
+  nD:{a:()=>S.nDHist,m:16}, nU:{a:()=>S.nUHist,m:3.5},
+};
+const CHARTS = {
+  cpuHour:{a:()=>S.cpuHour,m:100}, ramHour:{a:()=>S.ramHour,m:32}, nDHour:{a:()=>S.nDHour,m:16}, nUHour:{a:()=>S.nUHour,m:16},
+  dRLive:{a:()=>S.dRHist,m:90}, dWLive:{a:()=>S.dWHist,m:90}, cpuLive:{a:()=>S.cpuHist,m:100},
+};
+function drawPath(svg, arr, max, slide){
+  const vb = svg.viewBox.baseVal, w = vb.width, h = vb.height, n = arr.length;
+  const dx = slide ? w / (n - 2) : w / (n - 1);
+  let d = '';
+  for (let i = 0; i < n; i++){ const x = i * dx, y = h - 2 - (clamp(arr[i], 0, max) / max) * (h - 6); d += (i ? 'L' : 'M') + x.toFixed(1) + ',' + y.toFixed(1); }
+  const last = ((n - 1) * dx).toFixed(1);
+  svg.querySelector('.sl').setAttribute('d', d);
+  svg.querySelector('.sa').setAttribute('d', d + `L${last},${h}L0,${h}Z`);
+  const g = svg.firstElementChild;
+  if (slide && motionOK() && g.animate){ g.animate([{transform:'translateX(0px)'},{transform:`translateX(${-dx}px)`}],{duration:1000,easing:'linear',fill:'forwards'}); }
+  else if (slide){ g.style.transform = `translateX(${-dx}px)`; }
+}
+function drawAll(){
+  $$('[data-spark]').forEach(svg => { if (!svg.getClientRects().length) return; const c = SPARKS[svg.dataset.spark]; if (c) drawPath(svg, c.a(), c.m, true); });
+  $$('[data-chart]').forEach(svg => { if (!svg.getClientRects().length) return; const c = CHARTS[svg.dataset.chart]; if (c) drawPath(svg, c.a(), c.m, false); });
+}
+
+/* ---------- Widgets: vista normal ---------- */
+const DEFS = [
+  {id:'mail',title:'Correo y agenda',icon:'i-mail',x:112,y:20,w:350,pill:'mailPill'},
+  {id:'weather',title:'Clima',icon:'i-moon',x:112,y:222,w:350,pill:'tempPill'},
+  {id:'shortcuts',title:'Atajos',icon:'i-bolt',x:112,y:478,w:350},
+  {id:'cpu',title:'CPU',icon:'i-cpu',x:1200,y:20,w:224,R:1,pill:'cpuPill'},
+  {id:'ram',title:'RAM',icon:'i-ram',x:1438,y:20,w:224,R:1,pill:'ramPill'},
+  {id:'disk',title:'Disco',icon:'i-disk',x:1676,y:20,w:224,R:1,pill:'diskPill'},
+  {id:'net',title:'Red',icon:'i-net',x:1200,y:248,w:224,R:1,pill:'netPill'},
+  {id:'spend',title:'Spending',icon:'i-wallet',x:1438,y:248,w:462,R:1,pill:'spendPill'},
+  {id:'proc',title:'Procesos',icon:'i-list',x:1200,y:476,w:462,R:1,pill:'procPill'},
+  {id:'audio',title:'Audio',icon:'i-vol',x:1676,y:476,w:224,R:1,pill:'volTxt'},
+  {id:'bright',title:'Brillo',icon:'i-bright',x:1676,y:752,w:224,R:1,pill:'brPill'},
+];
+const BODY = {
+  cpu:()=>`<div class="g-row"><div class="gauge">${ringSVG('cpu',92,9)}<div class="gc"><b class="big" data-v="cpuN">0</b><small>% uso</small></div></div>
+    <dl class="kv"><div><dt>Frecuencia</dt><dd data-v="ghz">3.60 GHz</dd></div><div><dt>Procesos</dt><dd>287</dd></div><div><dt>Núcleos</dt><dd>8 · 16 hilos</dd></div></dl></div>
+    <div class="sparkbox">${sparkSVG('cpu')}<span class="sparklbl">60 s</span></div>`,
+  ram:()=>`<div class="g-row"><div class="gauge">${ringSVG('ram',92,9)}<div class="gc"><b class="big" data-v="ramN">0</b><small>GB usados</small></div></div>
+    <dl class="kv"><div><dt>Total</dt><dd>32 GB</dd></div><div><dt>En caché</dt><dd data-v="ramCache">9.6 GB</dd></div><div><dt>Libre</dt><dd data-v="ramFree">10.0 GB</dd></div></dl></div>
+    <div class="sparkbox">${sparkSVG('ram')}<span class="sparklbl">60 s</span></div>`,
+  disk:()=>`<div class="drive"><div class="dhead"><b>C:</b><span>Sistema · NVMe</span><span class="num">612 / 953 GB</span></div><div class="bar"><i data-w="64"></i></div></div>
+    <div class="drive"><div class="dhead"><b>D:</b><span>Datos · HDD</span><span class="num">1.12 / 1.81 TB</span></div><div class="bar"><i data-w="62"></i></div></div>
+    <div class="rw"><div><span class="lbl">Lectura</span><b data-v="dR">12.4 MB/s</b></div><div><span class="lbl">Escritura</span><b data-v="dW">3.1 MB/s</b></div></div>
+    <div class="sparkbox" style="margin-top:6px">${sparkSVG('dR',30)}</div>`,
+  net:()=>`<div class="netrow"><span class="arrowc">${ico('i-down')}</span><div><div class="lbl">Bajada</div><b data-v="nD">4.8 MB/s</b></div></div>
+    <div class="sparkbox" style="margin-top:4px">${sparkSVG('nD',30)}</div>
+    <div class="netrow" style="margin-top:8px"><span class="arrowc alt">${ico('i-up')}</span><div><div class="lbl">Subida</div><b data-v="nU">620 KB/s</b></div></div>
+    <div class="sparkbox" style="margin-top:4px">${sparkSVG('nU',30,'alt')}</div>`,
+  spend:()=>`<div class="spend">
+    <div class="g-row"><div class="gauge">${ringSVG('cursorR',86,9)}<div class="gc"><b class="smnum" data-v="cursorMoney">$38.40</b><small data-v="cursorPct">64 %</small></div></div>
+      <div class="stxt"><h3>Cursor <span class="chip warn">no oficial</span></h3><p>de <b>$60.00</b> este mes</p><p>Proyección <b data-v="cursorProj">$57.10</b></p>
+      <div class="thr" data-thr aria-label="Umbrales de alerta"><span>50 %</span><span>80 %</span><span>100 %</span></div></div></div>
+    <div class="g-row"><div class="gauge" style="width:86px;height:86px">${ringPair('cl5h','clWeek',86)}<div class="gc"><b class="smnum">62 %</b><small>5 h</small></div></div>
+      <div class="stxt"><h3>Claude</h3><p>Límite 5 h <b>62 %</b></p><p>Semanal <b>41 %</b></p><p>Code hoy <b>1.84 M</b> tok</p><p>Equivale a <b>≈ $7.92</b></p></div></div>
+  </div>`,
+  proc:()=>`<div class="between"><span class="lbl">Top 5 por consumo</span><div class="seg" role="group" aria-label="Ordenar procesos"><button data-act="proc-sort" data-v="cpu" aria-pressed="true">CPU</button><button data-act="proc-sort" data-v="ram" aria-pressed="false">RAM</button></div></div>
+    <ol class="ptop" data-ptop aria-label="Procesos con mayor consumo"></ol>`,
+  mail:()=>`<div class="mailtop"><span class="chip acc" data-v="mailAcc">Gmail · personal</span>
+      <span class="rot" title="La alerta rota cada 10 minutos">${ringSVG('mailRot',18,3)}<span>rota cada 10 min · <b class="tab" data-v="mailCd">07:42</b></span></span>
+      <button class="bi" data-act="privacy" aria-pressed="false" aria-label="Privacidad: desenfocar remitente y asunto" title="Privacidad (Win+Alt+P)">${ico('i-eye')}</button></div>
+    <div class="mailcard" data-mailcard></div>
+    <div class="mailnav"><button class="bi" data-act="mail-prev" aria-label="Alerta anterior">${ico('i-chev-l')}</button><div class="dots" data-dots></div><span class="lbl" data-v="mailCount">4 no leídos · 2 eventos</span><button class="bi" data-act="mail-next" aria-label="Alerta siguiente">${ico('i-chev-r')}</button></div>`,
+  weather:()=>`<div class="wx"><div><div class="city"><b data-v="city">Chihuahua</b><button class="bi" data-act="edit-city" aria-label="Editar ciudad">${ico('i-pencil')}</button></div>
+      <div class="temp">14°</div><div class="cond">Despejado · noche</div></div>
+      <svg class="wxico" viewBox="0 0 80 80" aria-hidden="true"><circle cx="40" cy="38" r="22" fill="url(#gMoon)"/><circle cx="52" cy="30" r="20" fill="#1a2440" opacity=".0"/><circle cx="33" cy="32" r="3" fill="#d9c47a" opacity=".6"/><circle cx="46" cy="46" r="4" fill="#d9c47a" opacity=".5"/><circle cx="44" cy="28" r="2" fill="#d9c47a" opacity=".5"/></svg></div>
+    <div class="wxrow"><span>Máx <b class="tab">26°</b></span><span>Mín <b class="tab">8°</b></span><span>${''}Humedad <b class="tab">31 %</b></span><span>Viento <b class="tab">9 km/h</b></span></div>
+    <div class="wxhours">${[['23:00','i-moon',13],['00:00','i-moon',12],['01:00','i-moon',11],['02:00','i-moon',10],['03:00','i-moon',10],['04:00','i-moon',9]].map(h=>`<div><span>${h[0]}</span>${ico(h[1])}<b>${h[2]}°</b></div>`).join('')}</div>`,
+  audio:()=>`<div class="volrow"><button class="bi" style="opacity:1" data-act="mute" aria-pressed="false" aria-label="Silenciar audio general">${ico('i-vol')}</button><input type="range" min="0" max="100" value="64" data-k="vol" aria-label="Volumen general"><b data-v="volTxt">64 %</b></div>
+    <label class="lbl" for="outSel" style="display:block;margin:8px 0 4px">Salida</label>
+    <select id="outSel" aria-label="Dispositivo de salida">${OUTS.slice(1).map((o,i)=>`<option ${i===0?'selected':''}>${o}</option>`).join('')}</select>
+    <div class="minirow">${ico('i-mic')}<div class="meter" data-meter="mini" aria-label="Nivel del micrófono">${'<i></i>'.repeat(12)}</div></div>
+    <div class="minirow">${ico('i-cam')}<span style="flex:1">Cámara</span><span class="lbl" data-v="camState">Activa</span></div>`,
+  bright:()=>`<div class="brow"><div class="bh"><span>Pantalla integrada</span><b data-v="br1">70 %</b></div><input type="range" min="0" max="100" value="70" data-k="br1" aria-label="Brillo de la pantalla integrada"></div>
+    <div class="brow"><div class="bh"><span>Monitor 2</span><b data-v="br2">55 %</b></div><input type="range" min="0" max="100" value="55" data-k="br2" aria-label="Brillo del monitor 2"></div>
+    <div class="brow dis"><div class="bh"><span>Monitor 3</span><span class="chip">sin DDC/CI</span></div><input type="range" min="0" max="100" value="40" disabled aria-label="Brillo del monitor 3 (no compatible con DDC/CI)"></div>`,
+  shortcuts:()=>`<div class="scgrid">${SHORTCUTS.map(s=>`<button class="sc" data-act="sc" data-sc="${s.k}" aria-label="${s.n}">${ico(s.i)}<span ${s.k==='power'?'data-v="planTxt"':''}>${s.k==='power'?'Plan: '+S.plan:s.n}</span></button>`).join('')}</div>`,
+};
+const SHORTCUTS = [
+  {k:'temp',n:'Limpiar temporales',i:'i-trash',d:'Vista previa de %TEMP%, C:\\Windows\\Temp y papelera'},
+  {k:'heavy',n:'Cerrar pesados',i:'i-list',d:'Abre Procesos con los más pesados preseleccionados'},
+  {k:'power',n:'Plan de energía',i:'i-leaf',d:'Alterna Equilibrado / Alto rendimiento / Ahorro'},
+  {k:'explorer',n:'Reiniciar Explorer',i:'i-refresh',d:'Reinicia explorer.exe (barra de tareas y escritorio)'},
+  {k:'dns',n:'Limpiar DNS',i:'i-globe',d:'Vacía la caché de resolución DNS'},
+  {k:'recycle',n:'Vaciar papelera',i:'i-trash',d:'Vacía la papelera de todas las unidades'},
+  {k:'lock',n:'Bloquear',i:'i-lock',d:'Bloquea la sesión de Windows'},
+  {k:'sleep',n:'Suspender',i:'i-moon',d:'Suspende el equipo'},
+  {k:'taskmgr',n:'Admin. de tareas',i:'i-pulse',d:'Abre el Administrador de tareas'},
+];
+
+const layer = $('#layer');
+const W = {};
+let zTop = 20;
+function buildWidgets(){
+  DEFS.forEach((d, i) => {
+    const el = document.createElement('section');
+    el.className = 'widget glass'; el.id = 'w-' + d.id; el.dataset.w = d.id;
+    el.setAttribute('aria-label', 'Widget ' + d.title);
+    el.style.width = d.w + 'px'; el.style.animationDelay = (120 + i * 55) + 'ms';
+    el.innerHTML = `<header class="wbar" tabindex="0" aria-label="Mover ${d.title}: arrastra o usa las flechas">
+        ${ico(d.icon,'i wico')}<h2 class="wtitle">${d.title}</h2><span class="wpill" ${d.pill?`data-v="${d.pill}"`:''}></span>
+        <div class="wbtns">
+          <button class="bi" data-act="pin" aria-pressed="false" aria-label="Siempre encima: ${d.title}" title="Siempre encima">${ico('i-pin')}</button>
+          <button class="bi" data-act="mini" aria-label="Minimizar ${d.title} a píldora" title="Minimizar">${ico('i-min')}</button>
+          <button class="bi" data-act="max" aria-label="Vista detallada de ${d.title}" title="Maximizar">${ico('i-max')}</button>
+          <button class="bi" data-act="close" aria-label="Cerrar ${d.title} (se reactiva desde el dock)" title="Cerrar">${ico('i-x')}</button>
+        </div></header>
+      <div class="wbody">${BODY[d.id]()}</div>`;
+    layer.appendChild(el);
+    W[d.id] = {d, el, on:true};
+    enableDrag(el);
+  });
+  $('#dockWidgets').innerHTML = DEFS.map(d => `<button class="dbtn" data-act="toggle-w" data-w="${d.id}" aria-pressed="true" aria-label="Mostrar u ocultar ${d.title}" title="${d.title}">${ico(d.icon)}</button>`).join('');
+}
+function placeWidgets(){
+  const vw = innerWidth;
+  DEFS.forEach(d => {
+    const el = W[d.id].el;
+    let x = d.R ? vw - (1920 - d.x) : d.x;
+    x = clamp(x, 4, Math.max(4, vw - d.w - 4));
+    el.style.left = x + 'px'; el.style.top = d.y + 'px';
+  });
+}
+function front(el){ el.style.zIndex = (el.classList.contains('pinned') ? 1000 : 0) + (++zTop); }
+function enableDrag(el){
+  const bar = el.querySelector('.wbar');
+  let sx, sy, ox, oy, moved = false, id = null;
+  bar.addEventListener('pointerdown', e => {
+    if (e.button !== 0 || e.target.closest('button')) return;
+    id = e.pointerId; bar.setPointerCapture(id); front(el);
+    sx = e.clientX; sy = e.clientY; ox = el.offsetLeft; oy = el.offsetTop; moved = false;
+  });
+  bar.addEventListener('pointermove', e => {
+    if (id !== e.pointerId) return;
+    const dx = e.clientX - sx, dy = e.clientY - sy;
+    if (!moved && Math.hypot(dx, dy) < 3) return;
+    moved = true; el.classList.add('dragging');
+    const maxX = innerWidth - el.offsetWidth - 2, maxY = innerHeight - 40 - el.offsetHeight - 2;
+    el.style.left = clamp(ox + dx, 2, maxX) + 'px'; el.style.top = clamp(oy + dy, 2, Math.max(2, maxY)) + 'px';
+  });
+  const end = e => { if (id !== e.pointerId) return; id = null; el.classList.remove('dragging'); if (!moved && el.classList.contains('mini')) toggleMini(el.dataset.w); };
+  bar.addEventListener('pointerup', end); bar.addEventListener('pointercancel', end);
+  bar.addEventListener('keydown', e => {
+    const k = {ArrowLeft:[-10,0],ArrowRight:[10,0],ArrowUp:[0,-10],ArrowDown:[0,10]}[e.key];
+    if (!k || e.target !== bar) return; e.preventDefault();
+    el.style.left = clamp(el.offsetLeft + k[0], 2, innerWidth - el.offsetWidth - 2) + 'px';
+    el.style.top = clamp(el.offsetTop + k[1], 2, innerHeight - 42 - el.offsetHeight) + 'px';
+  });
+  el.addEventListener('pointerdown', () => front(el));
+}
+function toggleMini(id){
+  const el = W[id].el, m = !el.classList.contains('mini');
+  el.classList.toggle('mini', m);
+  const b = el.querySelector('[data-act="mini"]');
+  b.setAttribute('aria-label', (m ? 'Restaurar ' : 'Minimizar ') + W[id].d.title + (m ? '' : ' a píldora'));
+  b.innerHTML = ico(m ? 'i-restore' : 'i-min');
+  if (!m) requestAnimationFrame(drawAll);
+}
+function setWidgetOn(id, on){
+  W[id].on = on; W[id].el.classList.toggle('off', !on);
+  $$(`[data-act="toggle-w"][data-w="${id}"]`).forEach(b => b.setAttribute('aria-pressed', on));
+  $$(`[data-czw="${id}"]`).forEach(b => b.setAttribute('aria-checked', on));
+  if (on){ W[id].el.style.animation = 'none'; void W[id].el.offsetWidth; W[id].el.style.animation = ''; W[id].el.style.animationDelay = '0ms'; requestAnimationFrame(drawAll); }
+}
+
+/* ---------- Render dinámico ---------- */
+function renderTop(){
+  const list = PROCS.filter(p => !p.lock).sort((a,b) => S.procSort === 'cpu' ? b.cpu - a.cpu : b.ram - a.ram).slice(0,5);
+  const max = S.procSort === 'cpu' ? 15 : 2000;
+  $$('[data-ptop]').forEach(ol => {
+    ol.innerHTML = list.map(p => { const v = S.procSort === 'cpu' ? p.cpu : p.ram;
+      return `<li><span class="appg ${p.g}">${p.l}</span><span style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.n}</span><div class="bar" style="height:5px"><i style="width:${clamp(v/max*100,3,100)}%;transition:none"></i></div><span class="pv">${S.procSort==='cpu'?v.toFixed(1)+' %':fmtMB(v)}</span></li>`; }).join('');
+  });
+  if (list.length) setV('procPill', list[0].n + ' ' + list[0].cpu.toFixed(1) + ' %');
+}
+function renderMail(fade){
+  const m = MAILS[S.mailIdx];
+  const html = `<span class="mi ${m.t==='event'?'ev':''}">${ico(m.t==='event'?'i-cal':'i-mail')}</span>
+    <div style="min-width:0"><div class="from"><span>${m.from}</span><time>${m.time}</time></div><div class="subj">${m.subj}</div></div>`;
+  $$('[data-mailcard]').forEach(c => {
+    if (fade && motionOK()){ c.style.opacity = 0; setTimeout(() => { c.innerHTML = html; c.style.opacity = 1; }, 220); } else c.innerHTML = html;
+  });
+  setV('mailAcc', m.acc);
+  $$('[data-dots]').forEach(d => d.innerHTML = MAILS.map((_,i) => `<i class="${i===S.mailIdx?'on':''}"></i>`).join(''));
+}
+function setPrivacy(on){
+  S.privacy = on; document.body.classList.toggle('priv', on);
+  $$('[data-act="privacy"]').forEach(b => { if (b.classList.contains('bi')){ b.setAttribute('aria-pressed', on); b.innerHTML = ico(on ? 'i-eyeoff' : 'i-eye'); } });
+}
+function renderSpend(){
+  const pct = S.cursor / S.budget;
+  setRing('cursorR', pct); setRing('cl5h', .62); setRing('clWeek', .41);
+  setV('cursorMoney', '$' + S.cursor.toFixed(2)); setV('cursorPct', Math.round(pct*100) + ' %');
+  setV('cursorProj', '$' + (S.cursor / 25 * 31).toFixed(2)); setV('spendPill', '$' + S.cursor.toFixed(2) + ' · 62 %');
+  $$('[data-thr] span').forEach((s,i) => s.classList.toggle('hit', pct >= [.5,.8,1][i]));
+}
+
+/* ---------- Vistas maximizadas ---------- */
+const DETAIL = {
+  cpu:()=>`<div class="kpis"><div class="kpi"><small>Uso actual</small><b><span data-v="cpuN">0</span> %</b></div><div class="kpi"><small>Frecuencia</small><b data-v="ghz">3.60 GHz</b></div><div class="kpi"><small>Procesos · hilos</small><b>287 · 4 112</b></div><div class="kpi"><small>Tiempo activo</small><b data-v="uptime">3 d 07:14:22</b></div></div>
+    <div class="grid2 mt16"><div class="card"><h3>${ico('i-cpu')}Uso por núcleo <span class="chip" style="margin-left:auto">8 núcleos · 16 hilos</span></h3><div class="cores" data-cores></div></div>
+    <div class="card"><h3>${ico('i-pulse')}Últimos 60 s</h3>${chartBox([['cpuLive','']],190,['−60 s','−45','−30','−15','ahora'],'Uso de CPU en los últimos 60 segundos')}</div></div>
+    <div class="card mt16"><h3>${ico('i-clock')}Historial 1 h <span class="lbl" style="margin-left:auto">Promedio 31 % · Pico 88 % a las 10:12 p. m. · 287 procesos · 3 912 hilos</span></h3>${chartBox([['cpuHour','']],200,undefined,'Historial de CPU de la última hora')}</div>`,
+  ram:()=>`<div class="kpis"><div class="kpi"><small>En uso</small><b><span data-v="ramN">0</span> GB</b></div><div class="kpi"><small>En caché</small><b data-v="ramCache">9.6 GB</b></div><div class="kpi"><small>Libre</small><b data-v="ramFree">10.0 GB</b></div><div class="kpi"><small>Comprometida</small><b>18.2 / 36.5 GB</b></div></div>
+    <div class="card mt16"><h3>${ico('i-ram')}Desglose de 32 GB <span class="lbl" style="margin-left:auto">DDR4 · 3200 MHz · 2 de 2 ranuras</span></h3>
+      <div class="stack" data-stack><i style="background:linear-gradient(90deg,var(--acc),var(--acc2))"></i><i style="background:rgba(109,139,255,.45)"></i><i style="background:rgba(255,255,255,.08)"></i></div>
+      <div class="legend"><span><i style="background:var(--acc)"></i>En uso <b class="tab" data-v="ramN2">12.4 GB</b></span><span><i style="background:rgba(109,139,255,.6)"></i>En caché <b class="tab" data-v="ramCache">9.6 GB</b></span><span><i style="background:rgba(255,255,255,.2)"></i>Libre <b class="tab" data-v="ramFree">10.0 GB</b></span></div></div>
+    <div class="grid2 mt16"><div class="card"><h3>${ico('i-clock')}Historial 1 h</h3>${chartBox([['ramHour','']],220,undefined,'Historial de RAM de la última hora')}</div>
+      <div class="card"><h3>${ico('i-list')}Mayor consumo de RAM</h3><div class="list">${[...PROCS].sort((a,b)=>b.ram-a.ram).slice(0,6).map(p=>`<div class="lrow" style="grid-template-columns:28px 1fr auto"><span class="appg ${p.g}">${p.l}</span><span class="t">${p.n}</span><b class="tab">${fmtMB(p.ram)}</b></div>`).join('')}</div></div></div>`,
+  disk:()=>`<div class="grid2"><div class="card"><h3>${ico('i-disk')}C: · Sistema</h3><div class="between"><span class="lbl">SSD NVMe · 1 TB</span><b class="tab">612 / 953 GB</b></div><div class="bar mt8" style="height:10px"><i data-w="64"></i></div><div class="kpis mt12" style="grid-template-columns:repeat(3,1fr)"><div class="kpi"><small>Actividad</small><b data-v="dAct">7 %</b></div><div class="kpi"><small>Respuesta</small><b>0.4 ms</b></div><div class="kpi"><small>Libre</small><b>341 GB</b></div></div></div>
+      <div class="card"><h3>${ico('i-disk')}D: · Datos</h3><div class="between"><span class="lbl">HDD · 2 TB</span><b class="tab">1.12 / 1.81 TB</b></div><div class="bar mt8" style="height:10px"><i data-w="62"></i></div><div class="kpis mt12" style="grid-template-columns:repeat(3,1fr)"><div class="kpi"><small>Actividad</small><b>2 %</b></div><div class="kpi"><small>Respuesta</small><b>6.8 ms</b></div><div class="kpi"><small>Libre</small><b>0.69 TB</b></div></div></div></div>
+    <div class="card mt16"><h3>${ico('i-pulse')}Lectura y escritura en vivo <span class="legend" style="margin:0 0 0 auto"><span><i style="background:var(--acc)"></i>Lectura <b class="tab" data-v="dR">12.4 MB/s</b></span><span><i style="background:var(--acc2)"></i>Escritura <b class="tab" data-v="dW">3.1 MB/s</b></span></span></h3>${chartBox([['dRLive',''],['dWLive','alt']],300,['−60 s','−45','−30','−15','ahora'],'Lectura y escritura de disco')}</div>`,
+  net:()=>`<div class="kpis"><div class="kpi"><small>Bajada</small><b data-v="nD">4.8 MB/s</b></div><div class="kpi"><small>Subida</small><b data-v="nU">620 KB/s</b></div><div class="kpi"><small>Recibido hoy</small><b>12.4 GB</b></div><div class="kpi"><small>Enviado hoy</small><b>1.8 GB</b></div></div>
+    <div class="card mt16"><h3>${ico('i-clock')}Historial 1 h <span class="legend" style="margin:0 0 0 auto"><span><i style="background:var(--acc)"></i>Bajada</span><span><i style="background:var(--acc2)"></i>Subida</span></span></h3>${chartBox([['nDHour',''],['nUHour','alt']],260,undefined,'Historial de red de la última hora')}</div>
+    <div class="grid3 mt16"><div class="card"><h3>${ico('i-wifi')}Adaptador</h3><div class="list"><div class="between"><span class="lbl">Tipo</span><b>Wi-Fi 6 (802.11ax)</b></div><div class="between"><span class="lbl">Dispositivo</span><b>Adaptador inalámbrico (demo)</b></div><div class="between"><span class="lbl">Red</span><b>Red-Oficina-5G</b></div><div class="between"><span class="lbl">Señal</span><b>86 %</b></div></div></div>
+      <div class="card"><h3>${ico('i-globe')}Direcciones</h3><div class="list"><div class="between"><span class="lbl">IPv4 local</span><b class="tab">192.168.1.84</b></div><div class="between"><span class="lbl">Puerta de enlace</span><b class="tab">192.168.1.1</b></div><div class="between"><span class="lbl">DNS</span><b class="tab">192.168.1.1</b></div><div class="between"><span class="lbl">IP pública</span><b>No se consulta</b></div></div></div>
+      <div class="card"><h3>${ico('i-shield')}Privacidad</h3><p class="note">Glassdeck solo lee contadores del sistema. No hace pruebas de velocidad ni llamadas externas para medir la red.</p></div></div>`,
+  proc:()=>`<div class="toolbar"><div class="search">${ico('i-search')}<input class="inp" id="procQ" placeholder="Buscar proceso…" aria-label="Buscar proceso" value="${S.procQuery}"></div>
+      <div class="seg" role="group" aria-label="Ordenar por"><button data-act="proc-sort" data-v="cpu" aria-pressed="${S.procSort==='cpu'}">CPU</button><button data-act="proc-sort" data-v="ram" aria-pressed="${S.procSort==='ram'}">RAM</button></div>
+      <span class="lbl" style="margin-left:auto" data-v="selInfo"></span>
+      <button class="btn" data-act="sel-clear">Quitar selección</button>
+      <button class="btn danger" data-act="close-selected" data-closebtn>${ico('i-x')}<span data-v="closeTxt">Cerrar seleccionados</span></button></div>
+    <div class="card" style="padding:6px 8px;max-height:min(610px,calc(100vh - 330px));overflow:auto"><table class="pt" aria-label="Lista completa de procesos"><thead><tr><th style="width:36px"><span class="sr">Seleccionar</span></th><th>Proceso</th><th style="text-align:right">PID</th><th style="text-align:right">CPU</th><th style="text-align:right">RAM</th><th>Estado</th></tr></thead><tbody data-ptable></tbody></table></div>
+    <p class="note mt12">${ico('i-lock')}Lista negra: procesos del sistema protegidos, no se pueden cerrar desde Glassdeck. <span class="chip warn">confirmación reforzada</span> pide escribir CERRAR antes de cerrar.</p>`,
+  spend:()=>{
+    let cum = 0; const pts = cursorDaily.map(v => cum += v);
+    const W0 = 560, H0 = 220, sx = W0 / 30, sy = v => H0 - 10 - v / 66 * (H0 - 20);
+    const path = pts.map((v,i)=>`${i?'L':'M'}${(i*sx+sx/2).toFixed(1)},${sy(v).toFixed(1)}`).join('');
+    const lines = [[30,'50 %'],[48,'80 %'],[60,'100 %']].map(([v,l])=>`<line x1="0" x2="${W0}" y1="${sy(v)}" y2="${sy(v)}" stroke="${v===48?'#fbbf24':'rgba(255,255,255,.3)'}" stroke-dasharray="5 5"/><text x="${W0-4}" y="${sy(v)-5}" text-anchor="end" fill="rgba(230,236,246,.75)" font-size="11">${l} · $${v}</text>`).join('');
+    const maxC = 10, bw = W0 / 30;
+    const bars = claudeDaily.map((v,i)=>`<rect x="${(i*bw+2).toFixed(1)}" y="${(H0-10-v/maxC*(H0-30)).toFixed(1)}" width="${(bw-4).toFixed(1)}" height="${(v/maxC*(H0-30)).toFixed(1)}" rx="3" fill="url(#gClaude)" opacity="${i===24?1:.7}"/>`).join('');
+    return `<div class="kpis"><div class="kpi"><small>Cursor este mes <span class="chip warn">no oficial</span></small><b data-v="cursorMoney">$38.40</b></div><div class="kpi"><small>Proyección al corte</small><b data-v="cursorProj">$57.10</b></div><div class="kpi"><small>Claude Code hoy (equivalente)</small><b>≈ $7.92</b></div><div class="kpi"><small>Claude.ai · 5 h / semanal</small><b>62 % / 41 %</b></div></div>
+    <div class="grid2 mt16"><div class="card"><h3>${ico('i-wallet')}Cursor · acumulado de octubre vs presupuesto $60</h3><svg viewBox="0 0 ${W0} ${H0}" style="width:100%;height:220px" role="img" aria-label="Gasto acumulado de Cursor en octubre">${lines}<path d="${path}L${(24*sx+sx/2).toFixed(1)},${H0-10}L${sx/2},${H0-10}Z" fill="url(#gArea)"/><path d="${path}" fill="none" stroke="var(--acc)" stroke-width="2.4"/><circle cx="${(24*sx+sx/2).toFixed(1)}" cy="${sy(pts[24]).toFixed(1)}" r="4.5" fill="#fff" stroke="var(--acc)" stroke-width="2"/></svg><div class="axis" style="position:static">${['1 oct','8','15','22','31 oct'].map(l=>`<span>${l}</span>`).join('')}</div></div>
+      <div class="card"><h3>${ico('i-claude')}Claude Code · costo equivalente por día</h3><svg viewBox="0 0 ${W0} ${H0}" style="width:100%;height:220px" role="img" aria-label="Costo equivalente diario de Claude Code">${[0,.25,.5,.75].map(f=>`<line x1="0" x2="${W0}" y1="${20+f*(H0-30)}" y2="${20+f*(H0-30)}" stroke="rgba(255,255,255,.07)"/>`).join('')}${bars}</svg><div class="axis" style="position:static">${['1 oct','8','15','22','hoy'].map(l=>`<span>${l}</span>`).join('')}</div></div></div>
+    <div class="grid3 mt16"><div class="card"><h3>Cursor por tipo de uso</h3><div class="list">${[['Agente','$24.10'],['Chat','$8.30'],['Agentes en segundo plano','$6.00'],['Tab (incluido)','$0.00']].map(r=>`<div class="between"><span>${r[0]}</span><b class="tab">${r[1]}</b></div>`).join('')}</div></div>
+      <div class="card"><h3>Claude Code hoy</h3><div class="list">${[['Entrada','612 k tokens'],['Salida','148 k tokens'],['Caché (lectura)','1.08 M tokens'],['Costo equivalente','≈ $7.92']].map(r=>`<div class="between"><span>${r[0]}</span><b class="tab">${r[1]}</b></div>`).join('')}</div></div>
+      <div class="card"><h3>Alertas</h3><div class="list"><div class="between"><span>Cursor 50 %</span><span class="chip ok">Avisado 12 oct</span></div><div class="between"><span>Cursor 80 %</span><span class="chip warn" data-v="a80">Pendiente</span></div><div class="between"><span>Cursor 100 %</span><span class="chip">Pendiente</span></div><div class="between"><span>Claude 80 %</span><span class="chip">Pendiente</span></div></div></div></div>
+    <p class="note mt12">${ico('i-warn')}El dato de Cursor se obtiene leyendo el dashboard de cursor.com (no oficial). El costo de Claude Code es un equivalente calculado con tarifas públicas, no un cargo real.</p>`;
+  },
+  mail:()=>`<div class="card"><h3>${ico('i-bolt')}Alerta actual <span class="rot" style="margin-left:auto">${ringSVG('mailRot',18,3)} rota cada 10 min · siguiente en <b class="tab" data-v="mailCd">07:42</b></span></h3><div class="mailcard" data-mailcard></div></div>
+    <div class="grid2 mt16"><div class="card"><h3>${ico('i-mail')}No leídos <span class="chip" style="margin-left:auto">2 cuentas</span></h3><div class="list">${MAILS.filter(m=>m.t==='mail').map(m=>`<div class="lrow"><span class="ico34">${ico('i-mail')}</span><div style="min-width:0"><div class="t" data-privtext>${m.from}</div><div class="s" data-privtext>${m.subj}</div></div><div style="text-align:right"><time>${m.time}</time><div><span class="chip">${m.acc.replace('Gmail · ','')}</span></div></div></div>`).join('')}</div></div>
+      <div class="card"><h3>${ico('i-cal')}Agenda de mañana · lunes 26 oct</h3><div class="timeline">${EVENTS.map(e=>`<div class="tl"><div class="between"><b data-privtext>${e.n}</b><span class="tab lbl">${e.t}</span></div><small>${e.a} · ${e.d}</small></div>`).join('')}</div></div></div>
+    <p class="note mt12">${ico('i-shield')}Glassdeck solo lee remitente, asunto y hora. Nunca descarga ni muestra el cuerpo de los correos.</p>`,
+  weather:()=>`<div class="grid2" style="grid-template-columns:1fr 1.3fr"><div class="card"><div class="wx"><div><div class="city"><label class="sr" for="cityIn">Ciudad</label><input id="cityIn" value="Chihuahua" aria-label="Ciudad"><button class="btn sm" data-act="save-city">Guardar</button></div><div class="temp" style="font-size:84px">14°</div><div class="cond">Despejado · sensación 12°</div></div><svg class="wxico" style="width:120px;height:120px" viewBox="0 0 80 80" aria-hidden="true"><circle cx="40" cy="38" r="22" fill="url(#gMoon)"/><circle cx="33" cy="32" r="3" fill="#d9c47a" opacity=".6"/><circle cx="46" cy="46" r="4" fill="#d9c47a" opacity=".5"/></svg></div>
+      <div class="kpis mt16" style="grid-template-columns:repeat(2,1fr)"><div class="kpi"><small>Máx / Mín</small><b>26° / 8°</b></div><div class="kpi"><small>Humedad</small><b>31 %</b></div><div class="kpi"><small>Viento</small><b>9 km/h NO</b></div><div class="kpi"><small>Índice UV mañana</small><b>7 alto</b></div></div></div>
+      <div class="card"><h3>${ico('i-cal')}7 días</h3><div class="days">${DAYS.map(d=>`<div class="day"><span>${d[0]}</span>${ico(d[1])}<b>${d[2]}°</b><div class="rng"><i style="left:${(d[2]-5)/25*100}%;right:${100-(d[3]-5)/25*100}%"></i></div><b>${d[3]}°</b></div>`).join('')}</div></div></div>
+    <div class="card mt16"><h3>${ico('i-clock')}Próximas 24 h</h3>
+      <svg viewBox="0 0 1200 70" preserveAspectRatio="none" style="width:100%;height:70px" aria-hidden="true"><path d="${HTEMP.map((t,i)=>`${i?'L':'M'}${50+i*100},${62-(t-6)*2.6}`).join('')}" fill="none" stroke="#fbbf24" stroke-width="2.5"/></svg>
+      <div class="hours">${HOURS.map((h,i)=>`<div>${h}:00${ico(ICON_W[i])}<b>${HTEMP[i]}°</b></div>`).join('')}</div></div>
+    <p class="note mt12">${ico('i-globe')}Fuente prevista: Open-Meteo (sin clave). En este mockup los datos son simulados y no hay llamadas de red.</p>`,
+  audio:()=>`<div class="grid2" style="grid-template-columns:1.25fr 1fr;align-items:start">
+    <div style="display:grid;gap:14px">
+      <div class="card"><h3>${ico('i-vol')}Mezclador por aplicación</h3>
+        <div class="mixrow" style="background:rgba(var(--acc-rgb),.06);border-radius:12px"><span class="appg" style="background:rgba(255,255,255,.12)">${ico('i-vol')}</span><b style="text-align:left">General</b><input type="range" min="0" max="100" value="${S.vol}" data-k="vol" aria-label="Volumen general"><b data-v="volTxt">${S.vol} %</b><button class="bi" style="opacity:1" data-act="mute" aria-pressed="${S.muted}" aria-label="Silenciar audio general">${ico(S.muted?'i-mute':'i-vol')}</button><select aria-label="Salida general">${OUTS.slice(1).map((o,i)=>`<option ${i===0?'selected':''}>${o}</option>`).join('')}</select></div>
+        ${APPS_AUDIO.map((a,i)=>`<div class="mixrow"><span class="appg ${a.g}">${a.l}</span><b style="text-align:left;font-weight:600">${a.n}</b><input type="range" min="0" max="100" value="${a.v}" data-k="app${i}" aria-label="Volumen de ${a.n}"><b data-v="app${i}">${a.v} %</b><button class="bi" data-act="app-mute" aria-pressed="false" aria-label="Silenciar ${a.n}">${ico('i-vol')}</button><select aria-label="Dispositivo de salida de ${a.n}">${OUTS.map((o,j)=>`<option ${j===a.o?'selected':''}>${o}</option>`).join('')}</select></div>`).join('')}
+        <p class="note mt8">${ico('i-link')}Cada app recuerda su dispositivo de salida aunque reinicies.</p></div>
+      <div class="card"><h3>${ico('i-mic')}Micrófono</h3>
+        <div class="grid2" style="grid-template-columns:1fr auto;gap:10px;align-items:center"><select aria-label="Dispositivo de entrada"><option>Micrófono USB (demo)</option><option>Micrófono de la cámara</option><option>Conjunto de micrófonos integrado</option></select><button class="btn" data-act="mic-mute" aria-pressed="false">${ico('i-mic')}<span data-v="micTxt">Silenciar</span></button></div>
+        <div class="ctl"><span>Volumen de entrada</span><input type="range" min="0" max="100" value="72" data-k="mic" aria-label="Volumen de entrada"><b data-v="mic">72 %</b></div>
+        <div class="ctl"><span>Nivel en vivo</span><div class="meter" data-meter="big" style="height:18px" aria-label="Nivel del micrófono en vivo">${'<i></i>'.repeat(28)}</div><b data-v="micDb">−18 dB</b></div></div>
+    </div>
+    <div class="card"><h3>${ico('i-cam')}Cámara <span class="chip ok" style="margin-left:auto" data-v="camChip">En uso por Teams</span></h3>
+      <div class="campv" id="campv"><div class="camscene" id="camscene"></div><span class="camlbl"><i></i>Vista previa simulada</span><div class="camoff">${ico('i-shield')}<b>Cámara desactivada</b><span class="lbl">Ninguna app puede usarla</span></div></div>
+      <div class="grid2 mt12" style="grid-template-columns:1fr;gap:6px"><select aria-label="Cámara"><option>Cámara integrada HD</option><option>Webcam USB 1080p</option></select></div>
+      <div class="ctl"><span>Brillo</span><input type="range" min="0" max="100" value="50" data-k="camB" aria-label="Brillo de la cámara"><b data-v="camB">50</b></div>
+      <div class="ctl"><span>Contraste</span><input type="range" min="0" max="100" value="50" data-k="camC" aria-label="Contraste de la cámara"><b data-v="camC">50</b></div>
+      <div class="ctl"><span>Exposición</span><input type="range" min="-5" max="5" value="0" step="1" data-k="camE" aria-label="Exposición de la cámara"><b data-v="camE">0</b></div>
+      <div class="ctl"><span>Enfoque</span><input type="range" min="0" max="100" value="100" data-k="camF" aria-label="Enfoque de la cámara"><b data-v="camF">Auto</b></div>
+      <div class="ctl"><span>Zoom</span><input type="range" min="100" max="200" value="100" data-k="camZ" aria-label="Zoom de la cámara"><b data-v="camZ">1.0×</b></div>
+      <div class="sub mt12"><div class="between"><span class="rowflex"><svg class="uac" aria-hidden="true"><use href="#i-uac"/></svg><b>Interruptor de privacidad</b></span><button class="switch" role="switch" aria-checked="${S.camPriv}" data-act="cam-priv" aria-label="Desactivar la cámara (requiere administrador)"></button></div><p>Desactiva el dispositivo a nivel de Windows. Pide confirmación de UAC.</p></div>
+    </div></div>`,
+  bright:()=>`<div class="card">${[['1','Pantalla integrada','Integrada · eDP',70,false],['2','Monitor 2','DisplayPort · DDC/CI',55,false],['3','Monitor 3','HDMI · sin DDC/CI',40,true]].map(m=>`<div class="monb ${m[4]?'dis':''}"><div class="mini">${m[0]}</div><div><div class="between"><b>${m[1]}</b><span class="lbl">${m[2]}</span></div><input class="mt8" type="range" min="0" max="100" value="${m[3]}" ${m[4]?'disabled':`data-k="br${m[0]}"`} aria-label="Brillo de ${m[1]}"></div><b class="tab" ${m[4]?'':`data-v="br${m[0]}"`}>${m[4]?'—':m[3]+' %'}</b></div>`).join('')}
+    <div class="srow"><div class="grow">Sincronizar brillo de todos los monitores<small>Mueve los compatibles en conjunto</small></div><button class="switch" role="switch" aria-checked="false" data-act="sw" aria-label="Sincronizar brillo"></button></div>
+    <p class="note mt8">${ico('i-warn')}Monitor 3 no responde a DDC/CI: activa DDC/CI en el menú del monitor o usa sus botones físicos.</p></div>`,
+  shortcuts:()=>`<div class="list">${SHORTCUTS.map(s=>`<div class="scl"><span class="ico34">${ico(s.i)}</span><div><div class="t">${s.n}</div><div class="s">${s.d}</div></div>${s.k==='temp'||s.k==='heavy'?'<span class="chip">Con vista previa</span>':'<span></span>'}<button class="btn sm" data-act="sc" data-sc="${s.k}">Ejecutar</button></div>`).join('')}</div>`,
+};
+let maxId = null;
+function openMax(id){
+  maxId = id; const d = W[id].d;
+  $('#maxTitle').textContent = d.title; $('#maxIco').setAttribute('href', '#' + d.icon);
+  $('#maxSub').textContent = {cpu:'Uso por núcleo e historial',ram:'Desglose e historial',disk:'Unidades y actividad en vivo',net:'Tráfico, adaptador e IP local',proc:'Lista completa · selecciona varios para cerrarlos',spend:'Historial del mes y desglose',mail:'No leídos y agenda · solo metadatos',weather:'Pronóstico 24 h y 7 días',audio:'Mezclador por app, micrófono y cámara',bright:'Brillo por monitor (DDC/CI)',shortcuts:'Acciones rápidas del sistema'}[id];
+  $('#maxAct').innerHTML = id === 'mail' ? `<button class="btn" data-act="privacy">${ico('i-eyeoff')}Privacidad</button>` : '';
+  $('#maxBody').innerHTML = DETAIL[id]();
+  openOv('ov-max');
+  if (id === 'mail') renderMail(false);
+  if (id === 'proc') renderTable();
+  hydrate($('#maxBody'));
+  tickDom(true);
+}
+function renderTable(){
+  const tb = $('[data-ptable]'); if (!tb) return;
+  const q = S.procQuery.toLowerCase();
+  const list = PROCS.filter(p => p.n.toLowerCase().includes(q)).sort((a,b) => S.procSort === 'cpu' ? b.cpu - a.cpu : b.ram - a.ram);
+  tb.innerHTML = list.map(p => {
+    const sel = S.selected.has(p.n);
+    const first = p.lock ? `<span class="lockc" title="Protegido por la lista negra">${ico('i-lock')}<span class="sr">Protegido</span></span>` : `<input type="checkbox" data-pick="${p.n}" ${sel?'checked':''} aria-label="Seleccionar ${p.n}">`;
+    const st = p.lock ? '<span class="chip">Lista negra · sistema</span>' : p.tag === 'ref' ? '<span class="chip warn">confirmación reforzada</span>' : '<span class="lbl">En ejecución</span>';
+    return `<tr class="${sel?'sel':''} ${p.lock?'locked':''}"><td>${first}</td><td><span class="pn"><span class="appg ${p.g}">${p.l}</span>${p.n}</span></td><td class="n">${p.pid}</td><td class="n" data-pc="${p.n}">${p.cpu.toFixed(1)} %</td><td class="n">${fmtMB(p.ram)}</td><td>${st}</td></tr>`;
+  }).join('');
+  updateSelInfo();
+}
+function updateSelInfo(){
+  const sel = PROCS.filter(p => S.selected.has(p.n)); const ram = sel.reduce((a,p) => a + p.ram, 0);
+  setV('selInfo', sel.length ? `${sel.length} seleccionados · liberarías ~${fmtMB(ram)}` : 'Ninguno seleccionado');
+  setV('closeTxt', sel.length ? `Cerrar seleccionados (${sel.length})` : 'Cerrar seleccionados');
+  $$('[data-closebtn]').forEach(b => b.disabled = !sel.length);
+}
+function openConfirm(){
+  const sel = PROCS.filter(p => S.selected.has(p.n)); if (!sel.length) return;
+  const strong = sel.some(p => p.tag === 'ref'); const ram = sel.reduce((a,p) => a + p.ram, 0);
+  $('#cfTitle').textContent = `¿Cerrar ${sel.length} proceso${sel.length>1?'s':''}?`;
+  $('#cfBody').innerHTML = `<div class="cfl">${sel.map(p => `<div><span class="appg ${p.g}">${p.l}</span><b>${p.n}</b>${p.tag==='ref'?'<span class="chip warn">confirmación reforzada</span>':'<span></span>'}<span class="tab lbl">${fmtMB(p.ram)}</span></div>`).join('')}</div>
+    <div class="between" style="margin-bottom:12px"><span class="lbl">Memoria a liberar</span><b class="tab" style="font-size:16px">~${fmtMB(ram)}</b></div>
+    <label class="srow" style="padding:0 0 12px"><input type="checkbox" checked> <span class="grow">Pedir cierre normal primero y forzar a los 5 s si no responde</span></label>
+    ${strong ? `<div class="warnbox">${ico('i-warn')}<div><b>Incluye ${sel.filter(p=>p.tag==='ref').map(p=>p.n).join(' y ')}.</b> Tiene confirmación reforzada: podrías perder cambios sin guardar. Escribe <b>CERRAR</b> para continuar.</div></div>
+      <input class="inp typein" id="cfIn" autocomplete="off" placeholder="CERRAR" aria-label="Escribe CERRAR para confirmar">` : ''}
+    <div class="rowflex mt16" style="justify-content:flex-end"><button class="btn" data-act="ov-close">Cancelar</button><button class="btn danger" id="cfOk" data-act="cf-ok" ${strong?'disabled':''}>${ico('i-x')}Cerrar ${sel.length} proceso${sel.length>1?'s':''}</button></div>`;
+  openOv('ov-confirm');
+  const inp = $('#cfIn');
+  if (inp){ inp.addEventListener('input', () => { $('#cfOk').disabled = inp.value.trim().toUpperCase() !== 'CERRAR'; }); setTimeout(() => inp.focus(), 60); }
+}
+
+/* ---------- Overlays ---------- */
+const ovStack = [];
+let lastFocus = null;
+function openOv(id){
+  const ov = $('#' + id); if (ov.classList.contains('open')) return;
+  lastFocus = document.activeElement;
+  ov.classList.add('open'); ov.setAttribute('aria-hidden', 'false'); ovStack.push(id);
+  if (!document.body.classList.contains('captura')) setTimeout(() => { const f = ov.querySelector('.phead .bi, .phead .btn, button, input'); if (f && !ov.querySelector('#cfIn')) f.focus({preventScroll:true}); }, 50);
+  requestAnimationFrame(() => { hydrate(ov); drawAll(); });
+}
+function closeOv(id){
+  id = id || ovStack[ovStack.length - 1]; if (!id) return;
+  const ov = $('#' + id); ov.classList.remove('open'); ov.setAttribute('aria-hidden', 'true');
+  const i = ovStack.indexOf(id); if (i >= 0) ovStack.splice(i, 1);
+  if (id === 'ov-max'){ maxId = null; $('#maxBody').innerHTML = ''; }
+  if (lastFocus && lastFocus.focus) lastFocus.focus({preventScroll:true});
+}
+function closeAllOv(){ [...ovStack].reverse().forEach(id => closeOv(id)); }
+function hydrate(root){
+  $$('input[type=range]', root).forEach(r => r.style.setProperty('--v', ((r.value - r.min) / (r.max - r.min) * 100) + '%'));
+  $$('.bar i[data-w]', root).forEach(b => requestAnimationFrame(() => b.style.width = b.dataset.w + '%'));
+}
+
+/* ---------- Popovers ---------- */
+function togglePop(id, btn, force){
+  const pop = $('#' + id), open = force !== undefined ? force : !pop.classList.contains('open');
+  pop.classList.toggle('open', open); if (btn) btn.setAttribute('aria-expanded', open);
+  if (id === 'trayMenu'){ $('#trayBtn').classList.toggle('on', open);
+    if (open){ const r = $('#trayBtn').getBoundingClientRect(); pop.style.right = Math.max(8, innerWidth - r.right - 110) + 'px'; pop.style.bottom = '48px'; pop.style.left = 'auto'; } }
+  if (id === 'accPop' && open){ const r = $('#accBtn').getBoundingClientRect(); pop.style.left = Math.max(8, r.left - 20) + 'px'; pop.style.bottom = (innerHeight - r.top + 22) + 'px'; }
+}
+
+/* ---------- Notificaciones ---------- */
+let mtT;
+function notify(msg){ const t = $('#mtoast'); t.querySelector('span').textContent = msg; t.classList.add('show'); clearTimeout(mtT); mtT = setTimeout(() => t.classList.remove('show'), 2600); }
+function showToast(on = true){ const t = $('#w10t'); t.classList.toggle('show', on); t.setAttribute('aria-hidden', !on); }
+
+/* ---------- Customize ---------- */
+const ACCENTS = [['Cian eléctrico','#22d3ee'],['Violeta','#a78bfa'],['Verde','#4ade80'],['Ámbar','#fbbf24'],['Rosa','#f472b6'],['Azul','#60a5fa']];
+const BL_FIXED = ['System','svchost.exe','dwm.exe','csrss.exe','lsass.exe','explorer.exe','wininit.exe','winlogon.exe','services.exe','smss.exe'];
+let blCustom = ['OneDrive.exe','obs64.exe'];
+function setAccent(hex){
+  const n = parseInt(hex.slice(1), 16), rgb = [(n>>16)&255,(n>>8)&255,n&255];
+  document.documentElement.style.setProperty('--acc', hex); document.documentElement.style.setProperty('--acc-rgb', rgb.join(','));
+  $$('#swatches .sw').forEach(s => s.setAttribute('aria-pressed', s.dataset.color === hex));
+}
+function buildCustomize(){
+  $('#czWidgets').innerHTML = DEFS.map(d => `<div class="srow">${ico(d.icon)}<div class="grow">${d.title}</div><button class="switch" role="switch" aria-checked="true" data-czw="${d.id}" data-act="cz-w" aria-label="Mostrar widget ${d.title}"></button></div>`).join('') +
+    `<div class="srow" style="margin-top:4px;border-top:1px solid var(--line);padding-top:10px"><div class="grow">Rotación del correo con privacidad activa al iniciar<small>Empieza desenfocado hasta que pulses el ojo</small></div><button class="switch" role="switch" aria-checked="false" data-act="sw" aria-label="Privacidad al iniciar"></button></div>`;
+  $('#swatches').innerHTML = ACCENTS.map(([n,c]) => `<button class="sw" style="background:${c};color:${c}" data-act="accent" data-color="${c}" aria-pressed="${c==='#22d3ee'}" aria-label="Acento ${n}" title="${n}"></button>`).join('') +
+    `<span class="sw" style="background:conic-gradient(red,yellow,lime,cyan,blue,magenta,red)" title="Color personalizado"><input type="color" value="#22d3ee" aria-label="Color de acento personalizado" id="accCustom"></span>`;
+  $('#blFixed').innerHTML = BL_FIXED.map(n => `<span class="tag">${ico('i-lock')}${n}</span>`).join('');
+  renderBl();
+}
+function renderBl(){ $('#blCustom').innerHTML = blCustom.map(n => `<span class="tag">${n}<button data-act="bl-del" data-n="${n}" aria-label="Quitar ${n} de la lista negra">${ico('i-x')}</button></span>`).join(''); }
+
+/* ---------- Zonas ---------- */
+const ZF = .235;
+const ZMON0 = [
+  {name:'Pantalla integrada',res:[1920,1080],scale:'125 %',cols:3,rows:2},
+  {name:'Monitor 2',res:[2560,1440],scale:'100 %',cols:4,rows:2},
+  {name:'Monitor 3 (vertical)',res:[1080,1920],scale:'100 %',cols:1,rows:3},
+];
+let ZMON = ZMON0.map(m => ({...m}));
+const Z = {active:1, sel:null, dragging:false, mode:'colocar', lock:null};
+let PRESETS0 = [
+  {n:'Mitad izquierda',m:1,r:[0,0,1,1],k:'Ctrl+Alt+1',c:4,rw:2},
+  {n:'Foco central',m:1,r:[1,0,2,1],k:'Ctrl+Alt+2',c:4,rw:2},
+  {n:'Tercio superior',m:2,r:[0,0,0,0],k:'Ctrl+Alt+3',c:1,rw:3},
+  {n:'Pantalla completa',m:0,r:[0,0,2,1],k:'Ctrl+Alt+4',c:3,rw:2},
+];
+let APPS0 = [
+  {n:'Cursor',g:'ag-cursor',l:'C',z:'Monitor 2 · columnas 1–3 · filas 1–2'},
+  {n:'Microsoft Edge',g:'ag-edge',l:'e',z:'Pantalla integrada · completo'},
+  {n:'Spotify',g:'ag-spot',l:'S',z:'Monitor 3 · fila 3'},
+  {n:'Teams',g:'ag-teams',l:'T',z:'Monitor 3 · filas 1–2'},
+];
+let PRESETS = PRESETS0.map(p => ({...p})), APPS = APPS0.map(a => ({...a}));
+function zMode(){ return Z.lock || Z.mode; }
+function badge(){
+  const m = zMode();
+  if (m === 'recordar') return `<span class="zbadge rem">${ico('i-pin')}Shift · Recordar ventana para esta app (Cursor)</span>`;
+  if (m === 'preset') return `<span class="zbadge pre">${ico('i-layers')}Ctrl · Guardar como preset</span>`;
+  return `<span class="zbadge">${ico('i-zones')}Colocar ventana activa</span>`;
+}
+function renderZones(){
+  $('#zStage').innerHTML = '<div class="zrow">' + ZMON.map((m,i) => {
+    const w = Math.round(m.res[0]*ZF), h = Math.round(m.res[1]*ZF);
+    let cells = ''; for (let r = 0; r < m.rows; r++) for (let c = 0; c < m.cols; c++) cells += `<div class="zcell" data-m="${i}" data-c="${c}" data-r="${r}" aria-hidden="true"></div>`;
+    return `<div class="zmon ${i===Z.active?'active':''}" data-mi="${i}">
+      <div class="zbslot">${i===Z.active?badge():''}</div>
+      <div class="zscreen" style="width:${w}px;height:${h}px"><div class="zgrid" style="grid-template-columns:repeat(${m.cols},1fr);grid-template-rows:repeat(${m.rows},1fr)">${cells}</div><div class="zsel" data-zsel="${i}"></div><span class="znum">${i+1}</span></div>
+      <div class="zmeta"><b>${m.name}</b><span>${m.res[0]}×${m.res[1]} · escala ${m.scale}</span></div>
+      <div class="zsteps"><div class="stepper"><span>Columnas</span><button data-act="zstep" data-m="${i}" data-k="cols" data-d="-1" aria-label="Quitar columna en ${m.name}">−</button><b>${m.cols}</b><button data-act="zstep" data-m="${i}" data-k="cols" data-d="1" aria-label="Agregar columna en ${m.name}">+</button></div>
+      <div class="stepper"><span>Filas</span><button data-act="zstep" data-m="${i}" data-k="rows" data-d="-1" aria-label="Quitar fila en ${m.name}">−</button><b>${m.rows}</b><button data-act="zstep" data-m="${i}" data-k="rows" data-d="1" aria-label="Agregar fila en ${m.name}">+</button></div></div></div>`;
+  }).join('') + '</div>';
+  updateZSel(); renderZSide();
+}
+function selInfo(){
+  const s = Z.sel, m = ZMON[s.m];
+  const c0 = Math.min(s.c0,s.c1), c1 = Math.max(s.c0,s.c1), r0 = Math.min(s.r0,s.r1), r1 = Math.max(s.r0,s.r1);
+  const pw = Math.round((c1-c0+1)/m.cols*m.res[0]), ph = Math.round((r1-r0+1)/m.rows*m.res[1]);
+  const span = (a,b,w) => a===b ? `${w} ${a+1}` : `${w}s ${a+1}–${b+1}`;
+  return {c0,c1,r0,r1,pw,ph,txt:`${m.name} · ${span(c0,c1,'columna')} · ${span(r0,r1,'fila')}`};
+}
+function updateZSel(){
+  $$('[data-zsel]').forEach(el => el.className = 'zsel');
+  const res = $('#zRes');
+  if (!Z.sel){ res.innerHTML = `${ico('i-zones')}<span>Arrastra sobre las celdas del monitor resaltado. Mantén <span class="kbd">Shift</span> o <span class="kbd">Ctrl</span> para cambiar el modo.</span>`; return; }
+  const s = Z.sel, m = ZMON[s.m], el = $(`[data-zsel="${s.m}"]`), inf = selInfo();
+  const g = 6;
+  el.style.left = `calc(${g}px + (100% - ${2*g}px + ${g}px) * ${inf.c0/m.cols})`;
+  el.style.top = `calc(${g}px + (100% - ${2*g}px + ${g}px) * ${inf.r0/m.rows})`;
+  el.style.width = `calc((100% - ${2*g}px + ${g}px) * ${(inf.c1-inf.c0+1)/m.cols} - ${g}px)`;
+  el.style.height = `calc((100% - ${2*g}px + ${g}px) * ${(inf.r1-inf.r0+1)/m.rows} - ${g}px)`;
+  const mode = zMode();
+  el.className = 'zsel show' + (mode==='recordar'?' rem':mode==='preset'?' pre':'');
+  el.innerHTML = `<div>${inf.pw}×${inf.ph}<small>${(inf.c1-inf.c0+1)}×${(inf.r1-inf.r0+1)} celdas</small></div>`;
+  const verb = mode==='recordar' ? 'Recordar <b>Cursor</b> en' : mode==='preset' ? 'Guardar preset en' : 'Colocar <b>Cursor</b> en';
+  res.innerHTML = `${ico(mode==='recordar'?'i-pin':mode==='preset'?'i-layers':'i-check')}<span>${verb} ${inf.txt} → <b class="tab">${inf.pw}×${inf.ph} px</b>${Z.dragging?' (suelta para aplicar)':''}</span>`;
+}
+function renderZSide(){
+  $('#zPresets').innerHTML = PRESETS.map(p => `<div class="prow"><span class="pmini"><i style="left:${p.r[0]/p.c*100}%;top:${p.r[1]/p.rw*100}%;width:${(p.r[2]-p.r[0]+1)/p.c*100}%;height:${(p.r[3]-p.r[1]+1)/p.rw*100}%"></i></span><div><div class="t">${p.n}</div><div class="s">${ZMON[p.m] ? ZMON[p.m].name : ''}</div></div><span class="kbd">${p.k}</span></div>`).join('');
+  $('#zApps').innerHTML = APPS.map((a,i) => `<div class="arow"><span class="appg ${a.g}">${a.l}</span><div style="min-width:0"><div class="t">${a.n}</div><div class="s">${a.z}</div></div><button class="bi" data-act="zapp-del" data-i="${i}" aria-label="Olvidar zona de ${a.n}">${ico('i-x')}</button></div>`).join('');
+}
+function zFinish(){
+  if (!Z.sel) return; const inf = selInfo(), mode = zMode();
+  if (mode === 'recordar'){ const a = APPS.find(x => x.n === 'Cursor'); a.z = inf.txt; renderZSide(); notify('Cursor se colocará siempre en ' + inf.txt); }
+  else if (mode === 'preset'){ const m = ZMON[Z.sel.m]; PRESETS.push({n:'Preset ' + (PRESETS.length+1),m:Z.sel.m,r:[inf.c0,inf.r0,inf.c1,inf.r1],k:'Ctrl+Alt+' + (PRESETS.length+1),c:m.cols,rw:m.rows}); renderZSide(); notify('Preset guardado con atajo Ctrl+Alt+' + PRESETS.length); }
+  else notify('Cursor colocado en ' + inf.txt + ' (simulado)');
+}
+function zCellAt(x, y){ const el = document.elementFromPoint(x, y); return el && el.classList.contains('zcell') ? el : null; }
+document.addEventListener('pointerdown', e => {
+  const c = e.target.closest && e.target.closest('.zcell'); if (!c) return;
+  e.preventDefault();
+  const m = +c.dataset.m; if (m !== Z.active){ Z.active = m; Z.sel = null; renderZones(); }
+  Z.dragging = true; Z.sel = {m, c0:+c.dataset.c, r0:+c.dataset.r, c1:+c.dataset.c, r1:+c.dataset.r};
+  Z.mode = e.shiftKey ? 'recordar' : e.ctrlKey ? 'preset' : 'colocar'; Z.lock = null; refreshBadge(); updateZSel();
+});
+document.addEventListener('pointermove', e => {
+  if (!Z.dragging) return; const c = zCellAt(e.clientX, e.clientY);
+  if (c && +c.dataset.m === Z.sel.m){ Z.sel.c1 = +c.dataset.c; Z.sel.r1 = +c.dataset.r; updateZSel(); }
+});
+document.addEventListener('pointerup', () => { if (!Z.dragging) return; Z.dragging = false; updateZSel(); zFinish(); });
+function refreshBadge(){ const slot = $(`.zmon[data-mi="${Z.active}"] .zbslot`); if (slot) slot.innerHTML = badge(); }
+
+/* ---------- Limpieza ---------- */
+function cleanTotal(){ const mb = $$('[data-clean]').filter(c => c.checked).reduce((a,c) => a + +c.dataset.clean, 0); setV('cleanTotal', mb >= 1000 ? (mb/1000).toFixed(2) + ' GB' : mb + ' MB'); return mb; }
+
+/* ---------- Eventos ---------- */
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-act]');
+  if (!e.target.closest('#trayMenu,#trayBtn')) togglePop('trayMenu', $('#trayBtn'), false);
+  if (!e.target.closest('#accPop,#accBtn')) togglePop('accPop', $('#accBtn'), false);
+  if (!b) return;
+  const act = b.dataset.act, wEl = b.closest('.widget'), wid = wEl ? wEl.dataset.w : b.dataset.w;
+  switch (act){
+    case 'pin': { const on = b.getAttribute('aria-pressed') !== 'true'; b.setAttribute('aria-pressed', on); wEl.classList.toggle('pinned', on); front(wEl); notify(on ? `${W[wid].d.title}: siempre encima` : `${W[wid].d.title}: vuelve a la capa del escritorio`); break; }
+    case 'mini': toggleMini(wid); break;
+    case 'max': openMax(wid); break;
+    case 'close': setWidgetOn(wid, false); notify(`${W[wid].d.title} oculto · actívalo desde el dock`); break;
+    case 'toggle-w': setWidgetOn(wid, !W[wid].on); break;
+    case 'cz-w': setWidgetOn(b.dataset.czw, b.getAttribute('aria-checked') !== 'true'); break;
+    case 'max-restore': case 'ov-close': closeOv(); break;
+    case 'accounts': togglePop('accPop', b); break;
+    case 'tray': togglePop('trayMenu', b); break;
+    case 'toggle-all': S.hiddenAll = !S.hiddenAll; layer.classList.toggle('hidden-all', S.hiddenAll); setV('toggleAllTxt', S.hiddenAll ? 'Mostrar todo' : 'Ocultar todo'); togglePop('trayMenu', $('#trayBtn'), false); break;
+    case 'open-customize': togglePop('trayMenu', $('#trayBtn'), false); closeAllOv(); openOv('ov-custom'); break;
+    case 'open-zones': togglePop('trayMenu', $('#trayBtn'), false); closeAllOv(); openZones(); break;
+    case 'open-login': togglePop('trayMenu', $('#trayBtn'), false); togglePop('accPop', $('#accBtn'), false); closeAllOv(); openOv('ov-login'); break;
+    case 'quit': togglePop('trayMenu', $('#trayBtn'), false); notify('Salir: en la app real se cierra Glassdeck (simulado)'); break;
+    case 'privacy': setPrivacy(!S.privacy); break;
+    case 'mail-prev': S.mailIdx = (S.mailIdx + MAILS.length - 1) % MAILS.length; renderMail(true); break;
+    case 'mail-next': S.mailIdx = (S.mailIdx + 1) % MAILS.length; renderMail(true); break;
+    case 'proc-sort': S.procSort = b.dataset.v; $$('[data-act="proc-sort"]').forEach(x => x.setAttribute('aria-pressed', x.dataset.v === S.procSort)); renderTop(); renderTable(); break;
+    case 'sel-clear': S.selected.clear(); renderTable(); break;
+    case 'close-selected': openConfirm(); break;
+    case 'cf-ok': { const sel = PROCS.filter(p => S.selected.has(p.n)); const ram = sel.reduce((a,p)=>a+p.ram,0); PROCS = PROCS.filter(p => !S.selected.has(p.n)); S.selected.clear(); closeOv('ov-confirm'); renderTable(); renderTop(); notify(`${sel.length} procesos cerrados · ~${fmtMB(ram)} liberados (simulado)`); break; }
+    case 'edit-city': { const el = wEl.querySelector('[data-v="city"]'); const inp = document.createElement('input'); inp.value = el.textContent; inp.setAttribute('aria-label','Ciudad'); el.replaceWith(inp); inp.focus(); inp.select();
+      const done = () => { const v = inp.value.trim() || 'Chihuahua'; const nb = document.createElement('b'); nb.dataset.v = 'city'; nb.textContent = v; inp.replaceWith(nb); notify('Ciudad: ' + v + ' (Open-Meteo, simulado)'); };
+      inp.addEventListener('keydown', ev => { if (ev.key === 'Enter') done(); }); inp.addEventListener('blur', done, {once:true}); break; }
+    case 'save-city': { const v = ($('#cityIn').value.trim() || 'Chihuahua'); setV('city', v); notify('Ciudad guardada: ' + v); break; }
+    case 'mute': S.muted = !S.muted; $$('[data-act="mute"]').forEach(x => { x.setAttribute('aria-pressed', S.muted); x.innerHTML = ico(S.muted ? 'i-mute' : 'i-vol'); }); setV('volTxt', S.muted ? 'Mudo' : S.vol + ' %'); break;
+    case 'app-mute': { const on = b.getAttribute('aria-pressed') !== 'true'; b.setAttribute('aria-pressed', on); b.innerHTML = ico(on ? 'i-mute' : 'i-vol'); break; }
+    case 'mic-mute': S.micMuted = !S.micMuted; b.setAttribute('aria-pressed', S.micMuted); setV('micTxt', S.micMuted ? 'Activar' : 'Silenciar'); break;
+    case 'cam-priv': S.camPriv = !S.camPriv; b.setAttribute('aria-checked', S.camPriv); $('#campv').classList.toggle('privacy', S.camPriv); setV('camState', S.camPriv ? 'Desactivada' : 'Activa'); setV('camChip', S.camPriv ? 'Desactivada' : 'En uso por Teams'); if (S.camPriv) notify('UAC: se pediría permiso de administrador (simulado)'); break;
+    case 'sw': b.setAttribute('aria-checked', b.getAttribute('aria-checked') !== 'true'); break;
+    case 'pause-anim': S.paused = b.getAttribute('aria-checked') !== 'true'; b.setAttribute('aria-checked', S.paused); document.body.classList.toggle('paused', S.paused); break;
+    case 'thr': b.setAttribute('aria-pressed', b.getAttribute('aria-pressed') !== 'true'); break;
+    case 'layer': $$('[data-act="layer"]').forEach(x => x.setAttribute('aria-pressed', x === b)); notify(b.dataset.v === 'top' ? 'Widgets siempre encima de las ventanas' : 'Widgets en la capa del escritorio'); break;
+    case 'accent': setAccent(b.dataset.color); break;
+    case 'bl-del': blCustom = blCustom.filter(n => n !== b.dataset.n); renderBl(); break;
+    case 'cz-reset': setAccent('#22d3ee'); notify('Valores predeterminados restablecidos (vista previa)'); break;
+    case 'connect': S.claudeAi = !S.claudeAi; updateClaude(); notify(S.claudeAi ? 'Claude.ai conectado (simulado)' : 'Claude.ai desconectado'); break;
+    case 'clean-scan': notify('Análisis actualizado'); cleanTotal(); break;
+    case 'clean-run': runClean(b); break;
+    case 'zstep': { const m = ZMON[+b.dataset.m]; m[b.dataset.k] = clamp(m[b.dataset.k] + +b.dataset.d, 1, 8); if (Z.sel && Z.sel.m === +b.dataset.m) Z.sel = null; renderZones(); break; }
+    case 'zone-recall': notify('Recuperar todo: 4 ventanas recolocadas (simulado)'); break;
+    case 'zapp-del': APPS.splice(+b.dataset.i, 1); renderZSide(); break;
+    case 'sc': runShortcut(b.dataset.sc); break;
+    case 'toast-close': showToast(false); break;
+    case 'toast-spend': showToast(false); closeAllOv(); openMax('spend'); break;
+    case 'scene-prev': case 'scene-next': { const keys = Object.keys(SCENES); let i = keys.indexOf(curScene) + (act === 'scene-next' ? 1 : -1); i = (i + keys.length) % keys.length; location.hash = 'escena=' + keys[i]; break; }
+  }
+});
+document.addEventListener('change', e => {
+  if (e.target.matches('[data-pick]')){ const n = e.target.dataset.pick; e.target.checked ? S.selected.add(n) : S.selected.delete(n); e.target.closest('tr').classList.toggle('sel', e.target.checked); updateSelInfo(); }
+  if (e.target.matches('[data-clean]')) cleanTotal();
+  if (e.target.id === 'accCustom') setAccent(e.target.value);
+  if (e.target.id === 'sceneSel') location.hash = 'escena=' + e.target.value;
+});
+document.addEventListener('input', e => {
+  const t = e.target;
+  if (t.type === 'range'){ t.style.setProperty('--v', ((t.value - t.min) / (t.max - t.min) * 100) + '%'); const k = t.dataset.k; if (!k) return;
+    if (k === 'vol'){ S.vol = +t.value; $$('input[data-k="vol"]').forEach(x => { if (x !== t){ x.value = t.value; x.style.setProperty('--v', t.value + '%'); } }); setV('volTxt', S.vol + ' %'); }
+    else if (/^br\d$/.test(k)){ $$(`input[data-k="${k}"]`).forEach(x => { if (x !== t){ x.value = t.value; x.style.setProperty('--v', t.value + '%'); } }); setV(k, t.value + ' %'); setV('brPill', $('input[data-k="br1"]').value + ' % · ' + $('input[data-k="br2"]').value + ' %'); }
+    else if (k.startsWith('cam')) updateCam();
+    else setV(k, t.value + ' %');
+  }
+  if (t.id === 'procQ'){ S.procQuery = t.value; renderTable(); }
+});
+document.addEventListener('submit', e => { if (e.target.matches('[data-noop]')){ e.preventDefault(); notify('Clave guardada en el Administrador de credenciales (simulado)'); } });
+$('#blForm').addEventListener('submit', e => { e.preventDefault(); const v = $('#blInput').value.trim(); if (v && !blCustom.includes(v) && !BL_FIXED.includes(v)){ blCustom.push(v); renderBl(); } $('#blInput').value = ''; });
+function updateCam(){
+  const g = k => +($(`input[data-k="${k}"]`) || {value:0}).value;
+  const b = g('camB'), c = g('camC'), ex = g('camE'), f = g('camF'), z = g('camZ');
+  setV('camB', b); setV('camC', c); setV('camE', (ex > 0 ? '+' : '') + ex); setV('camF', f >= 100 ? 'Auto' : f); setV('camZ', (z/100).toFixed(1) + '×');
+  const sc = $('#camscene'); if (!sc) return;
+  sc.style.filter = `brightness(${(.5 + b/100) * (1 + ex*.08)}) contrast(${.5 + c/100}) blur(${f >= 100 ? 0 : (100 - f)/35}px)`;
+  sc.style.transform = `scale(${z/100})`;
+}
+function updateClaude(){
+  $$('[data-claude-btn]').forEach(b => { b.textContent = S.claudeAi ? 'Desconectar' : 'Conectar'; b.classList.toggle('primary', !S.claudeAi); });
+  $$('[data-claude-dot]').forEach(d => d.className = 'dot ' + (S.claudeAi ? 'on' : 'off'));
+  $$('[data-claude-stat]').forEach(s => s.innerHTML = `<i style="background:${S.claudeAi?'var(--ok)':'#8a93a6'}"></i>${S.claudeAi?'Conectada':'Sin conectar'}`);
+  setV('accTxt', S.claudeAi ? '4 de 4 conectadas' : '3 de 4 conectadas'); setV('claudeChip', S.claudeAi ? '2 de 3' : '1 de 3');
+  setV('claudeAccS', S.claudeAi ? 'Claude Code local · Claude.ai conectado' : 'Claude Code local detectado · Claude.ai sin sesión');
+}
+function runClean(btn){
+  const total = cleanTotal(); if (!total) return notify('Selecciona al menos una ubicación');
+  const p = $('#cleanProg'), bar = p.querySelector('i'); p.style.display = 'block'; bar.style.width = '0'; btn.disabled = true; let v = 0;
+  const t = setInterval(() => { v += 7; bar.style.width = Math.min(v,100) + '%'; if (v >= 100){ clearInterval(t); btn.disabled = false; setV('cleanMsg', `Listo: liberados ${(total*.98/1000).toFixed(2)} GB · 37 archivos en uso omitidos.`); notify('Limpieza completada (simulado)'); } }, 90);
+}
+function runShortcut(k){
+  const plans = ['Equilibrado','Alto rendimiento','Ahorro de energía'];
+  switch (k){
+    case 'temp': closeAllOv(); openOv('ov-clean'); break;
+    case 'heavy': S.selected = new Set(PROCS.filter(p => !p.lock && !p.tag && (p.ram >= 500 || p.cpu >= 4)).map(p => p.n)); closeAllOv(); openMax('proc'); break;
+    case 'power': S.plan = plans[(plans.indexOf(S.plan) + 1) % plans.length]; setV('planTxt', 'Plan: ' + S.plan); notify('Plan de energía: ' + S.plan); break;
+    case 'explorer': notify('Explorer reiniciado (simulado)'); break;
+    case 'dns': notify('Caché DNS vaciada (simulado)'); break;
+    case 'recycle': notify('Papelera vaciada: 1.21 GB (simulado)'); break;
+    case 'lock': notify('Bloquear sesión (simulado)'); break;
+    case 'sleep': notify('Suspender equipo (simulado)'); break;
+    case 'taskmgr': notify('Abriendo Administrador de tareas (simulado)'); break;
+  }
+}
+function openZones(){ renderZones(); openOv('ov-zones'); }
+
+document.addEventListener('keydown', e => {
+  const zOpen = ovStack[ovStack.length - 1] === 'ov-zones';
+  if (zOpen){
+    if (e.key === 'Shift' || e.key === 'Control'){ Z.lock = null; Z.mode = e.key === 'Shift' ? 'recordar' : 'preset'; refreshBadge(); updateZSel(); return; }
+    if (e.key === 'PageDown' || e.key === 'PageUp'){ e.preventDefault(); Z.active = (Z.active + (e.key === 'PageDown' ? 1 : ZMON.length - 1)) % ZMON.length; Z.sel = null; renderZones(); return; }
+    if (e.key === 'Escape'){ e.preventDefault(); if (Z.sel){ Z.sel = null; Z.dragging = false; updateZSel(); } else closeOv(); return; }
+  }
+  if (e.key === 'Escape'){
+    if ($('#trayMenu').classList.contains('open') || $('#accPop').classList.contains('open')){ togglePop('trayMenu', $('#trayBtn'), false); togglePop('accPop', $('#accBtn'), false); return; }
+    if (ovStack.length) closeOv();
+  }
+  if (e.altKey && !e.ctrlKey && !e.metaKey){
+    const k = e.key.toLowerCase();
+    if (k === 'g'){ e.preventDefault(); S.hiddenAll = !S.hiddenAll; layer.classList.toggle('hidden-all', S.hiddenAll); setV('toggleAllTxt', S.hiddenAll ? 'Mostrar todo' : 'Ocultar todo'); }
+    if (k === 'p'){ e.preventDefault(); setPrivacy(!S.privacy); }
+    if (k === 'z'){ e.preventDefault(); closeAllOv(); openZones(); }
+  }
+});
+document.addEventListener('keyup', e => {
+  if ((e.key === 'Shift' || e.key === 'Control') && ovStack.includes('ov-zones') && !Z.lock){ Z.mode = 'colocar'; refreshBadge(); updateZSel(); }
+});
+
+/* ---------- Refracción que sigue al mouse ---------- */
+let mx = -1, my = -1, rafM = 0;
+document.addEventListener('pointermove', e => { mx = e.clientX; my = e.clientY; if (!rafM) rafM = requestAnimationFrame(applyRefraction); }, {passive:true});
+function applyRefraction(){
+  rafM = 0;
+  $$('.glass').forEach(g => { if (!g.offsetParent && g.id !== 'dock') return; const r = g.getBoundingClientRect(); if (!r.width) return;
+    g.style.setProperty('--mx', (mx - r.left) + 'px'); g.style.setProperty('--my', (my - r.top) + 'px'); });
+}
+
+/* ---------- Tic de simulación (1 s) ---------- */
+function tick(){
+  S.cpu = walk(S.cpu, 16, 6, 92); S.cores = S.cores.map(c => walk(c * .7 + S.cpu * .3, 22, 2, 100));
+  S.cpuHist.push(S.cpu); S.cpuHist.shift(); S.cpuHour[S.cpuHour.length-1] = S.cpu;
+  S.ram = walk(S.ram, .35, 10.5, 15.5); S.ramCache = walk(S.ramCache, .15, 8.5, 10.5); S.ramHist.push(S.ram); S.ramHist.shift(); S.ramHour[S.ramHour.length-1] = S.ram;
+  S.dR = rnd() < .15 ? 40 + rnd()*45 : walk(S.dR * .6, 14, 0, 85); S.dW = walk(S.dW * .7, 8, 0, 40); S.dRHist.push(S.dR); S.dRHist.shift(); S.dWHist.push(S.dW); S.dWHist.shift();
+  S.nD = walk(S.nD, 3.5, .1, 14); S.nU = walk(S.nU, .7, .05, 3); S.nDHist.push(S.nD); S.nDHist.shift(); S.nUHist.push(S.nU); S.nUHist.shift(); S.nDHour[119] = S.nD; S.nUHour[119] = S.nU;
+  PROCS.forEach(p => { if (p.cpu > .3) p.cpu = clamp(p.cpu + (rnd() - .5) * p.cpu * .25, .1, 25); });
+  S.uptime++;
+  S.mailCd--; if (S.mailCd <= 0){ S.mailCd = 600; S.mailIdx = (S.mailIdx + 1) % MAILS.length; renderMail(true); }
+  tickDom(false);
+}
+function tickDom(first){
+  setV('cpuN', Math.round(S.cpu)); setRing('cpu', S.cpu / 100); setV('cpuPill', Math.round(S.cpu) + ' %');
+  setV('ghz', (3.2 + S.cpu / 100 * 1.4).toFixed(2) + ' GHz');
+  setV('ramN', S.ram.toFixed(1)); setV('ramN2', S.ram.toFixed(1) + ' GB'); setRing('ram', S.ram / 32); setV('ramPill', S.ram.toFixed(1) + ' / 32 GB');
+  setV('ramCache', S.ramCache.toFixed(1) + ' GB'); setV('ramFree', (32 - S.ram - S.ramCache).toFixed(1) + ' GB');
+  $$('[data-stack]').forEach(st => { const i = st.children; i[0].style.width = S.ram/32*100 + '%'; i[1].style.width = S.ramCache/32*100 + '%'; i[2].style.width = (32-S.ram-S.ramCache)/32*100 + '%'; });
+  setV('dR', fmtRate(S.dR)); setV('dW', fmtRate(S.dW)); setV('dAct', Math.round(clamp(S.dR/1.2, 1, 99)) + ' %'); setV('diskPill', 'L ' + fmtRate(S.dR));
+  setV('nD', fmtRate(S.nD)); setV('nU', fmtRate(S.nU)); setV('netPill', '↓ ' + fmtRate(S.nD));
+  const u = S.uptime; setV('uptime', `${Math.floor(u/86400)} d ${pad(Math.floor(u%86400/3600))}:${pad(Math.floor(u%3600/60))}:${pad(u%60)}`);
+  setV('mailCd', pad(Math.floor(S.mailCd/60)) + ':' + pad(S.mailCd%60)); setRing('mailRot', 1 - S.mailCd/600);
+  setV('mailPill', '4 no leídos'); setV('tempPill', 'Chihuahua 14°'); setV('brPill', '70 % · 55 %');
+  $$('[data-cores]').forEach(c => { if (!c.children.length) c.innerHTML = S.cores.map((_,i) => `<div class="core"><b data-core-v="${i}">0 %</b><div class="ct"><div class="cf" data-core="${i}" style="height:0"></div></div><span>N${i}</span></div>`).join('');
+    S.cores.forEach((v,i) => { c.querySelector(`[data-core="${i}"]`).style.height = v + '%'; c.querySelector(`[data-core-v="${i}"]`).textContent = Math.round(v) + ' %'; }); });
+  if (!first) { renderTop(); $$('[data-pc]').forEach(td => { const p = PROCS.find(x => x.n === td.dataset.pc); if (p) td.textContent = p.cpu.toFixed(1) + ' %'; }); }
+  renderSpend();
+  drawAll();
+}
+let meterT = 0;
+function meters(){
+  const lvl = S.micMuted ? 0 : clamp(.25 + Math.abs(Math.sin(Date.now()/380)) * .45 + (rnd() - .5) * .3, 0, 1) * (S.mic/100 + .3);
+  $$('[data-meter]').forEach(m => { const bars = m.children, n = bars.length, on = Math.round(lvl * n);
+    for (let i = 0; i < n; i++){ bars[i].className = i < on ? 'on' + (i > n*.85 ? ' pk' : i > n*.65 ? ' hi' : '') : ''; } });
+  setV('micDb', S.micMuted ? 'Mudo' : Math.round(-40 + lvl * 34) + ' dB');
+}
+
+/* ---------- Reloj ---------- */
+function clock(){
+  const d = new Date(); let h = d.getHours(); const ap = h >= 12 ? 'p. m.' : 'a. m.'; h = h % 12 || 12;
+  $('#clkT').textContent = `${h}:${pad(d.getMinutes())} ${ap}`; $('#clkD').textContent = `${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()}`;
+}
+
+/* ---------- Escenas (#escena=01…10) ---------- */
+const SCENE_NAMES = {'01':'Escritorio con widgets','02':'Dock y bandeja','03':'Procesos maximizado','04':'Confirmar cierre de procesos','05':'Customize','06':'Login de servicios','07':'Alerta de correo y agenda','08':'Audio, mezclador y cámara','09':'Editor de zonas','10':'Limpieza de temporales'};
+let curScene = '01';
+function resetAll(){
+  closeAllOv(); togglePop('trayMenu', $('#trayBtn'), false); togglePop('accPop', $('#accBtn'), false); showToast(false);
+  DEFS.forEach(d => { const w = W[d.id]; if (!w.on) setWidgetOn(d.id, true); if (w.el.classList.contains('mini')) toggleMini(d.id); w.el.classList.remove('pinned'); w.el.querySelector('[data-act="pin"]').setAttribute('aria-pressed','false'); });
+  placeWidgets(); setPrivacy(false); S.hiddenAll = false; layer.classList.remove('hidden-all');
+  PROCS = PROCS0.map(p => ({...p})); S.selected.clear(); S.procQuery = ''; S.procSort = 'cpu';
+  $$('[data-act="proc-sort"]').forEach(x => x.setAttribute('aria-pressed', x.dataset.v === 'cpu'));
+  S.cursor = 38.40; S.mailIdx = 0; renderMail(false); renderTop();
+  ZMON = ZMON0.map(m => ({...m})); PRESETS = PRESETS0.map(p => ({...p})); APPS = APPS0.map(a => ({...a})); Z.active = 1; Z.sel = null; Z.lock = null; Z.mode = 'colocar';
+}
+const SCENES = {
+  '01':()=>{},
+  '02':()=>{ togglePop('accPop', $('#accBtn'), true); togglePop('trayMenu', $('#trayBtn'), true); },
+  '03':()=>{ ['msedge.exe','node.exe','Docker Desktop.exe'].forEach(n => S.selected.add(n)); openMax('proc'); },
+  '04':()=>{ ['Cursor.exe','msedge.exe','node.exe','Spotify.exe'].forEach(n => S.selected.add(n)); openMax('proc'); openConfirm(); },
+  '05':()=>{ openOv('ov-custom'); },
+  '06':()=>{ openOv('ov-login'); },
+  '07':()=>{ S.cursor = 48.12; S.mailIdx = 2; renderMail(false); openMax('mail'); setV('a80','Avisado hoy'); setTimeout(() => showToast(true), 350); },
+  '08':()=>{ openMax('audio'); },
+  '09':()=>{ Z.sel = {m:1,c0:0,r0:0,c1:1,r1:1}; Z.lock = 'recordar'; openZones(); },
+  '10':()=>{ openOv('ov-clean'); cleanTotal(); },
+};
+function parseHash(){ const o = {}; location.hash.replace(/^#/, '').split('&').forEach(kv => { const [k,v] = kv.split('='); if (k) o[decodeURIComponent(k)] = decodeURIComponent(v || ''); }); return o; }
+function applyScene(){
+  const h = parseHash(); document.body.classList.toggle('captura', h.captura === '1');
+  let code = (h.escena || '01').padStart(2, '0'); if (!SCENES[code]) code = '01';
+  curScene = code; $('#sceneSel').value = code;
+  resetAll(); SCENES[code](); renderSpend();
+}
+
+/* ---------- Inicio ---------- */
+buildWidgets(); placeWidgets(); buildCustomize();
+$('#sceneSel').innerHTML = Object.entries(SCENE_NAMES).map(([k,v]) => `<option value="${k}">${k} · ${v}</option>`).join('');
+renderTop(); renderMail(false); hydrate(document);
+addEventListener('resize', placeWidgets);
+addEventListener('hashchange', applyScene);
+applyScene();
+requestAnimationFrame(() => requestAnimationFrame(() => { tickDom(true); }));
+setInterval(tick, 1000);
+setInterval(meters, 140);
+clock(); setInterval(clock, 15000);
+reduceMQ.addEventListener && reduceMQ.addEventListener('change', drawAll);
+})();
+</script>
+</body>
+</html>
