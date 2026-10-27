@@ -109,4 +109,35 @@ mod pruebas {
         assert_eq!(liberado, 2048);
         fs::remove_dir_all(&dir).unwrap();
     }
+
+    #[cfg(windows)]
+    #[test]
+    fn no_entra_a_uniones() {
+        let dir = std::env::temp_dir().join(format!("gd-helper-union-{}", std::process::id()));
+        let destino = std::env::temp_dir().join(format!("gd-helper-destino-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        let _ = fs::remove_dir_all(&destino);
+        fs::create_dir_all(&dir).unwrap();
+        fs::create_dir_all(&destino).unwrap();
+        let importante = destino.join("importante.txt");
+        fs::write(&importante, b"no borrar").unwrap();
+        let hace_dos_dias = SystemTime::now() - Duration::from_secs(48 * 3600);
+        fs::File::options().write(true).open(&importante).unwrap().set_modified(hace_dos_dias).unwrap();
+        let creada = std::process::Command::new("cmd")
+            .args(["/C", "mklink", "/J"])
+            .arg(dir.join("union"))
+            .arg(&destino)
+            .output()
+            .map(|o| o.status.success())
+            .unwrap_or(false);
+        assert!(creada, "mklink /J no requiere permisos de administrador");
+
+        let mut liberado = 0;
+        limpiar(&dir, SystemTime::now(), &mut liberado);
+
+        assert!(importante.exists());
+        assert_eq!(liberado, 0);
+        let _ = fs::remove_dir_all(&dir);
+        let _ = fs::remove_dir_all(&destino);
+    }
 }

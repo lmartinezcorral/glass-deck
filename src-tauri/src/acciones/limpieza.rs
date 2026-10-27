@@ -316,6 +316,22 @@ mod pruebas {
 
     #[cfg(windows)]
     #[test]
+    fn un_archivo_en_uso_se_omite_y_la_limpieza_sigue() {
+        use std::os::windows::fs::OpenOptionsExt;
+        let d = preparar("en-uso");
+        let en_uso = fs::OpenOptions::new().read(true).share_mode(0).open(d.join("viejo.tmp")).unwrap();
+        let futuro = SystemTime::now() + Duration::from_secs(25 * 3600);
+        let c = recorrer(&d, true, futuro);
+        assert!(d.join("viejo.tmp").exists());
+        assert!(c.omitidos >= 1);
+        assert_eq!(c.archivos, 2);
+        assert_eq!(c.bytes, 800);
+        drop(en_uso);
+        let _ = fs::remove_dir_all(&d);
+    }
+
+    #[cfg(windows)]
+    #[test]
     fn no_sigue_uniones_fuera_de_la_carpeta() {
         let d = preparar("union");
         let destino = std::env::temp_dir().join(format!("glassdeck-destino-{}", std::process::id()));
