@@ -107,14 +107,18 @@ pub fn aplicar_efecto(app: &AppHandle, ventana: &WebviewWindow, arrastrando: boo
     let _ = ventana.set_effects(EffectsBuilder::new().effect(efecto).color(color_acrylic(tema)).build());
 }
 
-/// tao reescribe GWL_STYLE y GWL_EXSTYLE en cada cambio de visibilidad y vuelve a poner WS_CAPTION,
-/// así que los estilos propios (fuera de Alt+Tab, sin barra de título) se aplican después de mostrar.
 pub fn mostrar_ventana(ventana: &WebviewWindow) -> tauri::Result<()> {
+    #[cfg(windows)]
+    let hwnd = win32::hwnd_de(ventana);
+    #[cfg(windows)]
+    if let Some(h) = hwnd {
+        win32::proteger_estilos_widget(ventana);
+        win32::aplicar_estilos_widget(h);
+    }
     ventana.show()?;
     #[cfg(windows)]
-    if let Some(h) = win32::hwnd_de(ventana) {
-        win32::aplicar_estilos_widget(h);
-        win32::descartar_pintura_vieja(h);
+    if let Some(h) = hwnd {
+        win32::repintar_superficie(h);
     }
     Ok(())
 }

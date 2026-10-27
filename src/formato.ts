@@ -25,6 +25,11 @@ export function gb(valor: number): string {
   return (valor / 1024 ** 3).toFixed(1);
 }
 
+export function puntosPorMinuto(intervaloMs: number): number {
+  const ms = Number.isFinite(intervaloMs) && intervaloMs > 0 ? intervaloMs : 2000;
+  return Math.max(10, Math.round(60_000 / ms));
+}
+
 export function agregarAcotado(lista: readonly number[], valor: number, maximo: number): number[] {
   const siguiente = lista.length >= maximo ? lista.slice(lista.length - maximo + 1) : lista.slice();
   siguiente.push(valor);

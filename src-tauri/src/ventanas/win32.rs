@@ -1,29 +1,121 @@
 use std::sync::OnceLock;
-use windows::Win32::Foundation::HWND;
-use windows::Win32::Graphics::Gdi::{CreateRoundRectRgn, SetWindowRgn};
-use windows::Win32::UI::Accessibility::{SetWinEventHook, HWINEVENTHOOK};
-use windows::Win32::UI::WindowsAndMessaging::{
-    GetClassNameW, GetWindowLongPtrW, SetWindowLongPtrW, SetWindowPos, ShowWindow, EVENT_SYSTEM_FOREGROUND,
-    SW_HIDE, SW_SHOWNOACTIVATE,
-    GWL_EXSTYLE, GWL_STYLE, HWND_BOTTOM, HWND_NOTOPMOST, HWND_TOPMOST, SWP_FRAMECHANGED,
-    SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOOWNERZORDER, SWP_NOSIZE, WINEVENT_OUTOFCONTEXT,
-    WINEVENT_SKIPOWNPROCESS, WS_CAPTION, WS_EX_APPWINDOW, WS_EX_TOOLWINDOW, WS_MAXIMIZEBOX, WS_MINIMIZEBOX,
-    WS_POPUP, WS_SYSMENU, WS_THICKFRAME,
+use std::time::Duration;
+use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, WPARAM};
+use windows::Win32::Graphics::Gdi::{
+    CreateRoundRectRgn, RedrawWindow, SetWindowRgn, RDW_ALLCHILDREN, RDW_ERASE, RDW_FRAME, RDW_INVALIDATE,
+    RDW_UPDATENOW,
 };
+use windows::Win32::System::Threading::GetCurrentThreadId;
+use windows::Win32::UI::Accessibility::{SetWinEventHook, HWINEVENTHOOK};
+use windows::Win32::UI::Shell::{DefSubclassProc, RemoveWindowSubclass, SetWindowSubclass};
+use windows::Win32::UI::WindowsAndMessaging::{
+    GetClassNameW, GetWindowLongPtrW, GetWindowThreadProcessId, SetWindowLongPtrW, SetWindowPos,
+    EVENT_SYSTEM_FOREGROUND, GWL_EXSTYLE, GWL_STYLE, HWND_BOTTOM, HWND_NOTOPMOST, HWND_TOPMOST, STYLESTRUCT,
+    SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOOWNERZORDER, SWP_NOSIZE, WINEVENT_OUTOFCONTEXT,
+    WINEVENT_SKIPOWNPROCESS, WM_NCACTIVATE, WM_NCDESTROY, WM_SETICON, WM_SETTEXT, WM_STYLECHANGING, WS_CAPTION,
+    WS_EX_APPWINDOW, WS_EX_TOOLWINDOW, WS_MAXIMIZEBOX, WS_MINIMIZEBOX, WS_POPUP, WS_SYSMENU, WS_THICKFRAME,
+    WS_VISIBLE,
+};
+
+const ID_SUBCLASE: usize = 0x6764;
+const ESTILOS_QUITADOS: u32 = WS_CAPTION.0 | WS_THICKFRAME.0 | WS_SYSMENU.0 | WS_MINIMIZEBOX.0 | WS_MAXIMIZEBOX.0;
 
 pub fn hwnd_de(ventana: &tauri::WebviewWindow) -> Option<HWND> {
     ventana.hwnd().ok().map(|h| HWND(h.0 as _))
 }
 
+fn estilo_widget(st: u32) -> u32 {
+    (st & !ESTILOS_QUITADOS) | WS_POPUP.0
+}
+
+fn estilo_ext_widget(ex: u32) -> u32 {
+    (ex | WS_EX_TOOLWINDOW.0) & !WS_EX_APPWINDOW.0
+}
+
+unsafe extern "system" fn filtrar_estilos(
+    hwnd: HWND,
+    msg: u32,
+    wparam: WPARAM,
+    lparam: LPARAM,
+    _id: usize,
+    _datos: usize,
+) -> LRESULT {
+    match msg {
+        WM_STYLECHANGING if lparam.0 != 0 => {
+            let cambio = &mut *(lparam.0 as *mut STYLESTRUCT);
+            let indice = wparam.0 as i32;
+            if indice == GWL_STYLE.0 {
+                cambio.styleNew = estilo_widget(cambio.styleNew);
+            } else if indice == GWL_EXSTYLE.0 {
+                cambio.styleNew = estilo_ext_widget(cambio.styleNew);
+            }
+        }
+        // DefWindowProc dibuja la barra clásica al activar la ventana o cambiar su texto o icono aunque no
+        // tenga WS_CAPTION; con lParam = -1 no repinta el área no cliente.
+        WM_NCACTIVATE => return DefSubclassProc(hwnd, msg, wparam, LPARAM(-1)),
+        // Sin WS_VISIBLE durante la llamada, DefWindowProc actualiza el dato sin pintar nada.
+        WM_SETTEXT | WM_SETICON => {
+            let st = GetWindowLongPtrW(hwnd, GWL_STYLE);
+            let visible = st & WS_VISIBLE.0 as isize != 0;
+            if visible {
+                SetWindowLongPtrW(hwnd, GWL_STYLE, st & !(WS_VISIBLE.0 as isize));
+            }
+            let r = DefSubclassProc(hwnd, msg, wparam, lparam);
+            if visible {
+                SetWindowLongPtrW(hwnd, GWL_STYLE, GetWindowLongPtrW(hwnd, GWL_STYLE) | WS_VISIBLE.0 as isize);
+            }
+            return r;
+        }
+        WM_NCDESTROY => {
+            let _ = RemoveWindowSubclass(hwnd, Some(filtrar_estilos), ID_SUBCLASE);
+        }
+        _ => {}
+    }
+    DefSubclassProc(hwnd, msg, wparam, lparam)
+}
+
+/// tao reescribe los estilos en cada show y vuelve a poner WS_CAPTION; Windows alcanza a pintar esa barra
+/// sobre la superficie transparente y se queda ahí. Filtrar WM_STYLECHANGING evita que llegue a aplicarse.
+/// La subclase solo se puede instalar desde el hilo dueño de la ventana.
+pub fn proteger_estilos_widget(ventana: &tauri::WebviewWindow) {
+    let Some(hwnd) = hwnd_de(ventana) else { return };
+    let instalar = |h: HWND| unsafe {
+        let _ = SetWindowSubclass(h, Some(filtrar_estilos), ID_SUBCLASE, 0);
+    };
+    if unsafe { GetWindowThreadProcessId(hwnd, None) == GetCurrentThreadId() } {
+        instalar(hwnd);
+        return;
+    }
+    let crudo = hwnd.0 as isize;
+    let (tx, rx) = std::sync::mpsc::channel();
+    let enviado = ventana.run_on_main_thread(move || {
+        instalar(HWND(crudo as _));
+        let _ = tx.send(());
+    });
+    if enviado.is_ok() {
+        let _ = rx.recv_timeout(Duration::from_millis(500));
+    }
+}
+
+/// El WebView es translúcido y deja ver la superficie de la ventana padre, que conserva la barra de título
+/// pintada antes de quitar WS_CAPTION; nadie más la repinta porque el WebView cubre todo el cliente.
+pub fn repintar_superficie(hwnd: HWND) {
+    unsafe {
+        let _ = RedrawWindow(
+            Some(hwnd),
+            None,
+            None,
+            RDW_INVALIDATE | RDW_ERASE | RDW_FRAME | RDW_ALLCHILDREN | RDW_UPDATENOW,
+        );
+    }
+}
+
 pub fn aplicar_estilos_widget(hwnd: HWND) {
     unsafe {
         let ex = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
-        let ex = (ex | WS_EX_TOOLWINDOW.0 as isize) & !(WS_EX_APPWINDOW.0 as isize);
-        SetWindowLongPtrW(hwnd, GWL_EXSTYLE, ex);
+        SetWindowLongPtrW(hwnd, GWL_EXSTYLE, estilo_ext_widget(ex as u32) as isize);
         let st = GetWindowLongPtrW(hwnd, GWL_STYLE);
-        let quitar = WS_CAPTION.0 | WS_THICKFRAME.0 | WS_SYSMENU.0 | WS_MINIMIZEBOX.0 | WS_MAXIMIZEBOX.0;
-        let st = (st & !(quitar as isize)) | WS_POPUP.0 as isize;
-        SetWindowLongPtrW(hwnd, GWL_STYLE, st);
+        SetWindowLongPtrW(hwnd, GWL_STYLE, estilo_widget(st as u32) as isize);
         let _ = SetWindowPos(
             hwnd,
             None,
@@ -33,15 +125,6 @@ pub fn aplicar_estilos_widget(hwnd: HWND) {
             0,
             SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_FRAMECHANGED | SWP_NOOWNERZORDER,
         );
-    }
-}
-
-/// La barra de título que Windows pinta mientras la ventana aún tiene WS_CAPTION queda en la superficie
-/// transparente; un ciclo nativo ocultar/mostrar la descarta sin tocar las banderas internas de tao.
-pub fn descartar_pintura_vieja(hwnd: HWND) {
-    unsafe {
-        let _ = ShowWindow(hwnd, SW_HIDE);
-        let _ = ShowWindow(hwnd, SW_SHOWNOACTIVATE);
     }
 }
 
@@ -116,5 +199,28 @@ pub fn vigilar_primer_plano<F: Fn(bool) + Send + Sync + 'static>(aviso: F) {
             0,
             WINEVENT_OUTOFCONTEXT | WINEVENT_SKIPOWNPROCESS,
         );
+    }
+}
+
+#[cfg(test)]
+mod pruebas {
+    use super::*;
+    use windows::Win32::UI::WindowsAndMessaging::WS_OVERLAPPEDWINDOW;
+
+    #[test]
+    fn el_filtro_quita_la_barra_y_conserva_la_visibilidad() {
+        let st = estilo_widget(WS_OVERLAPPEDWINDOW.0 | WS_VISIBLE.0);
+        assert_eq!(st & WS_CAPTION.0, 0);
+        assert_eq!(st & WS_THICKFRAME.0, 0);
+        assert_eq!(st & WS_SYSMENU.0, 0);
+        assert_ne!(st & WS_POPUP.0, 0);
+        assert_ne!(st & WS_VISIBLE.0, 0);
+    }
+
+    #[test]
+    fn el_filtro_saca_la_ventana_de_alt_tab() {
+        let ex = estilo_ext_widget(WS_EX_APPWINDOW.0);
+        assert_ne!(ex & WS_EX_TOOLWINDOW.0, 0);
+        assert_eq!(ex & WS_EX_APPWINDOW.0, 0);
     }
 }

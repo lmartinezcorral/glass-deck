@@ -18,5 +18,6 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
+    css: { include: [/tokens\.css/] },
   },
 });

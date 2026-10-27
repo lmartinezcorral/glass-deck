@@ -106,15 +106,43 @@
 /* Procesos */
 .gd-lista-procesos {
   display: grid;
-  gap: var(--gd-esp-2);
+  gap: var(--gd-esp-3);
+  margin: 0;
+  padding: 0;
   list-style: none;
   font-size: var(--gd-txt-sm);
 }
 
 .gd-lista-procesos li {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 56px 56px;
+  align-items: center;
   gap: var(--gd-esp-4);
+}
+
+.gd-lista-procesos li > b {
+  text-align: right;
+}
+
+.gd-lista-procesos__barra {
+  height: 4px;
+  overflow: hidden;
+  border-radius: var(--gd-radio-total);
+  background: var(--gd-pista);
+}
+
+.gd-lista-procesos__barra > i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--gd-acento);
+  box-shadow: 0 0 6px rgba(var(--gd-acento-rgb), var(--gd-brillo-trazo));
+}
+
+.gd-vista__cabecera {
+  display: flex;
+  align-items: center;
+  gap: var(--gd-esp-6);
 }
 
 .gd-lista-procesos li > span {

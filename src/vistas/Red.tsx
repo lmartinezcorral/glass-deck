@@ -3,19 +3,18 @@ import { EJE_UNA_HORA, GraficaHistorial, Sparkline } from '../componentes';
 import { agregarAcotado, velocidad } from '../formato';
 import { useLectura } from '../hooks';
 import { IconoRed } from '../iconos';
-import { useHistorial } from './historial';
+import { useHistorial, usePuntosUltimoMinuto } from './historial';
 import { MarcoWidget, useMaximizado } from './MarcoWidget';
-
-const PUNTOS_SPARK = 60;
 
 export function VistaRed() {
   const maximizado = useMaximizado();
+  const puntos = usePuntosUltimoMinuto();
   const [bajadas, setBajadas] = useState<number[]>([]);
   const [subidas, setSubidas] = useState<number[]>([]);
   const [series, agregar] = useHistorial('red', maximizado);
   const r = useLectura('red', (d) => {
-    setBajadas((l) => agregarAcotado(l, d.bajada_bps, PUNTOS_SPARK));
-    setSubidas((l) => agregarAcotado(l, d.subida_bps, PUNTOS_SPARK));
+    setBajadas((l) => agregarAcotado(l, d.bajada_bps, puntos));
+    setSubidas((l) => agregarAcotado(l, d.subida_bps, puntos));
     agregar({ bajada: d.bajada_bps / 1024, subida: d.subida_bps / 1024 });
   });
 
@@ -51,11 +50,11 @@ export function VistaRed() {
         ) : (
           <div className="gd-vista__doble">
             <div className="gd-vista__unidad">
-              <Sparkline datos={bajadas} maxPuntos={PUNTOS_SPARK} etiqueta="Bajada, último minuto" />
+              <Sparkline datos={bajadas} maxPuntos={puntos} etiqueta="Bajada, último minuto" />
               <span className="gd-etiqueta">Último minuto</span>
             </div>
             <div className="gd-vista__unidad">
-              <Sparkline datos={subidas} maxPuntos={PUNTOS_SPARK} variante="coral" etiqueta="Subida, último minuto" />
+              <Sparkline datos={subidas} maxPuntos={puntos} variante="coral" etiqueta="Subida, último minuto" />
               <span className="gd-etiqueta">Último minuto</span>
             </div>
           </div>

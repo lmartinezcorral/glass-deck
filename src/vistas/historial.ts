@@ -1,7 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { api, enTauri } from '../api';
+import { puntosPorMinuto } from '../formato';
+import { useConfig } from '../hooks';
 
 const PUNTOS_UNA_HORA = 3600;
+
+export function usePuntosUltimoMinuto(): number {
+  const [config] = useConfig();
+  return puntosPorMinuto(config?.intervalos.cpu_ram_red_ms ?? 2000);
+}
 
 export function useHistorial(fuente: string, activo: boolean): [Record<string, number[]>, (muestras: Record<string, number>) => void] {
   const [series, setSeries] = useState<Record<string, number[]>>({});

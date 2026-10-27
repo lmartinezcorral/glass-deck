@@ -51,6 +51,8 @@ export function VistaProcesos() {
 
   const top = visibles.slice(0, TOP);
   const pesado = top[0];
+  const valorDe = (f: FilaProceso): number => (orden === 'ram' ? f.ram : f.cpu);
+  const maximoTop = top.reduce((m, f) => Math.max(m, valorDe(f)), 0);
   const seleccion = [...marcados.values()];
   const requiereEscribir = seleccion.some((f) => f.nivel === 'reforzado');
   const sugerirExplorer = seleccion.some((f) => f.reiniciar_explorer);
@@ -122,6 +124,9 @@ export function VistaProcesos() {
               <li key={f.pid}>
                 <span className="gd-privado" title={f.nombre}>
                   {f.nombre}
+                </span>
+                <span className="gd-lista-procesos__barra" aria-hidden="true">
+                  <i style={{ width: `${maximoTop > 0 ? (valorDe(f) / maximoTop) * 100 : 0}%` }} />
                 </span>
                 <b className="num">{orden === 'ram' ? bytes(f.ram) : porcentaje(f.cpu)}</b>
               </li>
