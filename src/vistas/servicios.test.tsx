@@ -1,7 +1,7 @@
 import { act, useState } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Config, EstadoCredencial, FilaClaude, ResumenClaudeCode, Ubicacion } from '../api';
+import type { Config, EstadoCredencial, EstadoCuentas, EstadoCuentaWeb, FilaClaude, ResumenClaudeCode, ServicioWeb, Ubicacion } from '../api';
 import { etiquetaIntervalo, pestanaValida } from './Customize';
 import { BuscadorCiudad, describirAviso, estimarCosto, normalizarUmbrales, precioPara, SeccionCuentas, SeccionGasto } from './CustomizeServicios';
 import { VistaDock } from './Dock';
@@ -47,10 +47,19 @@ const CONFIG = {
   privacidad: false,
   precios_modelos: PRECIOS,
   clima: { modo: 'automatica', ubicacion: null },
-  umbrales: { notificaciones: true, cursor: [50, 80, 100], claude_5h: [80], claude_semanal: [80], presupuesto_cursor_usd: null },
+  umbrales: { notificaciones: true, cursor: [50, 80, 100], claude_5h: [80], claude_semanal: [80], chatgpt_5h: [80], chatgpt_semanal: [80], presupuesto_cursor_usd: null },
 } as unknown as Config;
 
 let credenciales: EstadoCredencial[] = [];
+let cuentasWeb: EstadoCuentas | null = null;
+
+const cuentaWeb = (servicio: ServicioWeb, estado: EstadoCuentaWeb['estado'], extra: Partial<EstadoCuentaWeb> = {}): EstadoCuentaWeb => ({
+  servicio,
+  estado,
+  motivo: null,
+  conectando: false,
+  ...extra,
+});
 const CIUDADES: Ubicacion[] = [{ nombre: 'Ciudad Uno', region: 'Región', pais: 'País', latitud: 1, longitud: 2 }];
 
 function responder(comando: string): unknown {
@@ -61,6 +70,8 @@ function responder(comando: string): unknown {
       return [{ clave: 'cursor:2026-10:80', hora_ms: Date.now() }];
     case 'boveda_estado':
       return credenciales;
+    case 'cuentas_estado':
+      return cuentasWeb;
     case 'clima_buscar_ciudad':
       return CIUDADES;
     case 'config_leer':
@@ -85,6 +96,7 @@ let raiz: Root;
 
 beforeEach(() => {
   credenciales = [];
+  cuentasWeb = null;
   invocar.mockReset();
   invocar.mockImplementation(async (comando: string) => responder(comando));
   contenedor = document.createElement('div');
@@ -170,6 +182,22 @@ describe('precios por modelo (GD-CLA-03)', () => {
     expect(normalizarUmbrales([80, 50.4, 120, 0, 50, 100, 90, 70, 60])).toEqual([50, 60, 70, 80, 90]);
     expect(describirAviso('claude_5h:2026-10-28T10:00:80')).toBe('Claude · 5 h · 80 % · ciclo 2026-10-28T10:00');
     expect(describirAviso('raro')).toBe('raro');
+    expect(describirAviso('chatgpt_semanal:2026-11-02T00:00:80')).toBe('ChatGPT · semanal · 80 % · ciclo 2026-11-02T00:00');
+  });
+
+  it('ChatGPT tiene sus propios umbrales de 5 h y semanal (GD-ALERT-01)', async () => {
+    const guardados: Config[] = [];
+    act(() => raiz.render(<SeccionGasto config={CONFIG} guardar={(c) => guardados.push(c)} />));
+    await esperar();
+    const campo = contenedor.querySelector<HTMLInputElement>('input[aria-label="Nuevo umbral para ChatGPT · límite semanal"]')!;
+    expect(contenedor.querySelector('input[aria-label="Nuevo umbral para ChatGPT · límite de 5 h"]')).not.toBeNull();
+    escribir(campo, '50');
+    await act(async () => {
+      campo.form!.requestSubmit();
+      await Promise.resolve();
+    });
+    expect(guardados.at(-1)?.umbrales.chatgpt_semanal).toEqual([50, 80]);
+    expect(guardados.at(-1)?.umbrales.chatgpt_5h).toEqual([80]);
   });
 });
 
@@ -220,8 +248,65 @@ describe('cuentas (GD-DOCK-02, GD-CLA-05)', () => {
     expect(llamadas('boveda_guardar')).toEqual([['boveda_guardar', { clave: 'anthropic_admin', valor: 'valor-sintetico' }]]);
     expect(texto()).toContain('Clave guardada');
     expect(texto()).not.toContain('valor-sintetico');
-    expect(contenedor.querySelector('input[type="password"]')).toBeNull();
-    expect(boton('Borrar clave')).toBeTruthy();
+    expect(contenedor.querySelector('input[aria-label="Clave de administrador de la consola de Anthropic"]')).toBeNull();
+    expect(boton('Borrar clave de la consola de Anthropic')).toBeTruthy();
+  });
+
+  it('la clave opcional de OpenAI se guarda aparte, sin mostrarse (GD-OAI-05)', async () => {
+    act(() => raiz.render(<SeccionCuentas />));
+    await esperar();
+    const campo = contenedor.querySelector<HTMLInputElement>('input[aria-label="Clave de administrador de la API de OpenAI"]')!;
+    expect(campo.type).toBe('password');
+    escribir(campo, 'clave-de-prueba');
+    credenciales = [{ clave: 'openai_admin', presente: true }];
+    await act(async () => {
+      campo.form!.requestSubmit();
+      await Promise.resolve();
+    });
+    await esperar();
+    expect(llamadas('boveda_guardar')).toEqual([['boveda_guardar', { clave: 'openai_admin', valor: 'clave-de-prueba' }]]);
+    expect(texto()).not.toContain('clave-de-prueba');
+    expect(contenedor.querySelector('input[aria-label="Clave de administrador de la API de OpenAI"]')).toBeNull();
+    expect(contenedor.querySelector('input[aria-label="Clave de administrador de la consola de Anthropic"]')).not.toBeNull();
+    await act(async () => boton('Borrar clave de la API de OpenAI').click());
+    expect(llamadas('boveda_borrar')).toEqual([['boveda_borrar', { clave: 'openai_admin' }]]);
+  });
+
+  it('«Conectar» abre el login de cada servicio y nunca pide la cookie a mano (GD-CUR-01, GD-CLA-04, GD-OAI-04)', async () => {
+    act(() => raiz.render(<SeccionCuentas />));
+    await esperar();
+    for (const nombre of ['Cursor', 'Claude.ai', 'ChatGPT']) await act(async () => boton(`Conectar ${nombre}`).click());
+    expect(llamadas('cuenta_conectar')).toEqual([
+      ['cuenta_conectar', { servicio: 'cursor' }],
+      ['cuenta_conectar', { servicio: 'claude_ai' }],
+      ['cuenta_conectar', { servicio: 'chatgpt' }],
+    ]);
+    expect(boton('Desconectar Cursor')).toBeUndefined();
+    const etiquetas = [...contenedor.querySelectorAll('input')].map((i) => i.getAttribute('aria-label') ?? '');
+    expect(etiquetas.every((e) => e.startsWith('Clave de administrador'))).toBe(true);
+    expect(texto().match(/no oficial/g)?.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('«Desconectar» borra la sesión y el perfil del servicio; con sesión vencida ofrece reconectar (GD-NFR-SEC-04)', async () => {
+    cuentasWeb = {
+      web: [
+        cuentaWeb('cursor', 'conectada'),
+        cuentaWeb('claude_ai', 'reconectar', { motivo: 'Sesión expirada' }),
+        cuentaWeb('chatgpt', 'sin_conectar', { conectando: true }),
+      ],
+      claves: { anthropic_admin: false, openai_admin: false },
+    };
+    act(() => raiz.render(<SeccionCuentas />));
+    await esperar();
+    await esperar();
+    expect(boton('Conectar Cursor')).toBeUndefined();
+    expect(texto()).toContain('Claude.ai: sesión expirada · vuelve a conectar');
+    await act(async () => boton('Desconectar Cursor').click());
+    expect(llamadas('cuenta_desconectar')).toEqual([['cuenta_desconectar', { servicio: 'cursor' }]]);
+    await act(async () => boton('Reconectar Claude.ai').click());
+    expect(llamadas('cuenta_conectar')).toEqual([['cuenta_conectar', { servicio: 'claude_ai' }]]);
+    expect(boton('Conectar ChatGPT').disabled).toBe(true);
+    expect(boton('Conectar ChatGPT').textContent).toBe('Esperando inicio de sesión…');
   });
 
   it('con cliente importado ofrece quitarlo o reemplazarlo', async () => {
@@ -243,11 +328,39 @@ describe('dock (GD-DOCK-02)', () => {
     expect(boton('Spending: inactivo')).toBeTruthy();
     expect(boton('Clima: inactivo')).toBeTruthy();
     const cuentas = contenedor.querySelector<HTMLButtonElement>('.gd-dock__cuentas')!;
-    expect(cuentas.getAttribute('aria-label')).toContain('1 de 3 conectadas');
+    expect(cuentas.getAttribute('aria-label')).toContain('1 de 4 conectadas');
     expect(cuentas.querySelectorAll('.gd-punto--conectada')).toHaveLength(1);
-    expect(cuentas.querySelectorAll('.gd-punto--sin_conectar')).toHaveLength(2);
+    expect(cuentas.querySelectorAll('.gd-punto--sin_conectar')).toHaveLength(3);
     act(() => cuentas.click());
     expect(llamadas('panel_abrir')).toEqual([['panel_abrir', { panel: 'cuentas' }]]);
+  });
+
+  it('se pone ámbar con sesión vencida o Cloudflare y ofrece reconectar directo', async () => {
+    cuentasWeb = {
+      web: [
+        cuentaWeb('cursor', 'conectada'),
+        cuentaWeb('claude_ai', 'sin_conectar'),
+        cuentaWeb('chatgpt', 'reconectar', { motivo: 'Cloudflare bloqueó la lectura' }),
+      ],
+      claves: { anthropic_admin: false, openai_admin: false },
+    };
+    act(() => raiz.render(<VistaDock />));
+    await esperar();
+    await esperar();
+    const cuentas = contenedor.querySelector<HTMLButtonElement>('.gd-dock__cuentas')!;
+    expect(cuentas.querySelector('[data-cuenta="chatgpt"] .gd-punto--reconectar')).not.toBeNull();
+    expect(cuentas.getAttribute('aria-label')).toContain('ChatGPT: requiere reconexión');
+    await act(async () => boton('Reconectar ChatGPT').click());
+    expect(llamadas('cuenta_conectar')).toEqual([['cuenta_conectar', { servicio: 'chatgpt' }]]);
+    expect(boton('Conectar Claude.ai')).toBeUndefined();
+  });
+
+  it('mientras hay un login abierto no ofrece otro', async () => {
+    cuentasWeb = { web: [cuentaWeb('cursor', 'sin_conectar', { conectando: true })], claves: { anthropic_admin: false, openai_admin: false } };
+    act(() => raiz.render(<VistaDock />));
+    await esperar();
+    await esperar();
+    expect(contenedor.querySelector('.gd-dock__conectar')).toBeNull();
   });
 
   it('todos sus botones habilitados se alcanzan con Tab', async () => {
@@ -255,7 +368,7 @@ describe('dock (GD-DOCK-02)', () => {
     await esperar();
     await esperar();
     const botones = [...contenedor.querySelectorAll<HTMLButtonElement>('button')].filter((b) => !b.disabled);
-    expect(botones.length).toBe(7 + 5 + 1);
+    expect(botones.length).toBe(7 + 5 + 2);
     for (const b of botones) {
       expect(b.tabIndex).toBe(0);
       expect(b.getAttribute('aria-label')).toBeTruthy();

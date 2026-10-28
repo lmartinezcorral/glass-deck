@@ -5,6 +5,7 @@ import { useAhora, useConfig, usePrivacidad, useServicio } from '../hooks';
 import { IconoCartera } from '../iconos';
 import { EstadoLectura } from './EstadoLectura';
 import { MarcoWidget, useMaximizado } from './MarcoWidget';
+import { SeccionesWeb, useDatosWeb, WEB_SIN_DATOS, type DatosWeb } from './SeccionesWeb';
 
 export const totalTokens = (t: Tokens): number => t.entrada + t.salida + t.cache_escritura + t.cache_lectura;
 
@@ -31,18 +32,19 @@ export function VistaSpending() {
   const [config] = useConfig();
   const privado = usePrivacidad(config);
   const claude = useServicio('claude_code');
+  const web = useDatosWeb();
   const ahora = useAhora();
   const hoy = claude?.datos?.total_hoy;
   return (
     <MarcoWidget
       id="spending"
       titulo="Spending"
-      subtitulo="Gasto y uso de Cursor y Claude"
+      subtitulo="Gasto y uso de Cursor, Claude y ChatGPT"
       icono={<IconoCartera />}
       textoPildora={privado ? 'oculto' : hoy ? `≈ ${usd(hoy.costo_usd)} hoy` : '—'}
       maximizado={maximizado}
     >
-      <ContenidoSpending claude={claude} maximizado={maximizado} ahora={ahora} />
+      <ContenidoSpending claude={claude} maximizado={maximizado} ahora={ahora} web={web} />
     </MarcoWidget>
   );
 }
@@ -51,21 +53,8 @@ interface PropsContenido {
   claude: EstadoFuente<ResumenClaudeCode> | null;
   maximizado: boolean;
   ahora: number;
-  /** GD-CLA-05: la sección de la consola solo existe con clave configurada; su lectura llega en el bloque 13. */
-  consolaConfigurada?: boolean;
-}
-
-function FuenteRemota({ nombre, detalle }: { nombre: string; detalle: string }) {
-  return (
-    <li className="gd-spending__remota">
-      <i className="gd-punto gd-punto--sin_conectar" aria-hidden="true" />
-      <b>{nombre}</b>
-      <span className="gd-chip gd-chip--aviso">no oficial</span>
-      <span className="gd-etiqueta gd-spending__remota-detalle" title={detalle}>
-        Sin conectar
-      </span>
-    </li>
-  );
+  /** Cursor, Claude.ai, ChatGPT y, solo con clave guardada, las APIs de costos (GD-CLA-05, GD-OAI-05). */
+  web?: DatosWeb;
 }
 
 function Kpi({ etiqueta, valor, detalle, chip }: { etiqueta: string; valor: string; detalle?: string; chip?: string }) {
@@ -112,7 +101,7 @@ function TablaDesglose({ titulo, filas, nombreColumna }: { titulo: string; filas
   );
 }
 
-export function ContenidoSpending({ claude, maximizado, ahora, consolaConfigurada = false }: PropsContenido) {
+export function ContenidoSpending({ claude, maximizado, ahora, web = WEB_SIN_DATOS }: PropsContenido) {
   const d = claude?.datos ?? null;
 
   if (!maximizado) {
@@ -140,11 +129,7 @@ export function ContenidoSpending({ claude, maximizado, ahora, consolaConfigurad
             <p className="gd-etiqueta">Sin datos de Claude Code todavía.</p>
           )}
         </section>
-        <ul className="gd-spending__remotas" aria-label="Otras fuentes">
-          <FuenteRemota nombre="Cursor" detalle="Gasto del ciclo actual" />
-          <FuenteRemota nombre="Claude.ai" detalle="Límites de 5 h y semanal" />
-        </ul>
-        {consolaConfigurada && <p className="gd-etiqueta">Consola de la API: sin datos todavía.</p>}
+        <SeccionesWeb web={web} maximizado={false} ahora={ahora} />
         <EstadoLectura estado={claude} ahora={ahora} />
       </div>
     );
@@ -167,8 +152,6 @@ export function ContenidoSpending({ claude, maximizado, ahora, consolaConfigurad
           valor={d ? `≈ ${usd(d.total_mes.costo_usd)}` : '—'}
           detalle={d ? `${tokens(totalTokens(d.total_mes.tokens))} tokens` : undefined}
         />
-        <Kpi etiqueta="Cursor este mes" chip="no oficial" valor="Sin conectar" />
-        <Kpi etiqueta="Claude.ai · 5 h / semanal" chip="no oficial" valor="Sin conectar" />
       </div>
 
       <div className="gd-rejilla-2">
@@ -217,21 +200,7 @@ export function ContenidoSpending({ claude, maximizado, ahora, consolaConfigurad
         <TablaDesglose titulo="Por proyecto · últimos 30 días" nombreColumna="Proyecto" filas={agruparFilas(d?.filas ?? [], 'proyecto')} />
       </div>
 
-      <section className="gd-tarjeta gd-spending__fuentes" aria-label="Cursor y Claude.ai">
-        <h3>Cursor y Claude.ai</h3>
-        <ul className="gd-spending__remotas">
-          <FuenteRemota nombre="Cursor" detalle="Gasto del ciclo actual" />
-          <FuenteRemota nombre="Claude.ai" detalle="Límites de 5 h y semanal" />
-        </ul>
-        <p className="gd-etiqueta">Se conectan desde Customize › Cuentas. Se leen de sus páginas web porque no tienen API pública de uso.</p>
-      </section>
-
-      {consolaConfigurada && (
-        <section className="gd-tarjeta" aria-label="Consola de la API">
-          <h3>Consola de la API</h3>
-          <p className="gd-etiqueta">Clave guardada; el costo real del mes aparecerá con la siguiente lectura.</p>
-        </section>
-      )}
+      <SeccionesWeb web={web} maximizado ahora={ahora} />
 
       {d && d.sin_precio.length > 0 && (
         <p className="gd-aviso-linea" role="note">

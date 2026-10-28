@@ -149,6 +149,14 @@ export const IconoClaude = () => (
   </Base>
 );
 
+export const IconoChatgpt = () => (
+  <Base>
+    <ellipse cx="12" cy="12" rx="8.5" ry="3.6" />
+    <ellipse cx="12" cy="12" rx="8.5" ry="3.6" transform="rotate(60 12 12)" />
+    <ellipse cx="12" cy="12" rx="8.5" ry="3.6" transform="rotate(120 12 12)" />
+  </Base>
+);
+
 export const IconoLlave = () => (
   <Base>
     <circle cx="8" cy="15" r="4" />

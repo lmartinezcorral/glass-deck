@@ -1,10 +1,11 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import type { Clima, EstadoFuente, FilaClaude, ResumenClaudeCode, Tokens } from '../api';
+import type { Clima, DatosChatgpt, DatosClaudeAi, DatosCursor, EstadoFuente, FilaClaude, ResumenClaudeCode, ServicioWeb, Tokens } from '../api';
 import baseCss from '../tema/base.css?raw';
 import vistasCss from './vistas.css?raw';
 import { ContenidoClima } from './Clima';
+import { WEB_SIN_DATOS, type DatosWeb } from './SeccionesWeb';
 import { agruparFilas, ContenidoSpending, totalTokens } from './Spending';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -150,23 +151,37 @@ describe('Spending: Claude Code local (GD-CLA-01, GD-CLA-02)', () => {
     expect(texto()).not.toMatch(/\$\d/);
   });
 
-  it('Cursor y Claude.ai aparecen «Sin conectar» con la etiqueta «no oficial» en ambas vistas (GD-CUR-05)', () => {
+  it('Cursor, Claude.ai y ChatGPT aparecen «Sin conectar» con la etiqueta «no oficial» en ambas vistas (GD-CUR-05)', () => {
     for (const maximizado of [false, true]) {
       act(() => raiz.render(<ContenidoSpending claude={ok(resumen())} maximizado={maximizado} ahora={AHORA} />));
       const chips = [...contenedor.querySelectorAll('.gd-chip')].filter((c) => c.textContent === 'no oficial');
-      expect(chips.length).toBeGreaterThanOrEqual(2);
+      expect(chips.length).toBeGreaterThanOrEqual(3);
       expect(texto()).toContain('Cursor');
       expect(texto()).toContain('Claude.ai');
+      expect(texto()).toContain('ChatGPT');
       expect(texto()).toContain('Sin conectar');
     }
   });
 
-  it('la sección de la consola de la API no existe sin clave (GD-CLA-05)', () => {
+  it('las secciones de la consola de Anthropic y de la API de OpenAI solo existen con su clave (GD-CLA-05, GD-OAI-05)', () => {
+    const conClaves = (anthropic_admin: boolean, openai_admin: boolean): DatosWeb => ({
+      ...WEB_SIN_DATOS,
+      anthropic_consola: anthropic_admin ? ok({ mes: '2026-10', costo_usd: 42.5 }) : null,
+      openai_api: openai_admin ? ok({ mes: '2026-10', costo_usd: 7.25 }) : null,
+      cuentas: { web: [], claves: { anthropic_admin, openai_admin } },
+    });
     for (const maximizado of [false, true]) {
       act(() => raiz.render(<ContenidoSpending claude={ok(resumen())} maximizado={maximizado} ahora={AHORA} />));
-      expect(texto()).not.toContain('Consola de la API');
-      act(() => raiz.render(<ContenidoSpending claude={ok(resumen())} maximizado={maximizado} ahora={AHORA} consolaConfigurada />));
-      expect(texto()).toContain('Consola de la API');
+      expect(texto()).not.toContain('Consola de Anthropic');
+      expect(texto()).not.toContain('API de OpenAI');
+      act(() => raiz.render(<ContenidoSpending claude={ok(resumen())} maximizado={maximizado} ahora={AHORA} web={conClaves(true, false)} />));
+      expect(texto()).toContain('Consola de Anthropic');
+      expect(texto()).toContain('$42.50 este mes');
+      expect(texto()).not.toContain('API de OpenAI');
+      act(() => raiz.render(<ContenidoSpending claude={ok(resumen())} maximizado={maximizado} ahora={AHORA} web={conClaves(false, true)} />));
+      expect(texto()).not.toContain('Consola de Anthropic');
+      expect(texto()).toContain('API de OpenAI');
+      expect(texto()).toContain('$7.25 este mes');
     }
   });
 
@@ -182,6 +197,105 @@ describe('Spending: Claude Code local (GD-CLA-01, GD-CLA-02)', () => {
     const r = { ...resumen(), sin_precio: ['modelo-nuevo'] };
     act(() => raiz.render(<ContenidoSpending claude={ok(r)} maximizado ahora={AHORA} />));
     expect(texto()).toContain('modelo-nuevo');
+  });
+});
+
+const CURSOR_PRUEBA: DatosCursor = {
+  ciclo: '2026-10',
+  ciclo_inicio: '2026-10-05T00:00:00Z',
+  ciclo_fin: '2026-11-05T00:00:00Z',
+  plan: 'pro',
+  gasto_usd: 32.4,
+  limite_usd: 100,
+  incluido_usado_usd: 20,
+  incluido_limite_usd: 20,
+  bajo_demanda_usd: 12.4,
+  bajo_demanda_limite_usd: 80,
+  solicitudes: null,
+  solicitudes_limite: null,
+};
+
+const enHoras = (h: number): string => new Date(AHORA + h * 60 * MIN).toISOString();
+
+const CLAUDE_AI_PRUEBA: DatosClaudeAi = {
+  cinco_horas: { porcentaje: 41, reinicio: enHoras(2) },
+  semanal: { porcentaje: 63, reinicio: enHoras(72) },
+  extras: [{ nombre: 'Opus', porcentaje: 12, reinicio: null }],
+};
+
+const CHATGPT_PRUEBA: DatosChatgpt = {
+  plan: 'plus',
+  cinco_horas: { porcentaje: 88, reinicio: enHoras(1) },
+  semanal: { porcentaje: 25, reinicio: null },
+};
+
+const conectadas = (motivo: Partial<Record<ServicioWeb, string>> = {}): DatosWeb['cuentas'] => ({
+  web: (['cursor', 'claude_ai', 'chatgpt'] as const).map((servicio) => ({
+    servicio,
+    estado: motivo[servicio] ? 'reconectar' : 'conectada',
+    motivo: motivo[servicio] ?? null,
+    conectando: false,
+  })),
+  claves: { anthropic_admin: false, openai_admin: false },
+});
+
+describe('Spending: Cursor, claude.ai y ChatGPT (GD-CUR-04, GD-CUR-05, GD-CLA-04, GD-OAI-04)', () => {
+  const web = (): DatosWeb => ({
+    ...WEB_SIN_DATOS,
+    cursor: ok(CURSOR_PRUEBA),
+    claude_ai: ok(CLAUDE_AI_PRUEBA),
+    chatgpt: ok(CHATGPT_PRUEBA),
+    cuentas: conectadas(),
+  });
+
+  it('vista normal: una fila por servicio con su resumen y la etiqueta «no oficial»', () => {
+    act(() => raiz.render(<ContenidoSpending claude={ok(resumen())} maximizado={false} ahora={AHORA} web={web()} />));
+    const fila = (f: string) => contenedor.querySelector(`.gd-spending__remota[data-fuente="${f}"]`)!;
+    expect(fila('cursor').textContent).toContain('$32.40 de $100.00');
+    expect(fila('claude_ai').textContent).toContain('5 h 41 % · sem 63 %');
+    expect(fila('chatgpt').textContent).toContain('5 h 88 % · sem 25 %');
+    for (const f of ['cursor', 'claude_ai', 'chatgpt']) expect(fila(f).textContent).toContain('no oficial');
+    expect(texto()).not.toContain('Sin conectar');
+  });
+
+  it('vista maximizada: desglose de Cursor y barras de las ventanas con su reinicio', () => {
+    act(() => raiz.render(<ContenidoSpending claude={ok(resumen())} maximizado ahora={AHORA} web={web()} />));
+    const tarjeta = (f: string) => contenedor.querySelector(`.gd-spending__web[data-fuente="${f}"]`)!;
+    expect(tarjeta('cursor').textContent).toContain('Bajo demanda');
+    expect(tarjeta('cursor').textContent).toContain('$12.40 de $80.00');
+    expect(tarjeta('cursor').textContent).toContain('Fecha de corte');
+    expect(tarjeta('claude_ai').textContent).toContain('Límite de 5 h');
+    expect(tarjeta('claude_ai').textContent).toContain('Semanal · Opus');
+    expect(tarjeta('claude_ai').textContent).toContain('se reinicia hoy');
+    expect(tarjeta('chatgpt').textContent).toContain('Plan plus');
+    expect(tarjeta('chatgpt').textContent).toContain('88 %');
+    for (const f of ['cursor', 'claude_ai', 'chatgpt']) expect(tarjeta(f).textContent).toContain('no oficial');
+  });
+
+  it('con sesión vencida o Cloudflare muestra el motivo y la última lectura válida (GD-CUR-06, GD-CLA-06, GD-OAI-06)', () => {
+    const datos: DatosWeb = {
+      ...web(),
+      cursor: { ...ok(CURSOR_PRUEBA, AHORA - 90 * MIN), error: 'sesion_expirada', texto_error: 'Sesión expirada', proximo_intento_ms: null },
+      chatgpt: { ...ok(CHATGPT_PRUEBA, AHORA - 90 * MIN), error: 'cloudflare', texto_error: 'Cloudflare bloqueó la lectura', proximo_intento_ms: null },
+      cuentas: conectadas({ cursor: 'Sesión expirada', chatgpt: 'Cloudflare bloqueó la lectura' }),
+    };
+    act(() => raiz.render(<ContenidoSpending claude={ok(resumen())} maximizado={false} ahora={AHORA} web={datos} />));
+    const cursor = contenedor.querySelector('.gd-spending__remota[data-fuente="cursor"]')!;
+    expect(cursor.querySelector('.gd-spending__motivo')?.textContent).toBe('Sesión expirada');
+    expect(cursor.querySelector('.gd-punto--reconectar')).not.toBeNull();
+    expect(cursor.textContent).toContain('$32.40');
+    act(() => raiz.render(<ContenidoSpending claude={ok(resumen())} maximizado ahora={AHORA} web={datos} />));
+    const chatgpt = contenedor.querySelector('.gd-spending__web[data-fuente="chatgpt"]')!;
+    expect(chatgpt.textContent).toContain('Cloudflare bloqueó la lectura');
+    expect(chatgpt.textContent).toContain('Último dato válido hace 1 h');
+    expect(chatgpt.textContent).toContain('Requiere reconexión');
+  });
+
+  it('las cifras de las fuentes web quedan dentro de .gd-privado', () => {
+    act(() => raiz.render(<ContenidoSpending claude={ok(resumen())} maximizado ahora={AHORA} web={web()} />));
+    const valores = [...contenedor.querySelectorAll('.gd-spending__fuentes *')].filter((e) => e.children.length === 0 && /\$\d|\d %/.test(e.textContent ?? ''));
+    expect(valores.length).toBeGreaterThan(0);
+    for (const v of valores) expect(v.closest('.gd-privado')).not.toBeNull();
   });
 });
 

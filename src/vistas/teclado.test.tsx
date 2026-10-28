@@ -56,7 +56,7 @@ const CONFIG: Config = {
   privacidad: false,
   precios_modelos: [{ patron: 'sonnet', entrada: 3, salida: 15, cache_escritura: 3.75, cache_lectura: 0.3 }],
   clima: { modo: 'automatica', ubicacion: null },
-  umbrales: { notificaciones: true, cursor: [50, 80, 100], claude_5h: [80], claude_semanal: [80], presupuesto_cursor_usd: null },
+  umbrales: { notificaciones: true, cursor: [50, 80, 100], claude_5h: [80], claude_semanal: [80], chatgpt_5h: [80], chatgpt_semanal: [80], presupuesto_cursor_usd: null },
 };
 
 const LECTURAS: Lectura[] = [

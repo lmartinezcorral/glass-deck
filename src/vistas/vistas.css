@@ -595,6 +595,12 @@
   gap: var(--gd-esp-8);
 }
 
+.gd-rejilla-3 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--gd-esp-8);
+}
+
 .gd-lista-pares > div {
   display: flex;
   justify-content: space-between;
@@ -699,12 +705,39 @@
 }
 
 .gd-spending__remota-detalle {
+  min-width: 0;
   margin-left: auto;
+  overflow: hidden;
   white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
-.gd-spending__fuentes .gd-spending__remotas {
-  margin-bottom: var(--gd-esp-4);
+.gd-spending__motivo {
+  flex: none;
+  max-width: 45%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.gd-spending__web {
+  display: grid;
+  align-content: start;
+  gap: var(--gd-esp-5);
+  min-width: 0;
+}
+
+.gd-spending__web h3 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--gd-esp-3);
+  font-size: var(--gd-txt-md);
+  font-weight: var(--gd-peso-medio);
+}
+
+.gd-spending__web h3 .gd-cuenta__estado {
+  margin-left: auto;
 }
 
 /* Clima */
@@ -1086,6 +1119,16 @@
   height: 14px;
 }
 
+.gd-dock__conectar {
+  position: relative;
+}
+
+.gd-dock__conectar--reconectar {
+  color: var(--gd-texto);
+  border-color: var(--gd-borde-control);
+}
+
+.gd-dock__conectar .gd-punto,
 .gd-dock__avatar .gd-punto {
   position: absolute;
   right: -1px;

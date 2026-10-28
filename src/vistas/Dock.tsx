@@ -17,7 +17,7 @@ import {
   IconoSolNube,
   IconoZonas,
 } from '../iconos';
-import { PuntoCuenta, resumenCuentas, textoEstadoCuenta, useCredenciales } from './Cuentas';
+import { cuentaPorConectar, NOMBRE_SERVICIO, PuntoCuenta, resumenCuentas, textoEstadoCuenta, useCredenciales, useCuentasWeb } from './Cuentas';
 
 const ICONOS_WIDGET: Record<string, ReactNode> = {
   cpu: <IconoCpu />,
@@ -33,6 +33,7 @@ export function VistaDock() {
   const [config, setConfig] = useConfig();
   const catalogo = useCatalogo();
   const [credenciales] = useCredenciales();
+  const [web, recargarWeb] = useCuentasWeb();
   const privacidadEvento = useEvento<boolean | null>('gd://privacidad', null);
   const privacidad = privacidadEvento ?? config?.privacidad ?? false;
   const [error, setError] = useState<string | null>(null);
@@ -64,9 +65,11 @@ export function VistaDock() {
     </button>
   );
 
-  const cuentas = resumenCuentas(credenciales);
+  const cuentas = resumenCuentas(credenciales, web);
   const conectadas = cuentas.filter((c) => c.estado === 'conectada').length;
   const descripcionCuentas = cuentas.map((c) => `${c.nombre}: ${textoEstadoCuenta(c.estado).toLowerCase()}`).join(', ');
+  const porConectar = cuentaPorConectar(credenciales, web);
+  const iconoPorConectar = porConectar && cuentas.find((c) => c.id === (porConectar.servicio === 'claude_ai' ? 'claude' : porConectar.servicio))?.icono;
 
   return (
     <Vidrio elemento="main" lleno className="gd-dock" aria-label="Dock de Glassdeck">
@@ -116,6 +119,18 @@ export function VistaDock() {
           <small>{conectadas === cuentas.length ? 'Conectadas' : 'Conectar'}</small>
         </span>
       </button>
+      {porConectar && (
+        <button
+          type="button"
+          className={`gd-dock__boton gd-dock__conectar gd-dock__conectar--${porConectar.estado}`}
+          aria-label={`${porConectar.estado === 'reconectar' ? 'Reconectar' : 'Conectar'} ${NOMBRE_SERVICIO[porConectar.servicio]}`}
+          title={`${porConectar.estado === 'reconectar' ? 'Reconectar' : 'Conectar'} ${NOMBRE_SERVICIO[porConectar.servicio]}`}
+          onClick={() => ejecutar(api.cuentaConectar(porConectar.servicio).then(recargarWeb))}
+        >
+          {iconoPorConectar}
+          <PuntoCuenta estado={porConectar.estado} />
+        </button>
+      )}
       {error && (
         <span className="gd-dock__error" role="alert" title={error}>
           !

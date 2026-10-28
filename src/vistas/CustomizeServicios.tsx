@@ -11,6 +11,7 @@ import {
   type FilaClaude,
   type ModoUbicacion,
   type PrecioModelo,
+  type ServicioWeb,
   type Tokens,
   type Ubicacion,
   type Umbrales,
@@ -18,7 +19,17 @@ import {
 import { Dialogo, Interruptor, Selector } from '../componentes';
 import { usd } from '../formato';
 import { useServicio } from '../hooks';
-import { credencialPresente, PuntoCuenta, resumenCuentas, textoEstadoCuenta, useCredenciales } from './Cuentas';
+import {
+  credencialPresente,
+  estadoServicio,
+  NOMBRE_SERVICIO,
+  PuntoCuenta,
+  resumenCuentas,
+  textoEstadoCuenta,
+  useCredenciales,
+  useCuentasWeb,
+  type ResumenCuenta,
+} from './Cuentas';
 
 interface PropsSeccion {
   config: Config;
@@ -167,6 +178,8 @@ const NOMBRES_MEDIDOR: Record<string, string> = {
   cursor: 'Cursor',
   claude_5h: 'Claude · 5 h',
   claude_semanal: 'Claude · semanal',
+  chatgpt_5h: 'ChatGPT · 5 h',
+  chatgpt_semanal: 'ChatGPT · semanal',
 };
 
 export function describirAviso(clave: string): string {
@@ -317,6 +330,8 @@ export function SeccionGasto({ config, guardar }: PropsSeccion) {
       </label>
       <EditorUmbrales etiqueta="Claude · límite de 5 h" valores={u.claude_5h} alCambiar={(claude_5h) => cambiarUmbrales({ claude_5h })} />
       <EditorUmbrales etiqueta="Claude · límite semanal" valores={u.claude_semanal} alCambiar={(claude_semanal) => cambiarUmbrales({ claude_semanal })} />
+      <EditorUmbrales etiqueta="ChatGPT · límite de 5 h" valores={u.chatgpt_5h} alCambiar={(chatgpt_5h) => cambiarUmbrales({ chatgpt_5h })} />
+      <EditorUmbrales etiqueta="ChatGPT · límite semanal" valores={u.chatgpt_semanal} alCambiar={(chatgpt_semanal) => cambiarUmbrales({ chatgpt_semanal })} />
       <div className="gd-panel__acciones">
         <span className="gd-etiqueta" role="status">
           {prueba}
@@ -494,21 +509,119 @@ function Tarjeta({ titulo, detalle, chip, children }: { titulo: string; detalle:
   );
 }
 
+function ClaveAdmin({
+  clave,
+  presente,
+  etiqueta,
+  nombre,
+  ejecutar,
+}: {
+  clave: Extract<ClaveCredencial, 'anthropic_admin' | 'openai_admin'>;
+  presente: boolean;
+  etiqueta: string;
+  nombre: string;
+  ejecutar: (p: Promise<unknown>, exito?: string) => void;
+}) {
+  const [valor, setValor] = useState('');
+  if (presente) {
+    return (
+      <div className="gd-vista__herramientas">
+        <span className="gd-chip gd-chip--ok">Clave guardada</span>
+        <button type="button" className="gd-boton gd-boton--sm" aria-label={`Borrar clave de ${nombre}`} onClick={() => ejecutar(api.bovedaBorrar(clave), `Clave de ${nombre} borrada.`)}>
+          Borrar clave
+        </button>
+      </div>
+    );
+  }
+  return (
+    <form
+      className="gd-vista__herramientas"
+      onSubmit={(e) => {
+        e.preventDefault();
+        const limpio = valor.trim();
+        if (!limpio) return;
+        setValor('');
+        ejecutar(api.bovedaGuardar(clave, limpio), `Clave de ${nombre} guardada.`);
+      }}
+    >
+      <input
+        className="gd-campo"
+        type="password"
+        autoComplete="off"
+        spellCheck={false}
+        placeholder="Clave de administrador (opcional)"
+        aria-label={etiqueta}
+        value={valor}
+        onChange={(e) => setValor(e.target.value)}
+      />
+      <button type="submit" className="gd-boton gd-boton--sm" disabled={!valor.trim()}>
+        Guardar
+      </button>
+    </form>
+  );
+}
+
+function BotonesSesion({
+  servicio,
+  estado,
+  conectando,
+  ejecutar,
+}: {
+  servicio: ServicioWeb;
+  estado: ResumenCuenta['estado'];
+  conectando: boolean;
+  ejecutar: (p: Promise<unknown>, exito?: string) => void;
+}) {
+  const nombre = NOMBRE_SERVICIO[servicio];
+  const conectar = (
+    <button
+      type="button"
+      className="gd-boton gd-boton--sm gd-boton--primario"
+      aria-label={`${estado === 'reconectar' ? 'Reconectar' : 'Conectar'} ${nombre}`}
+      disabled={conectando}
+      onClick={() => ejecutar(api.cuentaConectar(servicio), `Inicia sesión en la ventana «Glassdeck · Conectar ${nombre}»; se cierra sola al terminar.`)}
+    >
+      {conectando ? 'Esperando inicio de sesión…' : estado === 'reconectar' ? 'Reconectar' : 'Conectar'}
+    </button>
+  );
+  return (
+    <div className="gd-panel__acciones">
+      {estado !== 'conectada' && conectar}
+      {estado !== 'sin_conectar' && (
+        <button
+          type="button"
+          className="gd-boton gd-boton--sm"
+          aria-label={`Desconectar ${nombre}`}
+          onClick={() => ejecutar(api.cuentaDesconectar(servicio), `${nombre} desconectado: se borró la sesión y su perfil de login.`)}
+        >
+          Desconectar
+        </button>
+      )}
+    </div>
+  );
+}
+
 export function SeccionCuentas() {
   const [credenciales, recargar] = useCredenciales();
+  const [web, recargarWeb] = useCuentasWeb();
   const claude = useServicio('claude_code');
   const [guia, setGuia] = useState(false);
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [clave, setClave] = useState('');
-  const cuentas = resumenCuentas(credenciales);
+  const cuentas = resumenCuentas(credenciales, web);
   const presente = (c: ClaveCredencial): boolean => credencialPresente(credenciales, c);
+  const sesion = (servicio: ServicioWeb) => ({
+    servicio,
+    estado: estadoServicio(servicio, credenciales, web),
+    conectando: web?.web.find((c) => c.servicio === servicio)?.conectando ?? false,
+  });
 
   const ejecutar = (p: Promise<unknown>, exito?: string): void => {
     p.then(() => {
       setError(null);
       if (exito) setMensaje(exito);
       recargar();
+      recargarWeb();
     }).catch((e) => {
       setMensaje(null);
       setError(mensajeError(e));
@@ -530,8 +643,8 @@ export function SeccionCuentas() {
       });
   };
 
-  const estadoDe = (id: 'google' | 'cursor' | 'claude') => cuentas.find((c) => c.id === id)!;
-  const chipEstado = (id: 'google' | 'cursor' | 'claude') => {
+  const estadoDe = (id: ResumenCuenta['id']) => cuentas.find((c) => c.id === id)!;
+  const chipEstado = (id: ResumenCuenta['id']) => {
     const c = estadoDe(id);
     return (
       <span className="gd-cuenta__estado gd-etiqueta">
@@ -588,17 +701,8 @@ export function SeccionCuentas() {
         }
       >
         <p className="gd-etiqueta">Cursor no ofrece una API pública de gasto; si cambia su web, este dato puede dejar de actualizarse.</p>
-        <div className="gd-panel__acciones">
-          {presente('cursor_sesion') ? (
-            <button type="button" className="gd-boton gd-boton--sm" onClick={() => ejecutar(api.bovedaBorrar('cursor_sesion'), 'Sesión de Cursor borrada.')}>
-              Cerrar sesión
-            </button>
-          ) : (
-            <button type="button" className="gd-boton gd-boton--sm" disabled title="El inicio de sesión llega en el bloque 13">
-              Conectar (bloque 13)
-            </button>
-          )}
-        </div>
+        {estadoDe('cursor').estado === 'reconectar' && <p className="gd-aviso-linea">{estadoDe('cursor').detalle}</p>}
+        <BotonesSesion {...sesion('cursor')} ejecutar={ejecutar} />
       </Tarjeta>
 
       <Tarjeta titulo="Claude" detalle="Claude Code, Claude.ai y la consola de la API" chip={chipEstado('claude')}>
@@ -610,54 +714,54 @@ export function SeccionCuentas() {
         <div className="gd-cuenta__fila">
           <b>Claude.ai</b>
           <span className="gd-chip gd-chip--aviso">no oficial</span>
-          <span className="gd-etiqueta">% usado del límite de 5 h y del semanal.</span>
-          {presente('claude_ai_sesion') ? (
-            <button type="button" className="gd-boton gd-boton--sm" onClick={() => ejecutar(api.bovedaBorrar('claude_ai_sesion'), 'Sesión de Claude.ai borrada.')}>
-              Cerrar sesión
-            </button>
-          ) : (
-            <button type="button" className="gd-boton gd-boton--sm" disabled title="El inicio de sesión llega en el bloque 13">
-              Conectar (bloque 13)
-            </button>
-          )}
+          <span className="gd-etiqueta">
+            {estadoDe('claude').estado === 'reconectar' ? estadoDe('claude').detalle : '% usado del límite de 5 h y del semanal.'}
+          </span>
+          <BotonesSesion {...sesion('claude_ai')} ejecutar={ejecutar} />
         </div>
         <div className="gd-cuenta__fila gd-cuenta__fila--consola">
           <b>Consola de la API</b>
           <span className="gd-chip">Opcional</span>
           <span className="gd-etiqueta">Costo real del mes de tu organización con una clave de administrador.</span>
-          {presente('anthropic_admin') ? (
-            <div className="gd-vista__herramientas">
-              <span className="gd-chip gd-chip--ok">Clave guardada</span>
-              <button type="button" className="gd-boton gd-boton--sm" onClick={() => ejecutar(api.bovedaBorrar('anthropic_admin'), 'Clave de la consola borrada.')}>
-                Borrar clave
-              </button>
-            </div>
-          ) : (
-            <form
-              className="gd-vista__herramientas"
-              onSubmit={(e) => {
-                e.preventDefault();
-                const valor = clave.trim();
-                if (!valor) return;
-                setClave('');
-                ejecutar(api.bovedaGuardar('anthropic_admin', valor), 'Clave de la consola guardada.');
-              }}
-            >
-              <input
-                className="gd-campo"
-                type="password"
-                autoComplete="off"
-                spellCheck={false}
-                placeholder="Clave de administrador (opcional)"
-                aria-label="Clave de administrador de la consola de Anthropic"
-                value={clave}
-                onChange={(e) => setClave(e.target.value)}
-              />
-              <button type="submit" className="gd-boton gd-boton--sm" disabled={!clave.trim()}>
-                Guardar
-              </button>
-            </form>
-          )}
+          <ClaveAdmin
+            clave="anthropic_admin"
+            presente={presente('anthropic_admin')}
+            etiqueta="Clave de administrador de la consola de Anthropic"
+            nombre="la consola de Anthropic"
+            ejecutar={ejecutar}
+          />
+        </div>
+      </Tarjeta>
+
+      <Tarjeta
+        titulo="ChatGPT"
+        detalle="Límites de Codex en chatgpt.com y costo de la API de OpenAI"
+        chip={
+          <>
+            <span className="gd-chip gd-chip--aviso">no oficial</span>
+            {chipEstado('chatgpt')}
+          </>
+        }
+      >
+        <div className="gd-cuenta__fila">
+          <b>ChatGPT</b>
+          <span className="gd-chip gd-chip--aviso">no oficial</span>
+          <span className="gd-etiqueta">
+            {estadoDe('chatgpt').estado === 'reconectar' ? estadoDe('chatgpt').detalle : '% usado de la ventana de 5 h y de la semanal de Codex.'}
+          </span>
+          <BotonesSesion {...sesion('chatgpt')} ejecutar={ejecutar} />
+        </div>
+        <div className="gd-cuenta__fila gd-cuenta__fila--consola">
+          <b>API de OpenAI</b>
+          <span className="gd-chip">Opcional</span>
+          <span className="gd-etiqueta">Costo real del mes de tu organización con una clave de administrador.</span>
+          <ClaveAdmin
+            clave="openai_admin"
+            presente={presente('openai_admin')}
+            etiqueta="Clave de administrador de la API de OpenAI"
+            nombre="la API de OpenAI"
+            ejecutar={ejecutar}
+          />
         </div>
       </Tarjeta>
 

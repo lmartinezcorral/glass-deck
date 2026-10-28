@@ -45,6 +45,8 @@ export interface Umbrales {
   cursor: number[];
   claude_5h: number[];
   claude_semanal: number[];
+  chatgpt_5h: number[];
+  chatgpt_semanal: number[];
   presupuesto_cursor_usd: number | null;
 }
 
@@ -116,7 +118,8 @@ export type Motivo =
   | 'servicio_no_disponible'
   | 'dominio_no_permitido'
   | 'sin_ubicacion'
-  | 'interno';
+  | 'interno'
+  | 'cloudflare';
 
 /** Último dato válido con su hora; si la última lectura falló, `error` dice por qué y `datos` se conserva. */
 export interface EstadoFuente<T> {
@@ -199,9 +202,55 @@ export interface Clima {
   }[];
 }
 
+/** Porcentaje usado de una ventana de límite y cuándo se reinicia (RFC 3339 en UTC). */
+export interface VentanaUso {
+  porcentaje: number;
+  reinicio: string | null;
+}
+
+/** Montos en USD; `ciclo_fin` es la fecha de corte. Planes viejos por solicitudes traen `solicitudes` en vez de gasto. */
+export interface DatosCursor {
+  ciclo: string | null;
+  ciclo_inicio: string | null;
+  ciclo_fin: string | null;
+  plan: string | null;
+  gasto_usd: number | null;
+  limite_usd: number | null;
+  incluido_usado_usd: number | null;
+  incluido_limite_usd: number | null;
+  bajo_demanda_usd: number | null;
+  bajo_demanda_limite_usd: number | null;
+  solicitudes: number | null;
+  solicitudes_limite: number | null;
+}
+
+export interface DatosClaudeAi {
+  cinco_horas: VentanaUso | null;
+  semanal: VentanaUso | null;
+  extras: (VentanaUso & { nombre: string })[];
+}
+
+export interface DatosChatgpt {
+  plan: string | null;
+  cinco_horas: VentanaUso | null;
+  semanal: VentanaUso | null;
+}
+
+/** Costo real del mes (`AAAA-MM`) según la API oficial. */
+export interface CostoMes {
+  mes: string;
+  costo_usd: number;
+}
+
+/** Las fuentes web entregan `datos: null` mientras no haya sesión o clave guardada. */
 export type LecturaServicio =
   | { fuente: 'claude_code'; datos: EstadoFuente<ResumenClaudeCode> }
-  | { fuente: 'clima'; datos: EstadoFuente<Clima> };
+  | { fuente: 'clima'; datos: EstadoFuente<Clima> }
+  | { fuente: 'cursor'; datos: EstadoFuente<DatosCursor> }
+  | { fuente: 'claude_ai'; datos: EstadoFuente<DatosClaudeAi> }
+  | { fuente: 'chatgpt'; datos: EstadoFuente<DatosChatgpt> }
+  | { fuente: 'anthropic_consola'; datos: EstadoFuente<CostoMes> }
+  | { fuente: 'openai_api'; datos: EstadoFuente<CostoMes> };
 
 export type FuenteServicio = LecturaServicio['fuente'];
 
@@ -213,7 +262,24 @@ export type Lectura =
   | { fuente: 'procesos'; datos: FilaProceso[] }
   | LecturaServicio;
 
-export type ClaveCredencial = 'cursor_sesion' | 'claude_ai_sesion' | 'anthropic_admin' | 'google_cliente';
+export type ClaveCredencial = 'cursor_sesion' | 'claude_ai_sesion' | 'anthropic_admin' | 'google_cliente' | 'chatgpt_sesion' | 'openai_admin';
+
+export type ServicioWeb = 'cursor' | 'claude_ai' | 'chatgpt';
+export type EstadoConexion = 'conectada' | 'reconectar' | 'sin_conectar';
+
+/** `reconectar` con sesión vencida o Cloudflare (GD-DOCK-02); `conectando` mientras la ventana de login sigue abierta. */
+export interface EstadoCuentaWeb {
+  servicio: ServicioWeb;
+  estado: EstadoConexion;
+  motivo: string | null;
+  conectando: boolean;
+}
+
+/** Solo estados y booleanos: ningún valor de sesión ni de clave sale del núcleo. */
+export interface EstadoCuentas {
+  web: EstadoCuentaWeb[];
+  claves: { anthropic_admin: boolean; openai_admin: boolean };
+}
 
 /** Nunca trae el valor del secreto: solo si existe. */
 export interface EstadoCredencial {
@@ -228,7 +294,7 @@ export interface DefWidget {
   activo_defecto: boolean;
 }
 
-export type Medidor = 'cursor' | 'claude_5h' | 'claude_semanal';
+export type Medidor = 'cursor' | 'claude_5h' | 'claude_semanal' | 'chatgpt_5h' | 'chatgpt_semanal';
 
 /** Carga de `gd://aviso`, emitido cuando se manda una notificación de umbral. */
 export interface Aviso {
@@ -322,7 +388,7 @@ export const api = {
   servicioUltimo: <F extends FuenteServicio>(fuente: F) =>
     invoke<Extract<LecturaServicio, { fuente: F }>['datos'] | null>('servicio_ultimo', { fuente }),
   bovedaEstado: () => invoke<EstadoCredencial[]>('boveda_estado'),
-  /** Solo `anthropic_admin` se captura a mano; las demás llegan con su propio inicio de sesión. */
+  /** Solo `anthropic_admin` y `openai_admin` se capturan a mano; las demás llegan con su propio inicio de sesión. */
   bovedaGuardar: (clave: ClaveCredencial, valor: string) => invoke<void>('boveda_guardar', { clave, valor }),
   bovedaBorrar: (clave: ClaveCredencial) => invoke<void>('boveda_borrar', { clave }),
   climaBuscarCiudad: (texto: string) => invoke<Ubicacion[]>('clima_buscar_ciudad', { texto }),
@@ -332,6 +398,11 @@ export const api = {
   avisosHistorial: () => invoke<AvisoEnviado[]>('avisos_historial'),
   /** Abre el diálogo de Windows y guarda el cliente en la bóveda; `false` si se cancela. Nunca devuelve el contenido. */
   googleClienteImportar: () => invoke<boolean>('google_cliente_importar'),
+  /** Abre la ventana de login aislada del servicio; la sesión nunca pasa por la interfaz. */
+  cuentaConectar: (servicio: ServicioWeb) => invoke<void>('cuenta_conectar', { servicio }),
+  /** Borra la sesión guardada y el perfil de login de ese servicio. */
+  cuentaDesconectar: (servicio: ServicioWeb) => invoke<void>('cuenta_desconectar', { servicio }),
+  cuentasEstado: () => invoke<EstadoCuentas>('cuentas_estado'),
 };
 
 export async function escuchar<T>(evento: string, manejar: (carga: T) => void): Promise<UnlistenFn> {
@@ -348,6 +419,7 @@ export const EVENTOS = {
   estado: 'gd://estado',
   aviso: 'gd://aviso',
   pestana: 'gd://pestana',
+  cuentas: 'gd://cuentas',
 } as const;
 
 export function mensajeError(e: unknown): string {

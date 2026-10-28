@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import { api, enTauri, escuchar, EVENTOS, type ClaveCredencial, type EstadoCredencial } from '../api';
-import { IconoClaude, IconoCursor } from '../iconos';
+import { api, enTauri, escuchar, EVENTOS, type ClaveCredencial, type EstadoCredencial, type EstadoCuentas, type ServicioWeb } from '../api';
+import { IconoChatgpt, IconoClaude, IconoCursor } from '../iconos';
 
 export type EstadoCuenta = 'conectada' | 'reconectar' | 'sin_conectar';
 
 export interface ResumenCuenta {
-  id: 'google' | 'cursor' | 'claude';
+  id: 'google' | 'cursor' | 'claude' | 'chatgpt';
   nombre: string;
   estado: EstadoCuenta;
   detalle: string;
@@ -20,18 +20,32 @@ const TEXTO_ESTADO: Record<EstadoCuenta, string> = {
 
 export const textoEstadoCuenta = (e: EstadoCuenta): string => TEXTO_ESTADO[e];
 
+export const NOMBRE_SERVICIO: Record<ServicioWeb, string> = { cursor: 'Cursor', claude_ai: 'Claude.ai', chatgpt: 'ChatGPT' };
+
+const CLAVE_SERVICIO: Record<ServicioWeb, ClaveCredencial> = { cursor: 'cursor_sesion', claude_ai: 'claude_ai_sesion', chatgpt: 'chatgpt_sesion' };
+
 export function credencialPresente(credenciales: readonly EstadoCredencial[] | null, clave: ClaveCredencial): boolean {
   return credenciales?.find((c) => c.clave === clave)?.presente ?? false;
 }
 
-/**
- * GD-DOCK-02. Hasta los bloques 13 y 14 el núcleo solo informa si hay credencial guardada, no si sigue vigente:
- * por eso nadie pasa a ámbar todavía y Google sigue gris aunque el cliente OAuth esté importado.
- */
-export function resumenCuentas(credenciales: readonly EstadoCredencial[] | null): ResumenCuenta[] {
+/** El núcleo dice si la sesión sigue vigente; mientras no responda, basta con saber si hay sesión guardada. */
+export function estadoServicio(servicio: ServicioWeb, credenciales: readonly EstadoCredencial[] | null, web: EstadoCuentas | null): EstadoCuenta {
+  const real = web?.web.find((c) => c.servicio === servicio);
+  if (real) return real.estado;
+  return credencialPresente(credenciales, CLAVE_SERVICIO[servicio]) ? 'conectada' : 'sin_conectar';
+}
+
+function detalleWeb(estado: EstadoCuenta, web: EstadoCuentas | null, servicio: ServicioWeb): string {
+  if (estado === 'reconectar') return `${web?.web.find((c) => c.servicio === servicio)?.motivo ?? 'Sesión expirada'} · vuelve a conectar`;
+  return estado === 'conectada' ? 'Sesión guardada · lectura no oficial' : 'Sin sesión · lectura no oficial';
+}
+
+/** GD-DOCK-02: ámbar si la última lectura dio sesión vencida o Cloudflare. Google sigue gris hasta el bloque 14. */
+export function resumenCuentas(credenciales: readonly EstadoCredencial[] | null, web: EstadoCuentas | null = null): ResumenCuenta[] {
   const cliente = credencialPresente(credenciales, 'google_cliente');
-  const cursor = credencialPresente(credenciales, 'cursor_sesion');
-  const claudeAi = credencialPresente(credenciales, 'claude_ai_sesion');
+  const cursor = estadoServicio('cursor', credenciales, web);
+  const claudeAi = estadoServicio('claude_ai', credenciales, web);
+  const chatgpt = estadoServicio('chatgpt', credenciales, web);
   return [
     {
       id: 'google',
@@ -43,18 +57,34 @@ export function resumenCuentas(credenciales: readonly EstadoCredencial[] | null)
     {
       id: 'cursor',
       nombre: 'Cursor',
-      estado: cursor ? 'conectada' : 'sin_conectar',
-      detalle: cursor ? 'Sesión guardada · lectura no oficial' : 'Sin sesión · lectura no oficial',
+      estado: cursor,
+      detalle: detalleWeb(cursor, web, 'cursor'),
       icono: <IconoCursor />,
     },
     {
       id: 'claude',
       nombre: 'Claude',
-      estado: claudeAi ? 'conectada' : 'sin_conectar',
-      detalle: claudeAi ? 'Claude.ai con sesión guardada' : 'Claude Code local · Claude.ai sin sesión',
+      estado: claudeAi,
+      detalle:
+        claudeAi === 'sin_conectar' ? 'Claude Code local · Claude.ai sin sesión' : `Claude.ai: ${detalleWeb(claudeAi, web, 'claude_ai').toLowerCase()}`,
       icono: <IconoClaude />,
     },
+    {
+      id: 'chatgpt',
+      nombre: 'ChatGPT',
+      estado: chatgpt,
+      detalle: detalleWeb(chatgpt, web, 'chatgpt'),
+      icono: <IconoChatgpt />,
+    },
   ];
+}
+
+/** El que el dock ofrece conectar directo: primero uno que pida reconexión, luego uno sin conectar; ninguno si hay un login abierto. */
+export function cuentaPorConectar(credenciales: readonly EstadoCredencial[] | null, web: EstadoCuentas | null): { servicio: ServicioWeb; estado: EstadoCuenta } | null {
+  if (web?.web.some((c) => c.conectando)) return null;
+  const servicios: ServicioWeb[] = ['cursor', 'claude_ai', 'chatgpt'];
+  const estados = servicios.map((servicio) => ({ servicio, estado: estadoServicio(servicio, credenciales, web) }));
+  return estados.find((e) => e.estado === 'reconectar') ?? estados.find((e) => e.estado === 'sin_conectar') ?? null;
 }
 
 export function PuntoCuenta({ estado }: { estado: EstadoCuenta }) {
@@ -63,26 +93,35 @@ export function PuntoCuenta({ estado }: { estado: EstadoCuenta }) {
 
 const REVISION_MS = 5 * 60_000;
 
-/** Estado de la bóveda: al montar, con `gd://config`, al enfocar la ventana y cada 5 min. */
-export function useCredenciales(): [EstadoCredencial[] | null, () => void] {
-  const [credenciales, setCredenciales] = useState<EstadoCredencial[] | null>(null);
+function useRecarga<T>(leer: () => Promise<T>, eventos: readonly string[]): [T | null, () => void] {
+  const [valor, setValor] = useState<T | null>(null);
   const recargar = useCallback(() => {
     if (!enTauri()) return;
-    api
-      .bovedaEstado()
-      .then(setCredenciales)
+    leer()
+      .then((v) => setValor(v ?? null))
       .catch(() => undefined);
-  }, []);
+  }, [leer]);
+  const claveEventos = eventos.join('|');
   useEffect(() => {
     recargar();
-    const quitar = escuchar<null>(EVENTOS.config, recargar);
+    const quitar = claveEventos.split('|').map((e) => escuchar<null>(e, recargar));
     const id = window.setInterval(recargar, REVISION_MS);
     window.addEventListener('focus', recargar);
     return () => {
-      quitar.then((f) => f());
+      quitar.forEach((q) => q.then((f) => f()));
       window.clearInterval(id);
       window.removeEventListener('focus', recargar);
     };
-  }, [recargar]);
-  return [credenciales, recargar];
+  }, [recargar, claveEventos]);
+  return [valor, recargar];
+}
+
+/** Estado de la bóveda: al montar, con `gd://config` o `gd://cuentas`, al enfocar la ventana y cada 5 min. */
+export function useCredenciales(): [EstadoCredencial[] | null, () => void] {
+  return useRecarga(api.bovedaEstado, [EVENTOS.config, EVENTOS.cuentas]);
+}
+
+/** Estado de las cuentas web y de las claves opcionales; se recarga con `gd://cuentas` (login, lectura con otro resultado). */
+export function useCuentasWeb(): [EstadoCuentas | null, () => void] {
+  return useRecarga(api.cuentasEstado, [EVENTOS.cuentas]);
 }
