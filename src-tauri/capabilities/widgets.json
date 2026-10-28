@@ -17,6 +17,7 @@
     "allow-panel-abrir",
     "allow-reiniciar-explorer",
     "allow-estado-entorno",
-    "allow-servicio-ultimo"
+    "allow-servicio-ultimo",
+    "allow-catalogo-widgets"
   ]
 }

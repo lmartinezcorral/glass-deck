@@ -213,6 +213,12 @@
           "markdownDescription": "Enables the boveda_guardar command without any pre-configured scope."
         },
         {
+          "description": "Enables the catalogo_widgets command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-catalogo-widgets",
+          "markdownDescription": "Enables the catalogo_widgets command without any pre-configured scope."
+        },
+        {
           "description": "Enables the config_guardar command without any pre-configured scope.",
           "type": "string",
           "const": "allow-config-guardar",
@@ -373,6 +379,12 @@
           "type": "string",
           "const": "deny-boveda-guardar",
           "markdownDescription": "Denies the boveda_guardar command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the catalogo_widgets command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-catalogo-widgets",
+          "markdownDescription": "Denies the catalogo_widgets command without any pre-configured scope."
         },
         {
           "description": "Denies the config_guardar command without any pre-configured scope.",

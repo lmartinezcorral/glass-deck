@@ -76,7 +76,8 @@ pub fn run() {
             }
             ventanas::iniciar_vigilancia(h);
             recolectores::iniciar(h);
-            servicios::iniciar(h, Vec::new());
+            let inicio = app.path().home_dir().unwrap_or_else(|_| PathBuf::from("."));
+            servicios::iniciar(h, vec![Box::new(recolectores::claude_code::ClaudeCode::nuevo(&inicio))]);
             ventanas::marcar_arranque_listo();
             Ok(())
         })
@@ -108,6 +109,7 @@ pub fn run() {
             comandos::boveda_guardar,
             comandos::boveda_borrar,
             comandos::servicio_ultimo,
+            comandos::catalogo_widgets,
         ])
         .build(tauri::generate_context!())
         .expect("no se pudo iniciar Glassdeck");

@@ -26,6 +26,7 @@ const COMANDOS: &[&str] = &[
     "boveda_guardar",
     "boveda_borrar",
     "servicio_ultimo",
+    "catalogo_widgets",
 ];
 
 fn main() {

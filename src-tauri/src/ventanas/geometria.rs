@@ -55,7 +55,7 @@ pub fn ajustar_iman(actual: Rect, area: Rect, otros: &[Rect], separacion: i32, d
 #[cfg(test)]
 mod pruebas {
     use super::*;
-    use crate::ventanas::catalogo::WIDGETS_FASE_1;
+    use crate::ventanas::catalogo::WIDGETS;
 
     #[test]
     fn la_rejilla_por_defecto_no_superpone_widgets() {
@@ -63,7 +63,7 @@ mod pruebas {
             let fisica = |v: u32| (v as f64 * escala) as i32;
             let rects: Vec<Rect> = (0..11)
                 .map(|i| {
-                    let def = &WIDGETS_FASE_1[i % WIDGETS_FASE_1.len()];
+                    let def = &WIDGETS[i % WIDGETS.len()];
                     let (x, y) = celda_por_defecto(area, escala, i);
                     Rect::nuevo(x, y, fisica(def.ancho), fisica(def.alto))
                 })
@@ -85,7 +85,7 @@ mod pruebas {
         ];
         for (area, escala) in casos {
             let fisica = |v: u32| (v as f64 * escala) as i32;
-            for (i, def) in WIDGETS_FASE_1.iter().enumerate() {
+            for (i, def) in WIDGETS.iter().enumerate() {
                 let (x, y) = celda_por_defecto(area, escala, i);
                 let r = Rect::nuevo(x, y, fisica(def.ancho), fisica(def.alto));
                 assert!(r.x >= area.x && r.y >= area.y, "{} sale por arriba o la izquierda: {r:?}", def.id);

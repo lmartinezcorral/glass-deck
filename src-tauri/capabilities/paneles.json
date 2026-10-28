@@ -25,6 +25,7 @@
     "allow-boveda-estado",
     "allow-boveda-guardar",
     "allow-boveda-borrar",
-    "allow-servicio-ultimo"
+    "allow-servicio-ultimo",
+    "allow-catalogo-widgets"
   ]
 }

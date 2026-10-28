@@ -36,10 +36,13 @@ pub fn config_guardar(app: AppHandle, config: Config) -> R<Config> {
         aplicar_arranque(&app, guardada.arranque_windows);
     }
     if guardada.capa_defecto != anterior.capa_defecto {
-        for w in catalogo::WIDGETS_FASE_1 {
+        for w in catalogo::WIDGETS {
             ventanas::aplicar_capa(&app, w.id);
         }
         paneles::aplicar_capa_dock(&app);
+    }
+    if guardada.precios_modelos != anterior.precios_modelos {
+        app.state::<EstadoServicios>().forzar("claude_code");
     }
     let _ = app.emit("gd://config", ());
     Ok(guardada)
@@ -305,6 +308,11 @@ pub fn boveda_guardar(clave: Clave, valor: String) -> R<()> {
 #[tauri::command]
 pub fn boveda_borrar(clave: Clave) -> R<()> {
     boveda::borrar(clave.nombre())
+}
+
+#[tauri::command]
+pub fn catalogo_widgets() -> &'static [catalogo::DefWidget] {
+    catalogo::WIDGETS
 }
 
 #[tauri::command]

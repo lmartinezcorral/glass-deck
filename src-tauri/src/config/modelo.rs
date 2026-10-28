@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
-pub const VERSION_CONFIG: u32 = 2;
+pub const VERSION_CONFIG: u32 = 3;
 
 /// Valor de fábrica de la versión 1; la Xbox Game Bar lo ocupa en Windows 10 (decisión D-22).
 const ATAJO_MOSTRAR_V1: &str = "Super+Alt+G";
@@ -63,11 +63,12 @@ pub struct Intervalos {
     pub cpu_ram_red_ms: u64,
     pub procesos_ms: u64,
     pub disco_ms: u64,
+    pub spending_ms: u64,
 }
 
 impl Default for Intervalos {
     fn default() -> Self {
-        Self { cpu_ram_red_ms: 2_000, procesos_ms: 3_000, disco_ms: 5_000 }
+        Self { cpu_ram_red_ms: 2_000, procesos_ms: 3_000, disco_ms: 5_000, spending_ms: 900_000 }
     }
 }
 
@@ -75,6 +76,7 @@ impl Intervalos {
     pub const MIN_CPU_RAM_RED_MS: u64 = 1_000;
     pub const MIN_PROCESOS_MS: u64 = 2_000;
     pub const MIN_DISCO_MS: u64 = 1_000;
+    pub const MIN_SPENDING_MS: u64 = 300_000;
 
     pub fn validar(&self) -> Result<(), String> {
         if self.cpu_ram_red_ms < Self::MIN_CPU_RAM_RED_MS {
@@ -86,8 +88,37 @@ impl Intervalos {
         if self.disco_ms < Self::MIN_DISCO_MS {
             return Err("El intervalo de disco no puede ser menor a 1 s".into());
         }
+        if self.spending_ms < Self::MIN_SPENDING_MS {
+            return Err("El intervalo de spending no puede ser menor a 5 min".into());
+        }
         Ok(())
     }
+}
+
+/// Precios en USD por millón de tokens. `patron` es un fragmento del nombre del modelo; gana el más largo.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PrecioModelo {
+    pub patron: String,
+    pub entrada: f64,
+    pub salida: f64,
+    pub cache_escritura: f64,
+    pub cache_lectura: f64,
+}
+
+/// Valores de referencia por familia (escritura de caché = 1.25 × entrada, lectura = 0.1 × entrada); Luis los edita en Customize.
+pub fn precios_por_defecto() -> Vec<PrecioModelo> {
+    let p = |patron: &str, entrada: f64, salida: f64| PrecioModelo {
+        patron: patron.into(),
+        entrada,
+        salida,
+        cache_escritura: entrada * 1.25,
+        cache_lectura: entrada * 0.1,
+    };
+    vec![p("opus", 5.0, 25.0), p("sonnet", 3.0, 15.0), p("haiku", 1.0, 5.0)]
+}
+
+fn precio_valido(p: &PrecioModelo) -> bool {
+    !p.patron.is_empty() && [p.entrada, p.salida, p.cache_escritura, p.cache_lectura].iter().all(|v| v.is_finite() && *v >= 0.0)
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -148,15 +179,16 @@ pub struct Config {
     pub pausar_con_bateria: bool,
     pub iman: bool,
     pub privacidad: bool,
+    pub precios_modelos: Vec<PrecioModelo>,
 }
 
 impl Default for Config {
     fn default() -> Self {
         let mut widgets = BTreeMap::new();
-        for w in crate::ventanas::catalogo::WIDGETS_FASE_1 {
+        for w in crate::ventanas::catalogo::WIDGETS {
             widgets.insert(
                 w.id.to_string(),
-                ConfigWidget { ancho: w.ancho, alto: w.alto, ..ConfigWidget::default() },
+                ConfigWidget { ancho: w.ancho, alto: w.alto, activo: w.activo_defecto, ..ConfigWidget::default() },
             );
         }
         Self {
@@ -172,6 +204,7 @@ impl Default for Config {
             pausar_con_bateria: true,
             iman: false,
             privacidad: false,
+            precios_modelos: precios_por_defecto(),
         }
     }
 }
@@ -190,6 +223,10 @@ impl Config {
         self.apariencia.opacidad = self.apariencia.opacidad.clamp(0.2, 0.95);
         self.apariencia.desenfoque = self.apariencia.desenfoque.clamp(0.0, 80.0);
         self.lista_negra_usuario.retain(|n| !n.trim().is_empty());
+        for p in self.precios_modelos.iter_mut() {
+            p.patron = p.patron.trim().to_lowercase();
+        }
+        self.precios_modelos.retain(precio_valido);
         if self.version < 2 && self.atajos.mostrar_ocultar == ATAJO_MOSTRAR_V1 {
             self.atajos.mostrar_ocultar = Atajos::default().mostrar_ocultar;
         }
@@ -260,8 +297,10 @@ mod pruebas {
 
     #[test]
     fn intervalos_en_el_minimo_se_aceptan() {
-        let i = Intervalos { cpu_ram_red_ms: 1_000, procesos_ms: 2_000, disco_ms: 1_000 };
+        let i = Intervalos { cpu_ram_red_ms: 1_000, procesos_ms: 2_000, disco_ms: 1_000, spending_ms: 300_000 };
         assert!(i.validar().is_ok());
+        let i = Intervalos { spending_ms: 299_999, ..Intervalos::default() };
+        assert!(i.validar().is_err());
         let i = Intervalos { disco_ms: 999, ..Intervalos::default() };
         assert!(i.validar().is_err());
     }
@@ -273,6 +312,70 @@ mod pruebas {
         let i = Intervalos { procesos_ms: 1_000, ..Intervalos::default() };
         assert!(i.validar().is_err());
         assert!(Intervalos::default().validar().is_ok());
+    }
+
+    const CONFIG_V2: &str = r#"{
+        "version": 2,
+        "widgets": {
+            "cpu": { "activo": false, "estado": "pildora", "fijado": true, "monitor": "\\\\.\\DISPLAY2", "x": -1500, "y": 40, "ancho": 300, "alto": 260 },
+            "ram": { "activo": true, "estado": "normal", "fijado": false, "monitor": null, "x": null, "y": null, "ancho": 220, "alto": 210 }
+        },
+        "intervalos": { "cpu_ram_red_ms": 3000, "procesos_ms": 4000, "disco_ms": 6000 },
+        "lista_negra_usuario": ["spotify"],
+        "atajos": { "mostrar_ocultar": "Ctrl+Shift+F9", "privacidad": "Super+Alt+P" },
+        "arranque_windows": false,
+        "iman": true
+    }"#;
+
+    #[test]
+    fn la_version_2_migra_a_3_respetando_lo_del_usuario() {
+        let mut c: Config = serde_json::from_str(CONFIG_V2).unwrap();
+        c.normalizar();
+        assert_eq!(c.version, 3);
+        let cpu = c.widget("cpu");
+        assert!(!cpu.activo);
+        assert_eq!((cpu.x, cpu.y, cpu.ancho, cpu.estado), (Some(-1500), Some(40), 300, EstadoWidget::Pildora));
+        assert_eq!(c.intervalos.cpu_ram_red_ms, 3_000);
+        assert_eq!(c.intervalos.procesos_ms, 4_000);
+        assert_eq!(c.intervalos.disco_ms, 6_000);
+        assert_eq!(c.intervalos.spending_ms, 900_000);
+        assert_eq!(c.atajos.mostrar_ocultar, "Ctrl+Shift+F9");
+        assert_eq!(c.lista_negra_usuario, vec!["spotify".to_string()]);
+        assert!(!c.arranque_windows && c.iman);
+        assert!(c.widgets.contains_key("spending"));
+        assert!(!c.widget("spending").activo, "los widgets nuevos llegan apagados");
+        assert_eq!(c.precios_modelos, precios_por_defecto());
+    }
+
+    #[test]
+    fn la_version_1_migra_a_3_con_el_atajo_nuevo() {
+        let mut c: Config = serde_json::from_str(&CONFIG_V2.replace("\"version\": 2", "\"version\": 1").replace("Ctrl+Shift+F9", ATAJO_MOSTRAR_V1)).unwrap();
+        c.normalizar();
+        assert_eq!(c.version, 3);
+        assert_eq!(c.atajos.mostrar_ocultar, "Ctrl+Alt+M");
+        assert_eq!(c.intervalos.cpu_ram_red_ms, 3_000);
+        assert!(!c.widget("spending").activo);
+        assert_eq!(c.intervalos.spending_ms, 900_000);
+    }
+
+    #[test]
+    fn los_widgets_de_servicios_arrancan_apagados() {
+        let c = Config::default();
+        assert!(!c.widget("spending").activo);
+        assert!(c.widget("cpu").activo);
+    }
+
+    #[test]
+    fn normalizar_limpia_precios_invalidos_y_respeta_los_editados() {
+        let mut c = Config::default();
+        c.precios_modelos[0].entrada = 7.5;
+        c.precios_modelos.push(PrecioModelo { patron: "  Mi-Modelo ".into(), entrada: 1.0, salida: 2.0, cache_escritura: 0.0, cache_lectura: 0.0 });
+        c.precios_modelos.push(PrecioModelo { patron: "roto".into(), entrada: -1.0, salida: 2.0, cache_escritura: 0.0, cache_lectura: 0.0 });
+        c.precios_modelos.push(PrecioModelo { patron: " ".into(), entrada: 1.0, salida: 2.0, cache_escritura: 0.0, cache_lectura: 0.0 });
+        c.normalizar();
+        assert_eq!(c.precios_modelos.len(), 4);
+        assert_eq!(c.precios_modelos[0].entrada, 7.5);
+        assert_eq!(c.precios_modelos[3].patron, "mi-modelo");
     }
 
     #[test]
