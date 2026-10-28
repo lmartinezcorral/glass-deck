@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Versión | 1.4 |
+| Versión | 1.5 |
 | Fecha | 2026-10-28 |
 | Dueño | Luis Ángel Martínez Corral |
 | Estado | **Aprobado por el CEO el 2026-10-27.** Construcción en curso (fases 0 y 1) |
@@ -17,10 +17,11 @@
 | 1.2 | 2026-10-27 | Decisión de Luis sobre R-01 (ADR-001 aceptado): una ventana por widget; RAM < 200 MB en la fase 1 y < 250 MB con los 11 widgets; CPU, RAM y red a 2 s por defecto. Se agrega GD-NFR-UX-06 (título y subtítulo visibles en cada widget), a pedido de Luis |
 | 1.3 | 2026-10-27 | Decisiones de Luis al entregar la fase 1: mostrar u ocultar todo pasa a `Ctrl+Alt+M` por defecto, porque la Xbox Game Bar ocupa `Win+Alt+G` (D-22, GD-HOT-01; las configuraciones con el valor de fábrica anterior se migran solas); la instalación queda en `%LocalAppData%\Glassdeck`, la carpeta por defecto de Tauri (GD-INST-01); la RAM se optimiza para cumplir < 200 MB en la fase 1 |
 | 1.4 | 2026-10-28 | Decisiones de Luis tras la QA automatizada de la fase 1: encender un widget desde el dock puede tardar hasta 3.5 s (se recrea la ventana; no se conserva oculta para no subir la RAM, GD-DOCK-01); el control de intensidad del desenfoque sale de Customize en la fase 1 (GD-CUST-02); disco < 6 s y red < 2.5 s en lugar de bajar los intervalos (GD-SYS-06 y GD-SYS-07); el tema oscuro sube su opacidad mínima para sostener el contraste sobre escritorios claros (GD-NFR-UX-01) |
+| 1.5 | 2026-10-28 | Decisiones de Luis tras los reinicios (20–25 s hasta ver los widgets; el log muestra que Windows lanza Glassdeck 25–27 s después del inicio de sesión): el arranque con Windows pasa a una tarea programada al iniciar sesión, con la clave Run como respaldo (GD-INST-02, el criterio de < 10 s se mantiene). Se agrega OpenAI al widget Spending (GD-OAI: Codex local, límites de ChatGPT por login web y API opcional) y Gemini como deseable (GD-GEM: uso de la API vía Google Cloud con la cuenta de Google ya conectada) |
 
 ## 0. Resumen
 
-Glassdeck es un panel de widgets flotantes de vidrio oscuro para el escritorio de Windows 10. Muestra el rendimiento del equipo, el gasto y uso de Cursor y Claude, una alerta rotativa de Gmail y Google Calendar, el clima, y controles de audio, cámara, brillo y atajos del sistema. Incluye un módulo **Zonas** para acomodar ventanas en 3 monitores, inspirado en MaxTo.
+Glassdeck es un panel de widgets flotantes de vidrio oscuro para el escritorio de Windows 10. Muestra el rendimiento del equipo, el gasto y uso de Cursor, Claude y OpenAI (Codex y ChatGPT; Gemini opcional), una alerta rotativa de Gmail y Google Calendar, el clima, y controles de audio, cámara, brillo y atajos del sistema. Incluye un módulo **Zonas** para acomodar ventanas en 3 monitores, inspirado en MaxTo.
 
 - **Usuario único:** Luis, en su ThinkPad con Windows 10 Pro 22H2 (build 19045) y 3 monitores.
 - **Proyecto independiente** en `tools/glassdeck/`, fuera de las marcas Owame, Wellhu, Newachi y Somos Mobility. «Glassdeck» es nombre provisional.
@@ -178,11 +179,32 @@ Glassdeck es un panel de widgets flotantes de vidrio oscuro para el escritorio d
 | GD-CLA-05 | **Consola de la API (opcional):** clave de administrador de organización guardada en el Administrador de credenciales; muestra el costo real del mes | Sin clave configurada, la sección no aparece | D |
 | GD-CLA-06 | Mismo manejo de errores que GD-CUR-06 | Con la sesión de claude.ai expirada, el widget lo indica y conserva los datos locales de Claude Code | M |
 
+### 3.8a Spending y uso de OpenAI (`GD-OAI`) — Fase 2
+
+Secciones dentro del widget Spending, igual que Cursor y Claude.
+
+| ID | Requerimiento | CA | Prio |
+|---|---|---|---|
+| GD-OAI-01 | **Codex (local, sin login):** lee los registros JSONL de `~/.codex/sessions/`. De cada sesión toma el último evento `token_count` (total acumulado) y lo suma al día de su hora; el modelo sale de `thread_settings_applied` cuando existe | El total del día coincide con una suma independiente de los mismos archivos | M |
+| GD-OAI-02 | Solo se leen los eventos de uso (`token_count`), el modelo y el id y la fecha de la sesión; nunca el texto de los mensajes ni `~/.codex/auth.json` | Una revisión del código confirma que solo se extraen esos campos | M |
+| GD-OAI-03 | Los registros de Codex Desktop solo traen el total de tokens, sin entrada, salida ni caché: el widget muestra tokens y la nota «sin desglose, no se calcula costo». Si una versión de Codex trae el desglose, se usa la tabla de precios de GD-CLA-02 | Con los registros actuales no aparece ningún costo inventado | M |
+| GD-OAI-04 | **ChatGPT (no oficial):** login web a chatgpt.com; muestra el % usado del límite de 5 h y del semanal del plan (los de Codex) y su hora de reinicio. Las direcciones se aíslan en un adaptador, como en GD-CUR-04 | Con sesión válida, los % coinciden con los que muestra chatgpt.com | M |
+| GD-OAI-05 | **API de OpenAI (opcional):** clave de administrador de organización guardada en el Administrador de credenciales; muestra el costo real del mes (`/v1/organization/costs`) | Sin clave configurada, la sección no aparece | D |
+| GD-OAI-06 | Mismo manejo de errores que GD-CUR-06 | Con la sesión de chatgpt.com expirada, el widget lo indica y conserva los datos locales de Codex | M |
+
+### 3.8b Uso de Gemini (`GD-GEM`) — Fase 2, deseable
+
+| ID | Requerimiento | CA | Prio |
+|---|---|---|---|
+| GD-GEM-01 | **Opcional:** con una cuenta de Google ya conectada (bloque 14), muestra las solicitudes por día a la API de Gemini (`generativelanguage.googleapis.com`) del proyecto de Google Cloud que Luis elija (el de sus claves de AI Studio), leídas de Cloud Monitoring | Los números coinciden con la página de uso del proyecto en Google Cloud | D |
+| GD-GEM-02 | El permiso adicional de solo lectura de Cloud Monitoring se pide solo al activar Gemini en Customize | Sin activarlo, el consentimiento de Google no lo incluye | D |
+| GD-GEM-03 | La app de Gemini (Gemini Pro) y Antigravity no se miden: no publican su uso ni lo guardan en el equipo | El widget lo indica en la sección de Gemini | D |
+
 ### 3.9 Avisos de umbral (`GD-ALERT`) — Fase 2
 
 | ID | Requerimiento | CA | Prio |
 |---|---|---|---|
-| GD-ALERT-01 | Notificación de Windows al cruzar cada umbral (Cursor 50/80/100 %; Claude 80 % de 5 h y semanal) | Cada umbral avisa una sola vez por ciclo de facturación o ventana de límite | M |
+| GD-ALERT-01 | Notificación de Windows al cruzar cada umbral (Cursor 50/80/100 %; Claude y ChatGPT 80 % de 5 h y semanal) | Cada umbral avisa una sola vez por ciclo de facturación o ventana de límite | M |
 | GD-ALERT-02 | Clic en la notificación abre el widget de Spending maximizado | Verificado en las dos fuentes | M |
 | GD-ALERT-03 | El historial de avisos enviados persiste para no repetirlos tras reiniciar | Reiniciar Glassdeck no repite un aviso ya enviado | M |
 
@@ -277,7 +299,7 @@ Basado en `referencias/MAXTO_ANALISIS.md`. Se aplica a las ventanas de **todas**
 | ID | Requerimiento | CA | Prio |
 |---|---|---|---|
 | GD-INST-01 | Instalador `.exe` (NSIS) por usuario, sin firma digital, sin permisos de administrador | Instala en `%LocalAppData%\Glassdeck` sin UAC | M |
-| GD-INST-02 | Arranque con Windows (GD-CUST-07) | Tras iniciar sesión, los widgets aparecen en < 10 s | M |
+| GD-INST-02 | Arranque con Windows (GD-CUST-07) con una tarea programada «al iniciar sesión» del usuario, sin retraso y con prioridad normal, que no necesita permisos de administrador; si no se puede crear, se usa la clave Run. Desactivar el arranque o desinstalar borra la tarea | Tras iniciar sesión, los widgets aparecen en < 10 s | M |
 | GD-INST-03 | Desinstalación limpia, con opción de conservar o borrar la configuración y las credenciales | Al elegir borrar, no quedan entradas de Glassdeck en el Administrador de credenciales | M |
 | GD-INST-04 | Sin actualización automática ni telemetría | Fuera de las fuentes de datos (sección 5.3), Glassdeck no hace conexiones de red | M |
 | GD-INST-05 | Requiere WebView2 (incluido en Windows 10 actualizado); si falta, el instalador lo descarga | Instalación probada en el equipo de Luis | M |
@@ -347,6 +369,9 @@ Basado en `referencias/MAXTO_ANALISIS.md`. Se aplica a las ventanas de **todas**
 | Cursor | Cookie de sesión del dashboard | Ventana de login a cursor.com |
 | Claude.ai | Cookie de sesión | Ventana de login a claude.ai |
 | Consola de Anthropic (opcional) | Clave de administrador | Captura manual en Customize |
+| ChatGPT | Cookie de sesión | Ventana de login a chatgpt.com |
+| API de OpenAI (opcional) | Clave de administrador | Captura manual en Customize |
+| Gemini (opcional) | Ninguna adicional: usa el token de la cuenta de Google con el permiso de Cloud Monitoring | Al activar Gemini en Customize |
 
 ### 5.3 Fuentes externas permitidas
 
@@ -358,6 +383,9 @@ Basado en `referencias/MAXTO_ANALISIS.md`. Se aplica a las ventanas de **todas**
 | `cursor.com` | Dashboard de gasto | **No** |
 | `claude.ai` | Límites de uso de la suscripción | **No** |
 | `api.anthropic.com` (opcional) | Informe de costos de la organización | Sí |
+| `chatgpt.com` | Límites de uso del plan de ChatGPT y Codex | **No** |
+| `api.openai.com` (opcional) | Costos de la organización | Sí |
+| `monitoring.googleapis.com` (opcional) | Solicitudes a la API de Gemini | Sí |
 | `api.open-meteo.com`, `geocoding-api.open-meteo.com` | Clima y búsqueda de ciudad | Sí |
 | `ipapi.co` (geolocalización por IP; se consulta solo con ubicación automática) | Ciudad aproximada | Sí (de terceros) |
 
@@ -367,7 +395,7 @@ Basado en `referencias/MAXTO_ANALISIS.md`. Se aplica a las ventanas de **todas**
 |---|---|---|
 | 0 — Preparación | Instalar Rust y las herramientas de compilación de C++ de Visual Studio (~6 GB); crear el repo `tools/glassdeck`; **prueba de concepto de RAM** con 11 ventanas WebView2 en 3 variantes (riesgo R-01), medida con `poc/medir.ps1` | La prueba mide la RAM real y `adr/ADR-001-estrategia-ventanas.md` registra la estrategia elegida. Si ninguna variante baja de 200 MB, decide Luis antes de la fase 1 |
 | 1 — Base | GD-WIN, GD-DOCK (sin cuentas), GD-CUST, GD-SYS, GD-PROC, GD-CLEAN, GD-SHORT-01, GD-HOT-01/02/04, GD-INST, GD-NFR | Instalador funcional; todos los CA de la fase cumplidos; VoBo de Luis |
-| 2 — Servicios | GD-DOCK-02, GD-CUR, GD-CLA, GD-ALERT, GD-MAIL, GD-CAL, GD-ROT, GD-WX | Igual |
+| 2 — Servicios | GD-DOCK-02, GD-CUR, GD-CLA, GD-OAI, GD-GEM (deseable), GD-ALERT, GD-MAIL, GD-CAL, GD-ROT, GD-WX | Igual |
 | 3 — Controles | GD-AUD, GD-MIC, GD-CAM, GD-BRI, GD-SHORT-02 a 06 | Igual |
 | 4 — Zonas | GD-ZONE, GD-HOT-03; observación en vivo de la prueba de MaxTo al iniciar la fase | Igual |
 
@@ -376,7 +404,7 @@ Basado en `referencias/MAXTO_ANALISIS.md`. Se aplica a las ventanas de **todas**
 | ID | Riesgo | Impacto | Mitigación |
 |---|---|---|---|
 | R-01 | Cada widget como ventana WebView2 independiente puede superar los 200 MB (WebView2 crea procesos de render por ventana) | Incumplir GD-NFR-PERF-02 | Prueba de concepto en la fase 0. Alternativas en orden: (1) compartir el entorno de WebView2 entre ventanas; (2) destruir la ventana de los widgets cerrados; (3) agrupar widgets en una ventana transparente por monitor con zonas de clic. Si ninguna basta, Luis decide entre subir el presupuesto o agrupar |
-| R-02 | Cursor y claude.ai cambian su web interna | El widget deja de leer gasto | Adaptador aislado (GD-CUR-04), aviso claro (GD-CUR-06) |
+| R-02 | Cursor, claude.ai y chatgpt.com cambian su web interna | El widget deja de leer gasto | Adaptador aislado (GD-CUR-04), aviso claro (GD-CUR-06) |
 | R-03 | La interfaz no documentada del ruteo por app cambia con una actualización de Windows | El mezclador por app deja de asignar salida | GD-AUD-03; el resto del audio sigue funcionando |
 | R-04 | El *acrylic* de Windows 10 se traba al arrastrar | Experiencia de arrastre pobre | GD-WIN-03 |
 | R-05 | Mantener los widgets en la capa del escritorio frente a `Win+D` es frágil en Windows 10 | Los widgets desaparecen con `Win+D` | Técnica tipo Rainmeter (fondo + detección de «Mostrar escritorio»); probar en fase 1 |
@@ -385,7 +413,7 @@ Basado en `referencias/MAXTO_ANALISIS.md`. Se aplica a las ventanas de **todas**
 | R-08 | Ventanas elevadas no se pueden mover (UIPI) | Zonas no aplica a esas apps | GD-ZONE-13 |
 | R-09 | El instalador sin firma muestra la advertencia de SmartScreen | Un clic extra al instalar | Aceptado (D-14) |
 
-Supuestos: Windows 10 Pro 22H2 con WebView2 actualizado; Luis tiene plan individual de Cursor y suscripción de Claude; Claude Code guarda registros en `~/.claude/projects/`.
+Supuestos: Windows 10 Pro 22H2 con WebView2 actualizado; Luis tiene plan individual de Cursor y suscripción de Claude; Claude Code guarda registros en `~/.claude/projects/`; Codex Desktop guarda sus sesiones en `~/.codex/sessions/`.
 
 ## 8. Glosario
 

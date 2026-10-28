@@ -4,9 +4,9 @@ Complementa a `SPEC.md` (sección 6). Cada bloque termina con un commit en `main
 
 | Campo | Valor |
 |---|---|
-| Versión | 1.0 |
-| Fecha | 2026-10-27 |
-| Repo | Git local en `tools/glassdeck`, rama `main`, sin remoto |
+| Versión | 1.1 |
+| Fecha | 2026-10-28 |
+| Repo | `tools/glassdeck`, rama `main`, remoto público `github.com/lmartinezcorral/glass-deck` (escaneo de secretos antes de cada push) |
 | Ticket | `MOB-TOOL-GLASSDECK-01` (TASK.MD del multiverso y Notion) |
 
 ## Fase 0 — Preparación
@@ -39,9 +39,15 @@ Complementa a `SPEC.md` (sección 6). Cada bloque termina con un commit en `main
 
 **Cierre de la fase 1 (Luis, 2026-10-28):** VoBo tras su recorrido manual; quedan 3 pendientes que no bloquean (USB, Ethernet y reinicio de Windows, ver `QA_MATRIZ.md`). `fase-2` se integra a `main` y la fase 2 continúa ahí.
 
+**Arranque con Windows (Luis, 2026-10-28):** tras reiniciar, los widgets tardan 20–25 s (GD-INST-02 falla contra < 10 s). El log muestra que Windows lanza Glassdeck 25–27 s después del inicio de sesión: el retraso está en la clave Run, que Windows posterga y encola junto a otros 14 programas de inicio, no en Glassdeck, que muestra sus widgets en 1.5–3.4 s una vez abierto. Luis decide optimizar en vez de relajar el criterio.
+
+| Bloque | Contenido | Requerimientos | Estado |
+|---|---|---|---|
+| 8.1 · Arranque | Tarea programada «al iniciar sesión» del usuario (sin retraso, prioridad normal, sin límite de tiempo, también con batería; creada sin UAC, verificado en el equipo de Luis); clave Run solo como respaldo y borrada cuando la tarea existe; desactivar el arranque o desinstalar borra la tarea; si el escritorio o la bandeja aún no existen al arrancar, Glassdeck espera a que aparezcan | GD-INST-02, GD-CUST-07, GD-INST-03 | En curso |
+
 ## Fase 2 — Servicios
 
-Se construye en la rama `fase-2` (worktree `tools/glassdeck-fase2`) mientras se cierra la QA de la fase 1 en `main`. Cada bloque termina con commit en `fase-2`, `cargo test` y `npm run build` en verde, y sus filas en `QA_MATRIZ.md`. Los bloques 9 a 12 no necesitan cuentas de Luis; los bloques 13 y 14 esperan su login y su cliente OAuth.
+Los bloques 9 a 15 se construyeron en la rama `fase-2` y se integraron a `main` el 2026-10-28; los siguientes se construyen en ramas cortas por bloque que se integran a `main`. Cada bloque termina con commit, `cargo test` y `npm run build` en verde, y sus filas en `QA_MATRIZ.md`. Los bloques 9 a 12 no necesitan cuentas de Luis; los bloques 13 y 14 esperan su login y su cliente OAuth.
 
 | Bloque | Contenido | Requerimientos | Necesita a Luis | Estado |
 |---|---|---|---|---|
@@ -49,13 +55,16 @@ Se construye en la rama `fase-2` (worktree `tools/glassdeck-fase2`) mientras se 
 | 10 · Claude Code local | Lectura incremental por posición de archivo de `~/.claude/projects/**/*.jsonl`; solo tokens, modelo, fecha y proyecto; suma por día, modelo y proyecto; tabla de precios editable; widget Spending con la sección de Claude Code | GD-CLA-01..03 | No | Backend implementado (2026-10-28): lector incremental con deduplicación, suma por día local, modelo y proyecto, costo con tabla editable, widget `spending` en el catálogo (apagado por defecto), configuración v3 con migración; pruebas automáticas pasan y la suma coincide al 100 % con una suma independiente de los registros reales. Interfaz implementada (2026-10-28): widget Spending (hoy y mes; maximizado con gráfica de 30 días, desglose por modelo y por proyecto, motivo del error con la última lectura válida) y precios editables en Customize con recálculo inmediato; Vitest pasa. Pendientes: comparación con `ccusage` y revisión visual en la app |
 | 11 · Clima | Open-Meteo actual, 24 h y 7 días; ubicación por `ipapi.co` (solo en modo automático) o ciudad manual con el buscador de geocodificación de Open-Meteo; último dato con su hora sin conexión; widget Clima | GD-WX-01..03, GD-CUST-08 | No | Backend implementado (2026-10-28): recolector Open-Meteo (actual, 24 h, 7 días) con iconos WMO en español, ubicación automática por `ipapi.co` (guardada 6 h en memoria) o ciudad manual, último dato con su hora en `state.json`, comandos de búsqueda y fijado, widget `clima` en el catálogo (apagado por defecto), intervalo de 30 min (mínimo 15); pruebas automáticas con respuestas grabadas pasan. Interfaz implementada (2026-10-28): widget Clima (actual con 5 horas; maximizado con 24 horas y 7 días; sin red, el último dato con su hora) y Customize › Clima con ubicación automática o ciudad manual con buscador; Vitest pasa. Pendientes: pruebas manuales (Chihuahua, red apagada, comparación con open-meteo.com) |
 | 12 · Avisos de umbral | Motor de umbrales (Cursor 50/80/100 %; Claude 80 % de 5 h y semanal), un aviso por ciclo, historial en `state.json`, notificación de Windows que abre Spending maximizado; umbrales editables | GD-ALERT-01..03, GD-CUST-04 | No (se prueba con datos simulados hasta el bloque 13) | Backend implementado (2026-10-28): motor puro con historial en `state.json` (un aviso por umbral, ciclo y medidor; se avisa el umbral más alto cruzado), umbrales y presupuesto de Cursor en la configuración, gancho `usos()` en las fuentes para que el bloque 13 solo traduzca sus datos, notificación de Windows con clic que abre Spending maximizado, comandos `avisos_probar` y `avisos_historial`; pruebas automáticas con datos simulados pasan. Interfaz implementada (2026-10-28): Customize › Gasto y avisos con umbrales por medidor, presupuesto de Cursor, «Probar aviso» e historial que se refresca con `gd://aviso`; Vitest pasa. Pendientes: prueba manual del clic con la app instalada (en Windows solo se reporta mientras el aviso está en pantalla) y datos reales |
-| 13 · Cursor y claude.ai | Ventanas de login aisladas sin acceso a comandos; captura de cookie a la bóveda; adaptadores de solo lectura aislados; etiqueta «no oficial»; motivo del error y última lectura válida | GD-CUR-01..06, GD-CLA-04..06, GD-NFR-SEC-04 | Sí: iniciar sesión en cursor.com y claude.ai | Pendiente |
-| 14 · Google | Importar el JSON del cliente OAuth (GUIA_GOOGLE_OAUTH.md); OAuth de escritorio con PKCE y varias cuentas; Gmail `gmail.metadata` solo no leídos de INBOX; Calendar de solo lectura; encabezados solo en memoria; alerta rotativa; modo privacidad (`Win+Alt+P`) | GD-MAIL-01..07, GD-CAL-01, GD-ROT-01..03, GD-NFR-SEC-07 | Sí: crear el cliente OAuth y conectar cuentas | Pendiente (la importación del JSON quedó lista en el bloque 15, 2026-10-28) |
+| 13 · Cursor y claude.ai | Ventanas de login aisladas sin acceso a comandos; captura de cookie a la bóveda; adaptadores de solo lectura aislados; etiqueta «no oficial»; motivo del error y última lectura válida | GD-CUR-01..06, GD-CLA-04..06, GD-NFR-SEC-04 | Sí: iniciar sesión en cursor.com y claude.ai | En curso (2026-10-28), junto con el bloque 17 |
+| 14 · Google | Importar el JSON del cliente OAuth (GUIA_GOOGLE_OAUTH.md); OAuth de escritorio con PKCE y varias cuentas; Gmail `gmail.metadata` solo no leídos de INBOX; Calendar de solo lectura; encabezados solo en memoria; alerta rotativa; modo privacidad (`Win+Alt+P`) | GD-MAIL-01..07, GD-CAL-01, GD-ROT-01..03, GD-NFR-SEC-07 | Sí: crear el cliente OAuth y conectar cuentas | En curso (2026-10-28; la importación del JSON quedó lista en el bloque 15) |
 | 15 · Dock y Customize | Estado de cuentas en el dock (verde, ámbar, gris; Conectar/Desconectar); Customize con precios, umbrales, ubicación, importación del cliente OAuth; exportar e importar configuración sin credenciales | GD-DOCK-02, GD-CUST-04/08/09 | Parcial (las cuentas reales llegan con 13 y 14) | Parcial (2026-10-28): dock con Spending y Clima y botón de cuentas (puntos gris y verde, abre Customize › Cuentas); Customize con pestañas Gasto y avisos, Clima y Cuentas, e intervalos de gasto y clima; importación del cliente OAuth en el núcleo (diálogo de Windows, validación `installed`, bóveda; la interfaz solo recibe sí o no) y clave de la consola que nunca se muestra; Auto-Rust y Vitest pasan. Pendientes: ámbar y Conectar/Desconectar reales (bloques 13 y 14), exportar e importar configuración (GD-CUST-09) y pruebas manuales |
+| 16 · Codex local | Lectura incremental de `~/.codex/sessions/**/*.jsonl`: último `token_count` por sesión, modelo cuando existe; tokens por día y modelo; sin costo mientras no haya desglose; nunca mensajes ni `auth.json`; sección Codex en Spending | GD-OAI-01..03 | No | En curso |
+| 17 · ChatGPT y API de OpenAI | Ventana de login aislada a chatgpt.com (misma infraestructura del bloque 13); adaptador de solo lectura del % de 5 h y semanal con su reinicio; umbrales de 80 % en el motor de avisos; clave de administrador opcional para `/v1/organization/costs` | GD-OAI-04..06, GD-ALERT-01 | Sí: iniciar sesión en chatgpt.com (y clave de API si la quiere) | En curso, junto con el bloque 13 |
+| 18 · Gemini (deseable) | Activación en Customize que pide el permiso de solo lectura de Cloud Monitoring a la cuenta de Google ya conectada; elegir el proyecto de Google Cloud de AI Studio; solicitudes por día a `generativelanguage.googleapis.com`; nota de que la app de Gemini y Antigravity no se miden | GD-GEM-01..03 | Sí: cuenta de Google conectada (bloque 14) y el proyecto de AI Studio | Pendiente, después del bloque 14 |
 
 **Riesgos de la fase 2**
 
-- Cursor y claude.ai pueden cambiar su web interna (R-02): adaptador aislado y aviso claro; nunca números inventados.
+- Cursor, claude.ai y chatgpt.com pueden cambiar su web interna (R-02): adaptador aislado y aviso claro; nunca números inventados.
 - La fase 2 abre conexiones salientes: GD-NFR-SEC-06 y GD-INST-04 pasan a «solo hacia SPEC §5.3»; el cliente HTTP rechaza cualquier otro dominio.
 - El correo puede traer datos de pacientes (GD-NFR-SEC-07): encabezados solo en memoria, nunca en logs ni en `state.json`.
 - Más widgets suben la RAM: el presupuesto de la fase 4 es < 250 MB (ADR-001); se mide al cerrar la fase.
