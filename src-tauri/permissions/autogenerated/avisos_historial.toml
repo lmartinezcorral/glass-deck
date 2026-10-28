@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-avisos-historial"
+description = "Enables the avisos_historial command without any pre-configured scope."
+commands.allow = ["avisos_historial"]
+
+[[permission]]
+identifier = "deny-avisos-historial"
+description = "Denies the avisos_historial command without any pre-configured scope."
+commands.deny = ["avisos_historial"]

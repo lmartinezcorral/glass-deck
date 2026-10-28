@@ -49,7 +49,7 @@ pub fn crear(app: &AppHandle) -> tauri::Result<()> {
             "limpiar" => ventanas::diferir(app, |a| {
                 let _ = paneles::abrir(a, paneles::LIMPIEZA);
             }),
-            "procesos" => ventanas::diferir(app, crate::comandos::abrir_procesos_maximizado),
+            "procesos" => ventanas::diferir(app, |a| crate::comandos::abrir_maximizado(a, "procesos")),
             "privacidad" => {
                 crate::atajos::alternar_privacidad(app);
             }

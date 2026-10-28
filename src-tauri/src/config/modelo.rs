@@ -173,6 +173,38 @@ fn precio_valido(p: &PrecioModelo) -> bool {
     !p.patron.is_empty() && [p.entrada, p.salida, p.cache_escritura, p.cache_lectura].iter().all(|v| v.is_finite() && *v >= 0.0)
 }
 
+/// Porcentajes que disparan un aviso (GD-CUST-04); una lista vacía apaga los avisos de ese medidor.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct Umbrales {
+    pub notificaciones: bool,
+    pub cursor: Vec<u8>,
+    pub claude_5h: Vec<u8>,
+    pub claude_semanal: Vec<u8>,
+    /// Si está definido, el porcentaje de Cursor se mide contra este presupuesto y no contra el límite del plan.
+    pub presupuesto_cursor_usd: Option<f64>,
+}
+
+impl Default for Umbrales {
+    fn default() -> Self {
+        Self { notificaciones: true, cursor: vec![50, 80, 100], claude_5h: vec![80], claude_semanal: vec![80], presupuesto_cursor_usd: None }
+    }
+}
+
+impl Umbrales {
+    const MAX_POR_MEDIDOR: usize = 5;
+
+    fn normalizar(&mut self) {
+        for lista in [&mut self.cursor, &mut self.claude_5h, &mut self.claude_semanal] {
+            lista.retain(|u| (1..=100).contains(u));
+            lista.sort_unstable();
+            lista.dedup();
+            lista.truncate(Self::MAX_POR_MEDIDOR);
+        }
+        self.presupuesto_cursor_usd = self.presupuesto_cursor_usd.filter(|p| p.is_finite() && *p > 0.0);
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Atajos {
@@ -233,6 +265,7 @@ pub struct Config {
     pub privacidad: bool,
     pub precios_modelos: Vec<PrecioModelo>,
     pub clima: ConfigClima,
+    pub umbrales: Umbrales,
 }
 
 impl Default for Config {
@@ -259,6 +292,7 @@ impl Default for Config {
             privacidad: false,
             precios_modelos: precios_por_defecto(),
             clima: ConfigClima::default(),
+            umbrales: Umbrales::default(),
         }
     }
 }
@@ -287,6 +321,7 @@ impl Config {
         if self.clima.ubicacion.is_none() {
             self.clima.modo = ModoUbicacion::Automatica;
         }
+        self.umbrales.normalizar();
         if self.version < 2 && self.atajos.mostrar_ocultar == ATAJO_MOSTRAR_V1 {
             self.atajos.mostrar_ocultar = Atajos::default().mostrar_ocultar;
         }
@@ -411,6 +446,30 @@ mod pruebas {
         assert_eq!(c.precios_modelos, precios_por_defecto());
         assert_eq!(c.intervalos.clima_ms, 1_800_000);
         assert_eq!(c.clima, ConfigClima::default());
+        assert_eq!(c.umbrales, Umbrales::default());
+    }
+
+    #[test]
+    fn los_umbrales_por_defecto_son_los_de_la_spec() {
+        let u = Umbrales::default();
+        assert_eq!(u.cursor, vec![50, 80, 100]);
+        assert_eq!((u.claude_5h.as_slice(), u.claude_semanal.as_slice()), (&[80u8][..], &[80u8][..]));
+        assert!(u.notificaciones && u.presupuesto_cursor_usd.is_none());
+    }
+
+    #[test]
+    fn normalizar_ordena_umbrales_y_descarta_presupuestos_invalidos() {
+        let mut c = Config::default();
+        c.umbrales.cursor = vec![100, 0, 80, 80, 150, 50, 10, 20, 30];
+        c.umbrales.claude_5h = vec![];
+        c.umbrales.presupuesto_cursor_usd = Some(-5.0);
+        c.normalizar();
+        assert_eq!(c.umbrales.cursor, vec![10, 20, 30, 50, 80]);
+        assert!(c.umbrales.claude_5h.is_empty(), "una lista vacía apaga ese medidor");
+        assert_eq!(c.umbrales.presupuesto_cursor_usd, None);
+        c.umbrales.presupuesto_cursor_usd = Some(40.0);
+        c.normalizar();
+        assert_eq!(c.umbrales.presupuesto_cursor_usd, Some(40.0));
     }
 
     fn chihuahua() -> Ubicacion {

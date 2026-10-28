@@ -1,4 +1,5 @@
 use super::EstadoRecoleccion;
+use crate::avisos::{self, Uso};
 use crate::conexion::{ErrorRed, Reintentos};
 use crate::config::estado::{ahora_ms, UltimoDato};
 use crate::config::{AlmacenConfig, AlmacenEstado, Config};
@@ -75,6 +76,10 @@ pub trait Fuente: Send {
         false
     }
     fn recolectar(&mut self, cfg: &Config) -> Result<serde_json::Value, Motivo>;
+    /// Las fuentes de gasto traducen su dato a porcentajes por ciclo para el motor de avisos.
+    fn usos(&self, _datos: &serde_json::Value, _cfg: &Config) -> Vec<Uso> {
+        Vec::new()
+    }
 }
 
 pub struct Ejecutor {
@@ -121,6 +126,14 @@ impl Ejecutor {
                 log::warn!("Fuente {}: {motivo:?}; reintento en {} s", self.fuente.id(), espera.as_secs());
                 None
             }
+        }
+    }
+
+    /// Solo con la última lectura buena: un dato viejo no dispara avisos.
+    pub fn usos(&self, cfg: &Config) -> Vec<Uso> {
+        match (&self.estado.datos, self.estado.error) {
+            (Some(d), None) => self.fuente.usos(d, cfg),
+            _ => Vec::new(),
         }
     }
 }
@@ -178,6 +191,7 @@ fn correr(app: AppHandle, fuente: Box<dyn Fuente>) {
                 log::warn!("{err}");
             }
         }
+        avisos::procesar(&app, &e.usos(&cfg));
         servicios.ultimos.lock().insert(id, e.estado.clone());
         let _ = app.emit_to(catalogo::etiqueta(widget), "gd://datos", LecturaServicio { fuente: id, datos: e.estado.clone() });
     }
@@ -213,6 +227,28 @@ pub(crate) mod pruebas {
                 self.respuestas.remove(0)
             }
         }
+        fn usos(&self, datos: &serde_json::Value, cfg: &Config) -> Vec<Uso> {
+            let gastado = datos.get("gastado_usd").and_then(|v| v.as_f64()).unwrap_or_default();
+            avisos::porcentaje_cursor(gastado, Some(20.0), cfg.umbrales.presupuesto_cursor_usd)
+                .map(|porcentaje| vec![Uso { medidor: avisos::Medidor::Cursor, ciclo: "2026-10-01".into(), porcentaje }])
+                .unwrap_or_default()
+        }
+    }
+
+    #[test]
+    fn las_lecturas_de_gasto_alimentan_al_motor_de_avisos_solo_si_son_frescas() {
+        let mut cfg = Config::default();
+        let mut e = ejecutor("cursor", vec![Ok(serde_json::json!({ "gastado_usd": 17.0 })), Err(Motivo::SinConexion)]);
+        let t = Instant::now();
+        e.ejecutar(&cfg, t, 0);
+        let usos = e.usos(&cfg);
+        assert_eq!(usos[0].porcentaje, 85.0);
+        let avisos = avisos::evaluar(&usos, &cfg.umbrales, &Default::default());
+        assert_eq!(avisos.iter().map(|a| a.umbral).collect::<Vec<_>>(), vec![80]);
+        cfg.umbrales.presupuesto_cursor_usd = Some(34.0);
+        assert_eq!(e.usos(&cfg)[0].porcentaje, 50.0);
+        e.ejecutar(&cfg, t, 1);
+        assert!(e.usos(&cfg).is_empty(), "con la lectura fallida no se reevalúa un dato viejo");
     }
 
     fn ejecutor(id: &'static str, respuestas: Vec<Result<serde_json::Value, Motivo>>) -> Ejecutor {

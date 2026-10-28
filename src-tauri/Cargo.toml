@@ -26,6 +26,7 @@ parking_lot = "0.12"
 keyring = { version = "3", features = ["windows-native"] }
 reqwest = { version = "0.12", default-features = false, features = ["blocking", "rustls-tls"] }
 chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+tauri-plugin-notification = "2"
 
 [target.'cfg(windows)'.dependencies]
 webview2-com = "0.39"

@@ -1,8 +1,9 @@
 use crate::acciones::limpieza::{self, Opciones, Origen, Resumen};
 use crate::acciones::procesos::{Politica, Rechazo, ResultadoCierre};
 use crate::atajos::{self, Accion, EstadoAtajo};
+use crate::avisos;
 use crate::conexion::Internet;
-use crate::config::{AlmacenConfig, Config, EstadoWidget, ModoUbicacion, Ubicacion};
+use crate::config::{AlmacenConfig, AlmacenEstado, Config, EstadoWidget, ModoUbicacion, Ubicacion};
 use crate::recolectores::clima;
 use crate::recolectores::servicios::{EstadoFuente, EstadoServicios};
 use crate::recolectores::{EstadoRecoleccion, SerieHistorial};
@@ -218,9 +219,9 @@ pub async fn limpieza_ejecutar(app: AppHandle, opciones: Opciones) -> R<Resumen>
     Ok(r)
 }
 
-pub fn abrir_procesos_maximizado(app: &AppHandle) {
-    if ventanas::activar_widget(app, "procesos", true).is_ok() {
-        let _ = ventanas::maximizar(app, "procesos", true);
+pub fn abrir_maximizado(app: &AppHandle, id: &str) {
+    if ventanas::activar_widget(app, id, true).is_ok() {
+        let _ = ventanas::maximizar(app, id, true);
     }
 }
 
@@ -228,7 +229,7 @@ pub fn abrir_procesos_maximizado(app: &AppHandle) {
 pub async fn panel_abrir(app: AppHandle, panel: String) -> R<()> {
     match panel.as_str() {
         "procesos" => {
-            abrir_procesos_maximizado(&app);
+            abrir_maximizado(&app, "procesos");
             Ok(())
         }
         p => paneles::abrir(&app, p),
@@ -351,6 +352,17 @@ pub fn clima_fijar_ubicacion(app: AppHandle, ubicacion: Option<Ubicacion>) -> R<
     app.state::<EstadoServicios>().forzar("clima");
     let _ = app.emit("gd://config", ());
     Ok(guardada)
+}
+
+/// Aviso de muestra para comprobar que Windows lo muestra y que el clic abre Spending; no entra al historial.
+#[tauri::command]
+pub fn avisos_probar(app: AppHandle) {
+    avisos::notificar(&app, "Glassdeck: aviso de prueba", "Así se verán los avisos de gasto. Haz clic para abrir Spending.");
+}
+
+#[tauri::command]
+pub fn avisos_historial(app: AppHandle) -> Vec<avisos::AvisoEnviado> {
+    avisos::historial(&app.state::<AlmacenEstado>())
 }
 
 #[cfg(test)]

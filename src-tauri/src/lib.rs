@@ -1,5 +1,6 @@
 mod acciones;
 mod atajos;
+mod avisos;
 mod bandeja;
 mod comandos;
 mod conexion;
@@ -47,6 +48,7 @@ pub fn run() {
                 .with_handler(|app, atajo, evento| atajos::al_pulsar(app, atajo, evento))
                 .build(),
         )
+        .plugin(tauri_plugin_notification::init())
         .setup(|app| {
             seguridad::registro::iniciar(&carpeta_logs(app));
             log::info!("Glassdeck {} iniciando", env!("CARGO_PKG_VERSION"));
@@ -68,6 +70,7 @@ pub fn run() {
                 log::error!("No se pudo crear el icono de la bandeja: {e}");
             }
             atajos::registrar_todos(h);
+            avisos::instalar(h);
             let cfg = app.state::<AlmacenConfig>().leer();
             comandos::aplicar_arranque(h, cfg.arranque_windows);
             ventanas::abrir_activos(h);
@@ -118,6 +121,8 @@ pub fn run() {
             comandos::catalogo_widgets,
             comandos::clima_buscar_ciudad,
             comandos::clima_fijar_ubicacion,
+            comandos::avisos_probar,
+            comandos::avisos_historial,
         ])
         .build(tauri::generate_context!())
         .expect("no se pudo iniciar Glassdeck");

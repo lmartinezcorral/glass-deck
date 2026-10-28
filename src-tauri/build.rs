@@ -29,6 +29,8 @@ const COMANDOS: &[&str] = &[
     "catalogo_widgets",
     "clima_buscar_ciudad",
     "clima_fijar_ubicacion",
+    "avisos_probar",
+    "avisos_historial",
 ];
 
 fn main() {
