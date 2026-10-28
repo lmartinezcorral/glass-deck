@@ -80,13 +80,12 @@ pub fn run() {
             ventanas::iniciar_vigilancia(h);
             recolectores::iniciar(h);
             let inicio = app.path().home_dir().unwrap_or_else(|_| PathBuf::from("."));
-            servicios::iniciar(
-                h,
-                vec![
-                    Box::new(recolectores::claude_code::ClaudeCode::nuevo(&inicio)),
-                    Box::new(recolectores::clima::FuenteClima::nueva(std::sync::Arc::new(conexion::Internet))),
-                ],
-            );
+            let mut fuentes: Vec<Box<dyn servicios::Fuente>> = vec![
+                Box::new(recolectores::claude_code::ClaudeCode::nuevo(&inicio)),
+                Box::new(recolectores::clima::FuenteClima::nueva(std::sync::Arc::new(conexion::Internet))),
+            ];
+            fuentes.extend(recolectores::web::fuentes(h));
+            servicios::iniciar(h, fuentes);
             ventanas::marcar_arranque_listo();
             Ok(())
         })
@@ -124,6 +123,9 @@ pub fn run() {
             comandos::avisos_probar,
             comandos::avisos_historial,
             comandos::google_cliente_importar,
+            comandos::cuenta_conectar,
+            comandos::cuenta_desconectar,
+            comandos::cuentas_estado,
         ])
         .build(tauri::generate_context!())
         .expect("no se pudo iniciar Glassdeck");

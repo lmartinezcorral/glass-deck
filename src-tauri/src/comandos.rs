@@ -5,6 +5,7 @@ use crate::avisos;
 use crate::conexion::Internet;
 use crate::config::{AlmacenConfig, AlmacenEstado, Config, EstadoWidget, ModoUbicacion, Ubicacion};
 use crate::recolectores::clima;
+use crate::recolectores::web::{self, EstadoCuentas, ServicioWeb};
 use crate::recolectores::servicios::{EstadoFuente, EstadoServicios};
 use crate::recolectores::{EstadoRecoleccion, SerieHistorial};
 use crate::seguridad::boveda::{self, Clave};
@@ -311,16 +312,20 @@ pub async fn boveda_estado() -> Vec<EstadoCredencial> {
 }
 
 #[tauri::command]
-pub fn boveda_guardar(clave: Clave, valor: String) -> R<()> {
+pub fn boveda_guardar(app: AppHandle, clave: Clave, valor: String) -> R<()> {
     if !clave.se_captura_a_mano() {
         return Err("Esta credencial se obtiene con su propio inicio de sesión".into());
     }
-    boveda::guardar(clave.nombre(), valor.trim())
+    boveda::guardar(clave.nombre(), valor.trim())?;
+    web::credencial_cambio(&app, clave);
+    Ok(())
 }
 
 #[tauri::command]
-pub fn boveda_borrar(clave: Clave) -> R<()> {
-    boveda::borrar(clave.nombre())
+pub fn boveda_borrar(app: AppHandle, clave: Clave) -> R<()> {
+    boveda::borrar_largo(clave.nombre())?;
+    web::credencial_cambio(&app, clave);
+    Ok(())
 }
 
 /// GD-MAIL-07: el núcleo abre el diálogo, lee y valida el archivo; a la interfaz no llegan ni la ruta ni el contenido.
@@ -394,6 +399,25 @@ pub fn avisos_probar(app: AppHandle) {
 #[tauri::command]
 pub fn avisos_historial(app: AppHandle) -> Vec<avisos::AvisoEnviado> {
     avisos::historial(&app.state::<AlmacenEstado>())
+}
+
+/// Abre la ventana de login aislada del servicio; la cookie de sesión va directo a la bóveda (GD-NFR-SEC-04).
+/// Asíncrono: en Windows crear un WebView2 desde un comando síncrono bloquea la app.
+#[tauri::command]
+pub async fn cuenta_conectar(app: AppHandle, servicio: ServicioWeb) -> R<()> {
+    ventanas::login::conectar(&app, servicio)
+}
+
+/// Borra la sesión guardada y el perfil de login de ese servicio.
+#[tauri::command]
+pub async fn cuenta_desconectar(app: AppHandle, servicio: ServicioWeb) -> R<()> {
+    ventanas::login::desconectar(&app, servicio)
+}
+
+/// Solo estados y booleanos: lo usan el dock (GD-DOCK-02), Customize y Spending, que no tiene `boveda_estado`.
+#[tauri::command]
+pub async fn cuentas_estado(app: AppHandle) -> R<EstadoCuentas> {
+    tauri::async_runtime::spawn_blocking(move || web::estado_cuentas(&app)).await.map_err(|e| e.to_string())
 }
 
 #[cfg(test)]

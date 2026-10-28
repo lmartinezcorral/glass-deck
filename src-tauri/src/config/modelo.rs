@@ -183,11 +183,21 @@ pub struct Umbrales {
     pub claude_semanal: Vec<u8>,
     /// Si está definido, el porcentaje de Cursor se mide contra este presupuesto y no contra el límite del plan.
     pub presupuesto_cursor_usd: Option<f64>,
+    pub chatgpt_5h: Vec<u8>,
+    pub chatgpt_semanal: Vec<u8>,
 }
 
 impl Default for Umbrales {
     fn default() -> Self {
-        Self { notificaciones: true, cursor: vec![50, 80, 100], claude_5h: vec![80], claude_semanal: vec![80], presupuesto_cursor_usd: None }
+        Self {
+            notificaciones: true,
+            cursor: vec![50, 80, 100],
+            claude_5h: vec![80],
+            claude_semanal: vec![80],
+            presupuesto_cursor_usd: None,
+            chatgpt_5h: vec![80],
+            chatgpt_semanal: vec![80],
+        }
     }
 }
 
@@ -195,7 +205,7 @@ impl Umbrales {
     const MAX_POR_MEDIDOR: usize = 5;
 
     fn normalizar(&mut self) {
-        for lista in [&mut self.cursor, &mut self.claude_5h, &mut self.claude_semanal] {
+        for lista in [&mut self.cursor, &mut self.claude_5h, &mut self.claude_semanal, &mut self.chatgpt_5h, &mut self.chatgpt_semanal] {
             lista.retain(|u| (1..=100).contains(u));
             lista.sort_unstable();
             lista.dedup();
@@ -454,7 +464,19 @@ mod pruebas {
         let u = Umbrales::default();
         assert_eq!(u.cursor, vec![50, 80, 100]);
         assert_eq!((u.claude_5h.as_slice(), u.claude_semanal.as_slice()), (&[80u8][..], &[80u8][..]));
+        assert_eq!((u.chatgpt_5h.as_slice(), u.chatgpt_semanal.as_slice()), (&[80u8][..], &[80u8][..]));
         assert!(u.notificaciones && u.presupuesto_cursor_usd.is_none());
+    }
+
+    #[test]
+    fn umbrales_guardados_sin_chatgpt_reciben_los_de_fabrica_sin_cambiar_la_version() {
+        let mut c: Config =
+            serde_json::from_str(r#"{"version": 3, "umbrales": {"notificaciones": true, "cursor": [90], "claude_5h": [], "claude_semanal": [70]}}"#).unwrap();
+        c.normalizar();
+        assert_eq!(c.version, VERSION_CONFIG);
+        assert_eq!(c.umbrales.cursor, vec![90]);
+        assert!(c.umbrales.claude_5h.is_empty());
+        assert_eq!((c.umbrales.chatgpt_5h.as_slice(), c.umbrales.chatgpt_semanal.as_slice()), (&[80u8][..], &[80u8][..]));
     }
 
     #[test]

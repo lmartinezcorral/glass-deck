@@ -12,10 +12,19 @@ pub enum Clave {
     ClaudeAiSesion,
     AnthropicAdmin,
     GoogleCliente,
+    ChatgptSesion,
+    OpenaiAdmin,
 }
 
 impl Clave {
-    pub const TODAS: [Clave; 4] = [Clave::CursorSesion, Clave::ClaudeAiSesion, Clave::AnthropicAdmin, Clave::GoogleCliente];
+    pub const TODAS: [Clave; 6] = [
+        Clave::CursorSesion,
+        Clave::ClaudeAiSesion,
+        Clave::AnthropicAdmin,
+        Clave::GoogleCliente,
+        Clave::ChatgptSesion,
+        Clave::OpenaiAdmin,
+    ];
 
     pub fn nombre(self) -> &'static str {
         match self {
@@ -23,12 +32,14 @@ impl Clave {
             Clave::ClaudeAiSesion => "claude_ai/sesion",
             Clave::AnthropicAdmin => "anthropic/admin",
             Clave::GoogleCliente => "google/cliente",
+            Clave::ChatgptSesion => "chatgpt/sesion",
+            Clave::OpenaiAdmin => "openai/admin",
         }
     }
 
-    /// Las cookies y el cliente OAuth llegan por sus propios flujos; solo la clave de la consola se teclea (GD-CLA-05).
+    /// Las cookies y el cliente OAuth llegan por sus propios flujos; solo las claves de administrador se teclean (GD-CLA-05, GD-OAI-05).
     pub fn se_captura_a_mano(self) -> bool {
-        matches!(self, Clave::AnthropicAdmin)
+        matches!(self, Clave::AnthropicAdmin | Clave::OpenaiAdmin)
     }
 }
 
@@ -40,6 +51,11 @@ pub struct Secreto(String);
 impl Secreto {
     pub fn exponer(&self) -> &str {
         &self.0
+    }
+
+    #[cfg(test)]
+    pub(crate) fn de_prueba(valor: &str) -> Self {
+        Self(valor.to_string())
     }
 }
 
@@ -121,6 +137,65 @@ pub(crate) fn leer(nombre: &str) -> Result<Option<Secreto>, String> {
         Err(keyring::Error::NoEntry) => Ok(None),
         Err(e) => Err(describir(&e)),
     }
+}
+
+/// Windows guarda cada valor en UTF-16 con un máximo de 2 560 bytes (1 280 caracteres): una cookie de ChatGPT no cabe.
+const LARGO_PARTE: usize = 1_200;
+const PARTES_MAX: usize = 16;
+const MARCA_PARTES: &str = "glassdeck-partes:";
+
+fn nombre_parte(nombre: &str, i: usize) -> String {
+    format!("{nombre}/{i}")
+}
+
+/// Para cookies de sesión: si el valor no cabe en una credencial se reparte en `nombre/1..N` y `nombre` guarda cuántas son.
+pub fn guardar_largo(nombre: &str, valor: &str) -> Result<(), String> {
+    if valor.is_empty() {
+        return Err("El valor está vacío".into());
+    }
+    borrar_partes(nombre);
+    let caracteres: Vec<char> = valor.chars().collect();
+    if caracteres.len() <= LARGO_PARTE {
+        return guardar(nombre, valor);
+    }
+    let partes: Vec<String> = caracteres.chunks(LARGO_PARTE).map(|c| c.iter().collect()).collect();
+    if partes.len() > PARTES_MAX {
+        return Err("El valor es demasiado largo".into());
+    }
+    for (i, p) in partes.iter().enumerate() {
+        entrada(&nombre_parte(nombre, i + 1))?.set_password(p).map_err(|e| describir(&e))?;
+    }
+    guardar(nombre, &format!("{MARCA_PARTES}{}", partes.len()))
+}
+
+#[allow(dead_code)]
+pub(crate) fn leer_largo(nombre: &str) -> Result<Option<Secreto>, String> {
+    let Some(s) = leer(nombre)? else { return Ok(None) };
+    let Some(n) = s.0.strip_prefix(MARCA_PARTES).and_then(|n| n.parse::<usize>().ok()) else { return Ok(Some(s)) };
+    if !(1..=PARTES_MAX).contains(&n) {
+        return Ok(None);
+    }
+    let mut todo = String::new();
+    for i in 1..=n {
+        match leer(&nombre_parte(nombre, i))? {
+            Some(p) => todo.push_str(&p.0),
+            None => return Ok(None),
+        }
+    }
+    Ok(Some(Secreto(todo)))
+}
+
+fn borrar_partes(nombre: &str) {
+    for i in 1..=PARTES_MAX {
+        if let Ok(e) = entrada(&nombre_parte(nombre, i)) {
+            let _ = e.delete_credential();
+        }
+    }
+}
+
+pub fn borrar_largo(nombre: &str) -> Result<(), String> {
+    borrar_partes(nombre);
+    borrar(nombre)
 }
 
 /// Borra todas las credenciales `Glassdeck/*` del usuario; lo usa el desinstalador (GD-INST-03).
@@ -248,10 +323,29 @@ mod pruebas {
     }
 
     #[test]
-    fn las_claves_conocidas_tienen_nombres_validos_y_solo_una_se_teclea() {
+    fn las_claves_conocidas_tienen_nombres_validos_y_solo_las_de_administrador_se_teclean() {
         for c in Clave::TODAS {
             assert!(validar_nombre(c.nombre()).is_ok());
+            assert!(validar_nombre(&nombre_parte(c.nombre(), PARTES_MAX)).is_ok());
         }
-        assert_eq!(Clave::TODAS.iter().filter(|c| c.se_captura_a_mano()).count(), 1);
+        let a_mano: Vec<Clave> = Clave::TODAS.iter().copied().filter(|c| c.se_captura_a_mano()).collect();
+        assert_eq!(a_mano, vec![Clave::AnthropicAdmin, Clave::OpenaiAdmin]);
+    }
+
+    #[test]
+    fn un_valor_largo_se_reparte_en_partes_y_se_reconstruye() {
+        let nombre = "prueba/largo";
+        let valor: String = (0..4_000).map(|i| char::from(b'a' + (i % 26) as u8)).collect();
+        guardar_largo(nombre, &valor).unwrap();
+        assert!(existe(nombre));
+        let partes = mock::objetivos().iter().filter(|o| o.starts_with("Glassdeck/prueba/largo/")).count();
+        assert_eq!(partes, 4);
+        assert_eq!(leer_largo(nombre).unwrap().unwrap().exponer(), valor);
+        guardar_largo(nombre, "corto-de-prueba").unwrap();
+        assert_eq!(leer_largo(nombre).unwrap().unwrap().exponer(), "corto-de-prueba");
+        assert!(!mock::objetivos().iter().any(|o| o.starts_with("Glassdeck/prueba/largo/")), "las partes viejas se borran");
+        borrar_largo(nombre).unwrap();
+        assert!(leer_largo(nombre).unwrap().is_none());
+        assert!(guardar_largo(nombre, &"x".repeat(LARGO_PARTE * PARTES_MAX + 1)).is_err());
     }
 }

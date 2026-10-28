@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-cuenta-conectar"
+description = "Enables the cuenta_conectar command without any pre-configured scope."
+commands.allow = ["cuenta_conectar"]
+
+[[permission]]
+identifier = "deny-cuenta-conectar"
+description = "Denies the cuenta_conectar command without any pre-configured scope."
+commands.deny = ["cuenta_conectar"]

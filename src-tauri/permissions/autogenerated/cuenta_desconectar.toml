@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-cuenta-desconectar"
+description = "Enables the cuenta_desconectar command without any pre-configured scope."
+commands.allow = ["cuenta_desconectar"]
+
+[[permission]]
+identifier = "deny-cuenta-desconectar"
+description = "Denies the cuenta_desconectar command without any pre-configured scope."
+commands.deny = ["cuenta_desconectar"]

@@ -31,6 +31,9 @@
     "allow-clima-fijar-ubicacion",
     "allow-avisos-probar",
     "allow-avisos-historial",
-    "allow-google-cliente-importar"
+    "allow-google-cliente-importar",
+    "allow-cuenta-conectar",
+    "allow-cuenta-desconectar",
+    "allow-cuentas-estado"
   ]
 }

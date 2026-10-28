@@ -1,5 +1,6 @@
 pub mod catalogo;
 mod geometria;
+pub mod login;
 pub mod paneles;
 #[cfg(windows)]
 pub mod win32;
@@ -25,6 +26,10 @@ const SEPARACION_IMAN: i32 = 8;
 /// Todas las ventanas comparten un entorno de WebView2, así que todas deben crearse con los mismos argumentos.
 pub const ARGUMENTOS_WEBVIEW: &str =
     "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --renderer-process-limit=1";
+
+/// Sustituye `freezePrototype` de tauri.conf.json, que Tauri inyectaría también en las páginas de login de terceros
+/// (y las rompería): solo las ventanas propias congelan el prototipo.
+pub const CONGELAR_PROTOTIPO: &str = "Object.freeze(Object.prototype);";
 
 static ARRANQUE_LISTO: AtomicBool = AtomicBool::new(false);
 
@@ -266,6 +271,7 @@ pub fn abrir_widget(app: &AppHandle, id: &str) -> tauri::Result<()> {
     let ventana = WebviewWindowBuilder::new(app, catalogo::etiqueta(id), url)
         .title(format!("Glassdeck · {}", def.titulo))
         .additional_browser_args(ARGUMENTOS_WEBVIEW)
+        .initialization_script(CONGELAR_PROTOTIPO)
         .decorations(false)
         .transparent(true)
         .shadow(false)

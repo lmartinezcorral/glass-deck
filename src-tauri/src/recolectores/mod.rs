@@ -4,6 +4,7 @@ pub mod historial;
 #[cfg(all(test, windows))]
 mod qa;
 pub mod servicios;
+pub mod web;
 #[cfg(windows)]
 pub mod win;
 

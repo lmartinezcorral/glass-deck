@@ -17,6 +17,8 @@ pub enum Medidor {
     Cursor,
     Claude5h,
     ClaudeSemanal,
+    Chatgpt5h,
+    ChatgptSemanal,
 }
 
 impl Medidor {
@@ -25,6 +27,8 @@ impl Medidor {
             Medidor::Cursor => "cursor",
             Medidor::Claude5h => "claude_5h",
             Medidor::ClaudeSemanal => "claude_semanal",
+            Medidor::Chatgpt5h => "chatgpt_5h",
+            Medidor::ChatgptSemanal => "chatgpt_semanal",
         }
     }
 
@@ -33,6 +37,8 @@ impl Medidor {
             Medidor::Cursor => &u.cursor,
             Medidor::Claude5h => &u.claude_5h,
             Medidor::ClaudeSemanal => &u.claude_semanal,
+            Medidor::Chatgpt5h => &u.chatgpt_5h,
+            Medidor::ChatgptSemanal => &u.chatgpt_semanal,
         }
     }
 
@@ -41,6 +47,8 @@ impl Medidor {
             Medidor::Cursor => format!("Cursor: {umbral} % del presupuesto del mes"),
             Medidor::Claude5h => format!("Claude: {umbral} % del límite de 5 h"),
             Medidor::ClaudeSemanal => format!("Claude: {umbral} % del límite semanal"),
+            Medidor::Chatgpt5h => format!("ChatGPT: {umbral} % del límite de 5 h"),
+            Medidor::ChatgptSemanal => format!("ChatGPT: {umbral} % del límite semanal"),
         }
     }
 }
@@ -71,7 +79,6 @@ pub fn clave(medidor: Medidor, ciclo: &str, umbral: u8) -> String {
 }
 
 /// El presupuesto editable manda; sin él se usa el límite que reporte Cursor.
-#[allow(dead_code)]
 pub fn porcentaje_cursor(gastado_usd: f64, limite_usd: Option<f64>, presupuesto_usd: Option<f64>) -> Option<f64> {
     let valido = |v: &f64| v.is_finite() && *v > 0.0;
     let base = presupuesto_usd.filter(valido).or(limite_usd.filter(valido))?;
@@ -218,6 +225,21 @@ mod pruebas {
         assert_eq!(a[0].titulo, "Claude: 80 % del límite de 5 h");
         let usos = [Uso { porcentaje: 80.0, ..usos[1].clone() }];
         assert_eq!(evaluar(&usos, &Umbrales::default(), &BTreeMap::new())[0].titulo, "Claude: 80 % del límite semanal");
+    }
+
+    #[test]
+    fn chatgpt_avisa_al_80_por_ciento_de_5_h_y_del_semanal_por_separado() {
+        let usos = [
+            Uso { medidor: Medidor::Chatgpt5h, ciclo: "2026-10-28T20:00".into(), porcentaje: 80.0 },
+            Uso { medidor: Medidor::ChatgptSemanal, ciclo: "2026-11-02T00:00".into(), porcentaje: 92.0 },
+            Uso { medidor: Medidor::Claude5h, ciclo: "2026-10-28T20:00".into(), porcentaje: 10.0 },
+        ];
+        let a = evaluar(&usos, &Umbrales::default(), &BTreeMap::new());
+        let titulos: Vec<&str> = a.iter().map(|x| x.titulo.as_str()).collect();
+        assert_eq!(titulos, vec!["ChatGPT: 80 % del límite de 5 h", "ChatGPT: 80 % del límite semanal"]);
+        assert_eq!(clave(Medidor::Chatgpt5h, "c", 80), "chatgpt_5h:c:80");
+        let sin = Umbrales { chatgpt_5h: vec![], ..Umbrales::default() };
+        assert_eq!(evaluar(&usos, &sin, &BTreeMap::new()).len(), 1, "una lista vacía apaga ese medidor");
     }
 
     #[test]

@@ -255,6 +255,24 @@
           "markdownDescription": "Enables the config_leer command without any pre-configured scope."
         },
         {
+          "description": "Enables the cuenta_conectar command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-cuenta-conectar",
+          "markdownDescription": "Enables the cuenta_conectar command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the cuenta_desconectar command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-cuenta-desconectar",
+          "markdownDescription": "Enables the cuenta_desconectar command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the cuentas_estado command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-cuentas-estado",
+          "markdownDescription": "Enables the cuentas_estado command without any pre-configured scope."
+        },
+        {
           "description": "Enables the estado_entorno command without any pre-configured scope.",
           "type": "string",
           "const": "allow-estado-entorno",
@@ -451,6 +469,24 @@
           "type": "string",
           "const": "deny-config-leer",
           "markdownDescription": "Denies the config_leer command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the cuenta_conectar command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-cuenta-conectar",
+          "markdownDescription": "Denies the cuenta_conectar command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the cuenta_desconectar command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-cuenta-desconectar",
+          "markdownDescription": "Denies the cuenta_desconectar command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the cuentas_estado command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-cuentas-estado",
+          "markdownDescription": "Denies the cuentas_estado command without any pre-configured scope."
         },
         {
           "description": "Denies the estado_entorno command without any pre-configured scope.",

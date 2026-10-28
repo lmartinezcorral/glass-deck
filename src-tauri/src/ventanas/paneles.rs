@@ -28,7 +28,7 @@ struct DefPanel {
 }
 
 const PANELES: &[DefPanel] = &[
-    DefPanel { etiqueta: DOCK, vista: "dock", titulo: "Glassdeck · Dock", ancho: 800.0, alto: 64.0, en_barra_tareas: false },
+    DefPanel { etiqueta: DOCK, vista: "dock", titulo: "Glassdeck · Dock", ancho: 860.0, alto: 64.0, en_barra_tareas: false },
     DefPanel { etiqueta: CUSTOMIZE, vista: "customize", titulo: "Glassdeck · Customize", ancho: 780.0, alto: 580.0, en_barra_tareas: true },
     DefPanel { etiqueta: LIMPIEZA, vista: "limpieza", titulo: "Glassdeck · Limpiar temporales", ancho: 540.0, alto: 480.0, en_barra_tareas: true },
 ];
@@ -39,6 +39,7 @@ fn crear(app: &AppHandle, def: &DefPanel, pestana: Option<&str>) -> tauri::Resul
     let v = WebviewWindowBuilder::new(app, def.etiqueta, url)
         .title(def.titulo)
         .additional_browser_args(super::ARGUMENTOS_WEBVIEW)
+        .initialization_script(super::CONGELAR_PROTOTIPO)
         .decorations(false)
         .transparent(true)
         .shadow(false)

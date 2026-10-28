@@ -18,6 +18,7 @@
     "allow-reiniciar-explorer",
     "allow-estado-entorno",
     "allow-servicio-ultimo",
-    "allow-catalogo-widgets"
+    "allow-catalogo-widgets",
+    "allow-cuentas-estado"
   ]
 }

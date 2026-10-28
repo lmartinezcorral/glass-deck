@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-cuentas-estado"
+description = "Enables the cuentas_estado command without any pre-configured scope."
+commands.allow = ["cuentas_estado"]
+
+[[permission]]
+identifier = "deny-cuentas-estado"
+description = "Denies the cuentas_estado command without any pre-configured scope."
+commands.deny = ["cuentas_estado"]

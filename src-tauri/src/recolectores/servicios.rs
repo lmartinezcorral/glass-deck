@@ -23,6 +23,7 @@ pub enum Motivo {
     DominioNoPermitido,
     SinUbicacion,
     Interno,
+    Cloudflare,
 }
 
 impl Motivo {
@@ -35,6 +36,7 @@ impl Motivo {
             Motivo::DominioNoPermitido => "Dominio no permitido",
             Motivo::SinUbicacion => "Sin ubicación",
             Motivo::Interno => "Error interno",
+            Motivo::Cloudflare => "Cloudflare bloqueó la lectura",
         }
     }
 }
@@ -47,6 +49,7 @@ impl From<ErrorRed> for Motivo {
             ErrorRed::ServicioNoDisponible | ErrorRed::Http(_) => Motivo::ServicioNoDisponible,
             ErrorRed::DominioNoPermitido => Motivo::DominioNoPermitido,
             ErrorRed::Formato => Motivo::FormatoCambio,
+            ErrorRed::Cloudflare => Motivo::Cloudflare,
         }
     }
 }
@@ -200,6 +203,7 @@ fn correr(app: AppHandle, fuente: Box<dyn Fuente>) {
             continue;
         }
         let cfg = app.state::<AlmacenConfig>().leer();
+        let error_previo = e.estado.error;
         if let Some(dato) = e.ejecutar(&cfg, ahora, ahora_ms()) {
             if let Err(err) = app.state::<AlmacenEstado>().guardar_ultimo(id, dato) {
                 log::warn!("{err}");
@@ -207,6 +211,9 @@ fn correr(app: AppHandle, fuente: Box<dyn Fuente>) {
         }
         avisos::procesar(&app, &e.usos(&cfg));
         servicios.ultimos.lock().insert(id, e.estado.clone());
+        if e.estado.error != error_previo {
+            let _ = app.emit(crate::recolectores::web::EVENTO_CUENTAS, ());
+        }
         let _ = app.emit_to(catalogo::etiqueta(widget), "gd://datos", LecturaServicio { fuente: id, datos: e.estado.clone() });
     }
 }
