@@ -1,10 +1,11 @@
-import type { EstadoFuente, FilaClaude, ResumenClaudeCode, Tokens } from '../api';
+import type { EstadoFuente, FilaClaude, ResumenClaudeCode, ResumenCodex, Tokens } from '../api';
 import { GraficaBarras } from '../componentes';
 import { diaCorto, tokens, usd } from '../formato';
 import { useAhora, useConfig, usePrivacidad, useServicio } from '../hooks';
 import { IconoCartera } from '../iconos';
 import { EstadoLectura } from './EstadoLectura';
 import { MarcoWidget, useMaximizado } from './MarcoWidget';
+import { SeccionCodex } from './SeccionCodex';
 
 export const totalTokens = (t: Tokens): number => t.entrada + t.salida + t.cache_escritura + t.cache_lectura;
 
@@ -31,6 +32,7 @@ export function VistaSpending() {
   const [config] = useConfig();
   const privado = usePrivacidad(config);
   const claude = useServicio('claude_code');
+  const codex = useServicio('codex');
   const ahora = useAhora();
   const hoy = claude?.datos?.total_hoy;
   return (
@@ -42,13 +44,14 @@ export function VistaSpending() {
       textoPildora={privado ? 'oculto' : hoy ? `≈ ${usd(hoy.costo_usd)} hoy` : '—'}
       maximizado={maximizado}
     >
-      <ContenidoSpending claude={claude} maximizado={maximizado} ahora={ahora} />
+      <ContenidoSpending claude={claude} codex={codex} maximizado={maximizado} ahora={ahora} />
     </MarcoWidget>
   );
 }
 
 interface PropsContenido {
   claude: EstadoFuente<ResumenClaudeCode> | null;
+  codex?: EstadoFuente<ResumenCodex> | null;
   maximizado: boolean;
   ahora: number;
   /** GD-CLA-05: la sección de la consola solo existe con clave configurada; su lectura llega en el bloque 13. */
@@ -112,7 +115,7 @@ function TablaDesglose({ titulo, filas, nombreColumna }: { titulo: string; filas
   );
 }
 
-export function ContenidoSpending({ claude, maximizado, ahora, consolaConfigurada = false }: PropsContenido) {
+export function ContenidoSpending({ claude, codex = null, maximizado, ahora, consolaConfigurada = false }: PropsContenido) {
   const d = claude?.datos ?? null;
 
   if (!maximizado) {
@@ -140,6 +143,7 @@ export function ContenidoSpending({ claude, maximizado, ahora, consolaConfigurad
             <p className="gd-etiqueta">Sin datos de Claude Code todavía.</p>
           )}
         </section>
+        <SeccionCodex codex={codex} maximizado={false} ahora={ahora} />
         <ul className="gd-spending__remotas" aria-label="Otras fuentes">
           <FuenteRemota nombre="Cursor" detalle="Gasto del ciclo actual" />
           <FuenteRemota nombre="Claude.ai" detalle="Límites de 5 h y semanal" />
@@ -216,6 +220,8 @@ export function ContenidoSpending({ claude, maximizado, ahora, consolaConfigurad
         <TablaDesglose titulo="Por modelo · últimos 30 días" nombreColumna="Modelo" filas={agruparFilas(d?.filas ?? [], 'modelo')} />
         <TablaDesglose titulo="Por proyecto · últimos 30 días" nombreColumna="Proyecto" filas={agruparFilas(d?.filas ?? [], 'proyecto')} />
       </div>
+
+      <SeccionCodex codex={codex} maximizado ahora={ahora} />
 
       <section className="gd-tarjeta gd-spending__fuentes" aria-label="Cursor y Claude.ai">
         <h3>Cursor y Claude.ai</h3>

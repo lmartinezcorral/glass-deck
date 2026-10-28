@@ -47,6 +47,7 @@ pub fn config_guardar(app: AppHandle, config: Config) -> R<Config> {
     }
     if guardada.precios_modelos != anterior.precios_modelos {
         app.state::<EstadoServicios>().forzar("claude_code");
+        app.state::<EstadoServicios>().forzar("codex");
     }
     if guardada.clima != anterior.clima {
         app.state::<EstadoServicios>().forzar("clima");

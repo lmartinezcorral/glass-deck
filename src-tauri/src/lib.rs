@@ -86,6 +86,7 @@ pub fn run() {
                 h,
                 vec![
                     Box::new(recolectores::claude_code::ClaudeCode::nuevo(&inicio)),
+                    Box::new(recolectores::codex::Codex::nuevo(&inicio)),
                     Box::new(recolectores::clima::FuenteClima::nueva(std::sync::Arc::new(conexion::Internet))),
                 ],
             );

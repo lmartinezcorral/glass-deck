@@ -159,6 +159,33 @@ export interface ResumenClaudeCode {
   sin_precio: string[];
 }
 
+/** Codex Desktop hoy solo trae el total de tokens: `costo_usd` es `null` salvo con desglose y precio (GD-OAI-03). */
+export interface TotalCodex {
+  tokens: number;
+  costo_usd: number | null;
+}
+
+export interface DiaCodex extends TotalCodex {
+  dia: string;
+}
+
+export interface FilaCodex extends TotalCodex {
+  dia: string;
+  modelo: string;
+  sesiones: number;
+}
+
+/** `dias` trae siempre 30 elementos (del más viejo a hoy); `filas` cubre esos mismos 30 días por día y modelo. */
+export interface ResumenCodex {
+  hoy: string;
+  total_hoy: TotalCodex;
+  total_mes: TotalCodex;
+  dias: DiaCodex[];
+  filas: FilaCodex[];
+  con_desglose: boolean;
+  sin_precio: string[];
+}
+
 export type IconoClima =
   | 'despejado'
   | 'parcial'
@@ -201,6 +228,7 @@ export interface Clima {
 
 export type LecturaServicio =
   | { fuente: 'claude_code'; datos: EstadoFuente<ResumenClaudeCode> }
+  | { fuente: 'codex'; datos: EstadoFuente<ResumenCodex> }
   | { fuente: 'clima'; datos: EstadoFuente<Clima> };
 
 export type FuenteServicio = LecturaServicio['fuente'];

@@ -707,6 +707,24 @@
   margin-bottom: var(--gd-esp-4);
 }
 
+.gd-spending__nota {
+  min-width: 0;
+  margin-left: auto;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.gd-spending__linea {
+  font-size: var(--gd-txt-sm);
+  color: var(--gd-texto-2);
+}
+
+.gd-spending__codex.gd-tarjeta {
+  display: grid;
+  gap: var(--gd-esp-5);
+}
+
 /* Clima */
 .gd-vista.gd-clima {
   gap: var(--gd-esp-5);
