@@ -115,6 +115,29 @@ impl ClienteHttp {
             ErrorRed::Formato
         })
     }
+
+    // Bloque 14 (Google): GET con `Authorization: Bearer` y POST de formulario. El token nunca llega a logs:
+    // va en el encabezado y solo se registra el host.
+
+    pub fn obtener_json_autorizado<T: DeserializeOwned>(
+        &self,
+        url: &str,
+        consulta: &[(&str, String)],
+        token: &str,
+    ) -> Result<T, ErrorRed> {
+        let u = validar_url(url, consulta)?;
+        let host = u.host_str().unwrap_or_default().to_string();
+        let r = self.cliente.get(u).bearer_auth(token).send();
+        leer_json_autorizado(r, &host)
+    }
+
+    /// Un cuerpo vacío (p. ej. `revoke` de Google) se lee como `null`.
+    pub fn enviar_formulario<T: DeserializeOwned>(&self, url: &str, formulario: &[(&str, String)]) -> Result<T, ErrorRed> {
+        let u = validar_url(url, &[])?;
+        let host = u.host_str().unwrap_or_default().to_string();
+        let r = self.cliente.post(u).form(formulario).send();
+        leer_json_autorizado(r, &host)
+    }
 }
 
 /// Los recolectores piden datos a través de este rasgo para poder probarse con respuestas grabadas, sin red.
@@ -227,5 +250,51 @@ mod pruebas {
         assert_eq!(por_estado(503), ErrorRed::ServicioNoDisponible);
         assert_eq!(por_estado(429), ErrorRed::ServicioNoDisponible);
         assert_eq!(por_estado(404), ErrorRed::Http(404));
+    }
+}
+
+// Bloque 14 (Google): lectura común de las respuestas autorizadas y de formulario.
+
+fn leer_json_autorizado<T: DeserializeOwned>(
+    r: reqwest::Result<reqwest::blocking::Response>,
+    host: &str,
+) -> Result<T, ErrorRed> {
+    let r = r.map_err(|e| {
+        let error = clasificar(&e);
+        log::warn!("Red: {host} falló ({error:?})");
+        error
+    })?;
+    let estado = r.status().as_u16();
+    if !r.status().is_success() {
+        log::warn!("Red: {host} respondió {estado}");
+        return Err(por_estado(estado));
+    }
+    if r.content_length().map(|n| n as usize > TAMANO_MAX).unwrap_or(false) {
+        return Err(ErrorRed::Formato);
+    }
+    let cuerpo = r.bytes().map_err(|e| clasificar(&e))?;
+    if cuerpo.len() > TAMANO_MAX {
+        return Err(ErrorRed::Formato);
+    }
+    let cuerpo: &[u8] = if cuerpo.iter().all(u8::is_ascii_whitespace) { b"null" } else { &cuerpo };
+    serde_json::from_slice(cuerpo).map_err(|_| {
+        log::warn!("Red: {host} devolvió un formato inesperado");
+        ErrorRed::Formato
+    })
+}
+
+#[cfg(test)]
+mod pruebas_google {
+    use super::*;
+
+    #[test]
+    fn bearer_y_formulario_rechazan_dominios_fuera_de_la_lista_antes_de_conectar() {
+        let r: Result<serde_json::Value, _> =
+            cliente().obtener_json_autorizado("https://example.com/gmail/v1/users/me/messages", &[], "token-ficticio");
+        assert_eq!(r.unwrap_err(), ErrorRed::DominioNoPermitido);
+        let r: Result<serde_json::Value, _> =
+            cliente().enviar_formulario("http://oauth2.googleapis.com/token", &[("grant_type", "x".into())]);
+        assert_eq!(r.unwrap_err(), ErrorRed::DominioNoPermitido);
+        assert!(!DOMINIOS_PERMITIDOS.contains(&"monitoring.googleapis.com"));
     }
 }

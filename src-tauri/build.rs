@@ -32,6 +32,11 @@ const COMANDOS: &[&str] = &[
     "avisos_probar",
     "avisos_historial",
     "google_cliente_importar",
+    "google_cuentas",
+    "google_conectar",
+    "google_cancelar",
+    "google_desconectar",
+    "google_abrir",
 ];
 
 fn main() {

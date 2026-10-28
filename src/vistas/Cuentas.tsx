@@ -6,6 +6,8 @@ export type EstadoCuenta = 'conectada' | 'reconectar' | 'sin_conectar';
 
 export interface ResumenCuenta {
   id: 'google' | 'cursor' | 'claude';
+  /** Distingue varias cuentas del mismo servicio (p. ej. dos de Google). */
+  clave?: string;
   nombre: string;
   estado: EstadoCuenta;
   detalle: string;
