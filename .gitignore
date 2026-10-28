@@ -1,9 +1,46 @@
-﻿node_modules/
+﻿# Dependencias y compilados
+node_modules/
 dist/
 src-tauri/target/
 helper/target/
 target/
-*.log
 .vite/
-poc/resultados/*.csv
+coverage/
 
+# Logs y resultados locales de medición o QA
+*.log
+poc/resultados/
+poc/**/*.png
+poc/**/*.jpg
+poc/**/*.mp4
+
+# Secretos y credenciales: nunca al repo
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.pfx
+*.p12
+*.cer
+*.crt
+client_secret*.json
+credentials*.json
+credenciales*.json
+*oauth*.json
+token*.json
+state.json
+settings.json
+settings-*.json
+
+# Instaladores y binarios sueltos
+*.exe
+*.msi
+
+# Editor y sistema
+.vscode/
+.idea/
+*.swp
+Thumbs.db
+desktop.ini
+.DS_Store
