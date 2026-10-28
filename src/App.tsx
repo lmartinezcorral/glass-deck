@@ -10,6 +10,7 @@ import { VistaRed } from './vistas/Red';
 import { VistaDock } from './vistas/Dock';
 import { VistaSpending } from './vistas/Spending';
 import { VistaClima } from './vistas/Clima';
+import { VistaCorreo } from './vistas/Correo';
 import { VistaPoc } from './vistas/Poc';
 
 const VistaCustomize = lazy(() => import('./vistas/Customize').then((m) => ({ default: m.VistaCustomize })));
@@ -32,6 +33,8 @@ function vistaPara(nombre: string, parametros: URLSearchParams): ReactNode {
       return <VistaSpending />;
     case 'clima':
       return <VistaClima />;
+    case 'correo':
+      return <VistaCorreo />;
     case 'dock':
       return <VistaDock />;
     case 'customize':

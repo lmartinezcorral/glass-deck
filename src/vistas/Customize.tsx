@@ -255,6 +255,9 @@ export const OPCIONES_INTERVALO = {
   disco_ms: [1000, 2000, 5000, 10000],
   spending_ms: [300000, 900000, 1800000, 3600000],
   clima_ms: [900000, 1800000, 3600000],
+  correo_ms: [120000, 300000, 600000, 900000],
+  calendario_ms: [300000, 600000, 900000, 1800000],
+  rotacion_ms: [300000, 600000, 900000],
 } as const satisfies Record<keyof Config['intervalos'], readonly number[]>;
 
 export function etiquetaIntervalo(ms: number): string {
@@ -281,7 +284,13 @@ function SeccionIntervalos({ config, guardar }: PropsSeccion) {
       <Selector etiqueta="Gasto" opciones={opciones(OPCIONES_INTERVALO.spending_ms)} valor={String(i.spending_ms)} onCambiar={(v) => cambiar({ spending_ms: Number(v) })} />
       <span className="gd-deslizador__cabecera">Clima</span>
       <Selector etiqueta="Clima" opciones={opciones(OPCIONES_INTERVALO.clima_ms)} valor={String(i.clima_ms)} onCambiar={(v) => cambiar({ clima_ms: Number(v) })} />
-      <p className="gd-etiqueta">Mínimos: gasto cada 5 min y clima cada 15 min, para no saturar los servicios.</p>
+      <span className="gd-deslizador__cabecera">Correo (Gmail)</span>
+      <Selector etiqueta="Correo" opciones={opciones(OPCIONES_INTERVALO.correo_ms)} valor={String(i.correo_ms)} onCambiar={(v) => cambiar({ correo_ms: Number(v) })} />
+      <span className="gd-deslizador__cabecera">Agenda (Google Calendar)</span>
+      <Selector etiqueta="Agenda" opciones={opciones(OPCIONES_INTERVALO.calendario_ms)} valor={String(i.calendario_ms)} onCambiar={(v) => cambiar({ calendario_ms: Number(v) })} />
+      <span className="gd-deslizador__cabecera">Rotación de correo y agenda</span>
+      <Selector etiqueta="Rotación de correo y agenda" opciones={opciones(OPCIONES_INTERVALO.rotacion_ms)} valor={String(i.rotacion_ms)} onCambiar={(v) => cambiar({ rotacion_ms: Number(v) })} />
+      <p className="gd-etiqueta">Mínimos: gasto cada 5 min, clima cada 15 min, correo cada 2 min y agenda cada 5 min, para no saturar los servicios.</p>
     </div>
   );
 }

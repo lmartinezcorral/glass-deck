@@ -250,3 +250,29 @@ export const IconoCerrar = () => (
     <path d="M6 6l12 12M18 6 6 18" />
   </Base>
 );
+
+export const IconoCorreo = () => (
+  <Base>
+    <rect x="3" y="5" width="18" height="14" rx="2" />
+    <path d="m3.5 6.5 8.5 6 8.5-6" />
+  </Base>
+);
+
+export const IconoCalendario = () => (
+  <Base>
+    <rect x="3.5" y="5" width="17" height="15" rx="2" />
+    <path d="M3.5 10h17M8 3v4M16 3v4" />
+  </Base>
+);
+
+export const IconoAnterior = () => (
+  <Base>
+    <path d="m15 6-6 6 6 6" />
+  </Base>
+);
+
+export const IconoSiguiente = () => (
+  <Base>
+    <path d="m9 6 6 6-6 6" />
+  </Base>
+);

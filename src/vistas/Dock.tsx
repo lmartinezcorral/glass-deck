@@ -4,6 +4,7 @@ import { Vidrio } from '../componentes';
 import { useCatalogo, useConfig, useEvento } from '../hooks';
 import {
   IconoCartera,
+  IconoCorreo,
   IconoCpu,
   IconoDisco,
   IconoEngrane,
@@ -18,6 +19,7 @@ import {
   IconoZonas,
 } from '../iconos';
 import { PuntoCuenta, resumenCuentas, textoEstadoCuenta, useCredenciales } from './Cuentas';
+import { resumenConGoogle, useCuentasGoogle } from './CuentasGoogle';
 
 const ICONOS_WIDGET: Record<string, ReactNode> = {
   cpu: <IconoCpu />,
@@ -27,12 +29,14 @@ const ICONOS_WIDGET: Record<string, ReactNode> = {
   procesos: <IconoProcesos />,
   spending: <IconoCartera />,
   clima: <IconoSolNube />,
+  correo: <IconoCorreo />,
 };
 
 export function VistaDock() {
   const [config, setConfig] = useConfig();
   const catalogo = useCatalogo();
   const [credenciales] = useCredenciales();
+  const [cuentasGoogle] = useCuentasGoogle();
   const privacidadEvento = useEvento<boolean | null>('gd://privacidad', null);
   const privacidad = privacidadEvento ?? config?.privacidad ?? false;
   const [error, setError] = useState<string | null>(null);
@@ -64,7 +68,7 @@ export function VistaDock() {
     </button>
   );
 
-  const cuentas = resumenCuentas(credenciales);
+  const cuentas = resumenConGoogle(resumenCuentas(credenciales), cuentasGoogle);
   const conectadas = cuentas.filter((c) => c.estado === 'conectada').length;
   const descripcionCuentas = cuentas.map((c) => `${c.nombre}: ${textoEstadoCuenta(c.estado).toLowerCase()}`).join(', ');
 
@@ -103,7 +107,7 @@ export function VistaDock() {
       >
         <span className="gd-dock__avatares" aria-hidden="true">
           {cuentas.map((c) => (
-            <span key={c.id} className="gd-dock__avatar" data-cuenta={c.id}>
+            <span key={c.clave ?? c.id} className="gd-dock__avatar" data-cuenta={c.id}>
               {c.icono}
               <PuntoCuenta estado={c.estado} />
             </span>
