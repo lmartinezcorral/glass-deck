@@ -189,13 +189,86 @@ Aplazados a **Fase 2** (dependen de módulos de esa fase):
 | GD-NFR-UX-05 | Diseño fiel al mockup aprobado | Comparación visual al cierre de la fase | M\* | Revisión | 1. Capturar la app en las mismas vistas que `mockups/capturas/` 01, 02, 03, 04, 05 y 10.<br>2. Comparar lado a lado y anotar diferencias | En prueba (comparación de la captura 01 del 2026-10-27: se agregaron la gráfica de CPU a todo lo ancho, barras de uso en Procesos y ventana real de «Último minuto»; bloque 8, 2026-10-27: 05 Customize: se agregó el subtítulo del mockup; diferencias que quedan: pestañas laterales en vez de 3 columnas de tarjetas, sin ícono en el encabezado ni botones «Restablecer»/«Listo», y la app suma tema, opacidad y desenfoque (GD-CUST-02); 02 Dock: mismos interruptores y engrane, sin la marca «Glassdeck» ni cuentas (fase 2); faltan 03, 04 y 10, que requieren abrir esas vistas con Luis) |
 | GD-NFR-UX-06 | Título y subtítulo visibles en cada widget; la píldora incluye el nombre | Luis identifica cada widget sin abrir menús | M\* | Revisión + Manual | 1. Revisión: `MarcoWidget` exige `titulo` y `subtitulo`; la píldora antepone el título.<br>2. Manual: con los 5 widgets en el escritorio y uno en píldora, Luis nombra cada uno | En prueba (revisión pasa: `MarcoWidget` exige `titulo` y `subtitulo`; Vitest comprueba que la píldora muestra «CPU 23 %»; los paneles Customize y Limpiar temporales ahora también llevan subtítulo (`BarraPanel` lo exige, Vitest lo comprueba); falta que Luis nombre cada widget) |
 
-## Fases 2 a 4 (esqueleto)
+## Fase 2 — Servicios
 
-### Fase 2 — Servicios
+Detallada el 2026-10-28 (bloques 9 a 15 de `PLAN_FASES.md`). Se ejecuta en la rama `fase-2`. Incluye GD-CUST-09 y GD-NFR-REL-02, diferidos desde la fase 1.
 
-GD-DOCK-02, GD-CUST-04, GD-CUST-08, GD-CUR-01 a 06, GD-CLA-01 a 06, GD-ALERT-01 a 03, GD-MAIL-01 a 07, GD-CAL-01, GD-ROT-01 a 03, GD-WX-01 a 03, GD-NFR-SEC-04, GD-NFR-SEC-07.
+### Bóveda, red y estado (bloque 9)
 
-Se detalla al iniciar la fase.
+| ID | Requerimiento (resumen corto) | CA (resumen verificable) | Prio | Método | Pasos / evidencia esperada | Estado |
+|---|---|---|---|---|---|---|
+| GD-NFR-SEC-01 (fase 2) | Secretos solo en el Administrador de credenciales | Ningún secreto en `%AppData%\Glassdeck`, logs ni interfaz | M\* | Auto-Rust + Revisión + Script | 1. Auto-Rust: guardar, leer y borrar con prefijo `Glassdeck/`; ningún comando devuelve el valor a la interfaz.<br>2. Revisión: los comandos Tauri solo exponen «hay o no hay credencial».<br>3. Script: buscar un secreto de prueba en `%AppData%\Glassdeck` y logs: cero resultados | Pendiente |
+| GD-NFR-REL-02 | Reintentos 1, 2, 5, 15 min | Sin ráfagas al volver la red | M\* | Auto-Rust | 1. La función de espera devuelve 1, 2, 5, 15 y se queda en 15.<br>2. Un éxito reinicia la secuencia | Pendiente |
+| GD-NFR-REL-01 (fase 2) | Una fuente caída no afecta a las demás | Sin red, los widgets de sistema siguen; los de servicios muestran el motivo | M\* | Auto-Rust + Manual | 1. Auto-Rust: un recolector que falla no detiene a los demás.<br>2. Manual: apagar la red 5 min | Pendiente |
+| GD-NFR-SEC-06 (fase 2) | Solo conexiones hacia SPEC §5.3 | Ningún dominio fuera de la lista | M\* | Auto-Rust + Script | 1. Auto-Rust: el cliente HTTP rechaza un dominio fuera de la lista.<br>2. Script: conexiones de los procesos de Glassdeck durante 30 min contra la lista | Pendiente |
+| GD-INST-03 (fase 2) | Al desinstalar con «borrar», no quedan credenciales | Cero entradas `Glassdeck/` en el Administrador de credenciales | M | Manual | 1. Guardar una credencial de prueba.<br>2. Desinstalar con «borrar».<br>3. `cmdkey /list` sin `Glassdeck/` | Pendiente |
+
+### Claude Code local (bloque 10)
+
+| ID | Requerimiento (resumen corto) | CA (resumen verificable) | Prio | Método | Pasos / evidencia esperada | Estado |
+|---|---|---|---|---|---|---|
+| GD-CLA-01 | Suma de tokens por día, modelo y proyecto desde `~/.claude/projects/` | ± 2 % contra una herramienta de referencia | M | Auto-Rust + Script | 1. Auto-Rust con JSONL de prueba: sumas exactas, lectura incremental sin contar doble, línea corrupta ignorada.<br>2. Script: comparar el día con `ccusage` (o suma independiente) | Pendiente |
+| GD-CLA-02 | Costo en USD con tabla de precios editable | Cambiar un precio recalcula al instante | M | Auto-Rust + Auto-Vitest | 1. Auto-Rust: costo = tokens × precio por tipo.<br>2. Vitest: editar un precio en Customize actualiza el total | Pendiente |
+| GD-CLA-03 | Solo se leen campos de uso, nunca el texto | Revisión confirma que solo se extraen tokens, modelo y fecha | M | Revisión + Auto-Rust | 1. Revisión del deserializador (sin campos de contenido).<br>2. Auto-Rust: un JSONL con texto secreto no deja ese texto en la estructura resultante | Pendiente |
+
+### Clima (bloque 11)
+
+| ID | Requerimiento (resumen corto) | CA (resumen verificable) | Prio | Método | Pasos / evidencia esperada | Estado |
+|---|---|---|---|---|---|---|
+| GD-WX-01 | Actual: temperatura, icono, máxima y mínima | Coincide con Open-Meteo | M | Auto-Rust + Manual | 1. Auto-Rust: parseo de una respuesta grabada.<br>2. Manual: comparar con open-meteo.com para la misma ubicación | Pendiente |
+| GD-WX-02 | Maximizado: 24 h y 7 días | Muestra 24 y 7 elementos | M | Auto-Vitest | Vitest: la vista maximizada pinta 24 horas y 7 días | Pendiente |
+| GD-WX-03 | Ubicación por IP o manual; sin red, último dato con hora | Sin conexión se ve el último dato y su hora | M | Auto-Rust + Manual | 1. Auto-Rust: con fallo de red se devuelve el último dato con su hora.<br>2. Manual: apagar la red | Pendiente |
+| GD-CUST-08 | Ciudad manual con buscador | Al fijar «Chihuahua», el clima es de Chihuahua | M | Auto-Rust + Manual | 1. Auto-Rust: parseo de la geocodificación.<br>2. Manual: buscar y fijar Chihuahua | Pendiente |
+
+### Avisos de umbral (bloque 12)
+
+| ID | Requerimiento (resumen corto) | CA (resumen verificable) | Prio | Método | Pasos / evidencia esperada | Estado |
+|---|---|---|---|---|---|---|
+| GD-ALERT-01 | Notificación al cruzar cada umbral | Un aviso por umbral por ciclo | M | Auto-Rust + Manual | 1. Auto-Rust: con datos simulados 49 → 51 → 52 % avisa una vez; nuevo ciclo vuelve a avisar.<br>2. Manual con datos reales (bloque 13) | Pendiente |
+| GD-ALERT-02 | Clic abre Spending maximizado | Verificado en las dos fuentes | M | Manual | Clic en la notificación de prueba | Pendiente |
+| GD-ALERT-03 | Historial persiste tras reiniciar | Reiniciar no repite el aviso | M | Auto-Rust + Manual | 1. Auto-Rust: el historial se guarda y se recarga de `state.json`.<br>2. Manual: reiniciar Glassdeck | Pendiente |
+| GD-CUST-04 | Umbrales editables | El cambio surte efecto en el siguiente ciclo | M | Auto-Rust + Auto-Vitest | Cambiar un umbral y verificar el siguiente cálculo | Pendiente |
+
+### Cursor y claude.ai (bloque 13, requiere el login de Luis)
+
+| ID | Requerimiento (resumen corto) | CA (resumen verificable) | Prio | Método | Pasos / evidencia esperada | Estado |
+|---|---|---|---|---|---|---|
+| GD-CUR-01 | Login web y captura de la cookie | La ventana se cierra sola y el dock marca Cursor en verde | M | Manual | Luis inicia sesión desde el dock | Pendiente |
+| GD-CUR-02 | Cookie solo en la bóveda | Buscar su valor en disco y logs: cero resultados | M | Script | Búsqueda en `%AppData%\Glassdeck` y logs | Pendiente |
+| GD-CUR-03 | Solo lectura | Ninguna llamada de escritura a cursor.com | M | Revisión | Revisión del adaptador: solo `GET` | Pendiente |
+| GD-CUR-04 | Direcciones aisladas en un adaptador | Un cambio de la web solo toca el adaptador | M | Revisión | Revisión de módulos | Pendiente |
+| GD-CUR-05 | Etiqueta «no oficial» | Visible en normal y maximizado | M | Auto-Vitest | Vitest sobre ambas vistas | Pendiente |
+| GD-CUR-06 | Motivo del error y última lectura válida | Sin cookie: «Sesión expirada» y dock ámbar | M | Auto-Rust + Manual | 1. Auto-Rust: mapeo de errores a motivos.<br>2. Manual: borrar la cookie | Pendiente |
+| GD-CLA-04 | claude.ai: % del límite de 5 h y semanal | Coincide con claude.ai | M | Manual | Comparar con la página de uso | Pendiente |
+| GD-CLA-05 | Consola de la API (opcional) | Sin clave, la sección no aparece | D | Auto-Vitest | Vitest sin clave configurada | Pendiente |
+| GD-CLA-06 | Errores de claude.ai sin perder Claude Code | Con sesión expirada se conservan los datos locales | M | Auto-Rust + Manual | Simular sesión expirada | Pendiente |
+| GD-NFR-SEC-04 | Ventanas de login aisladas | No pueden invocar comandos de Glassdeck | M\* | Revisión + Auto-Rust | Revisión de capacidades por ventana | Pendiente |
+
+### Google (bloque 14, requiere el cliente OAuth de Luis)
+
+| ID | Requerimiento (resumen corto) | CA (resumen verificable) | Prio | Método | Pasos / evidencia esperada | Estado |
+|---|---|---|---|---|---|---|
+| GD-MAIL-01 | OAuth de escritorio con PKCE y varias cuentas | 2 o más cuentas en el dock | M | Manual | Conectar 2 cuentas | Pendiente |
+| GD-MAIL-02 | Solo `gmail.metadata` | La pantalla de consentimiento no menciona leer el contenido | M | Revisión + Manual | Revisar los scopes y la pantalla | Pendiente |
+| GD-MAIL-03 | Solo remitente, asunto y fecha de no leídos de INBOX | Ningún cuerpo pasa por la app | M | Revisión + Auto-Rust | Parseo sin campos de cuerpo | Pendiente |
+| GD-MAIL-04 | Maximizado por cuenta | Se distingue la cuenta | M | Auto-Vitest | Vitest con 2 cuentas simuladas | Pendiente |
+| GD-MAIL-05 | Encabezados solo en memoria | Al cerrar no queda ningún asunto en disco | M | Script | Buscar un asunto de prueba en disco tras cerrar | Pendiente |
+| GD-MAIL-06 | Permiso revocado → ámbar, las demás siguen | Refleja en ≤ 5 min | M | Manual | Revocar una cuenta | Pendiente |
+| GD-MAIL-07 | Importar el JSON del cliente OAuth a la bóveda | Sin cliente, «Conectar Google» lleva a la guía | M | Auto-Rust + Auto-Vitest | 1. Auto-Rust: validar e importar un JSON de prueba; el secreto queda en la bóveda.<br>2. Vitest: sin cliente se muestra la guía | Pendiente |
+| GD-CAL-01 | Eventos de hoy y 24 h, solo lectura | Un evento nuevo aparece en ≤ 10 min | M | Manual | Crear un evento | Pendiente |
+| GD-ROT-01 | Rotación cada 10 min con prioridad a eventos próximos | ≥ 6 elementos distintos en 1 h | M | Auto-Rust | Simulación de reloj | Pendiente |
+| GD-ROT-02 | Privacidad (ojo y `Win+Alt+P`) | Ningún asunto legible en captura | M | Auto-Vitest + Manual | Vitest: clase de desenfoque; manual: captura | Pendiente |
+| GD-ROT-03 | Clic abre Gmail o Calendar en la cuenta correcta | El enlace abre el elemento | M | Manual | Clic en correo y evento | Pendiente |
+| GD-NFR-SEC-07 | Correo con datos de pacientes: solo encabezados, en memoria, privacidad | GD-MAIL-02, -05 y GD-ROT-02 pasan | M\* | Revisión | Igual que esas filas | Pendiente |
+
+### Dock y Customize (bloque 15)
+
+| ID | Requerimiento (resumen corto) | CA (resumen verificable) | Prio | Método | Pasos / evidencia esperada | Estado |
+|---|---|---|---|---|---|---|
+| GD-DOCK-02 | Estado de cuentas: verde, ámbar, gris y Conectar/Desconectar | Una sesión expirada pasa a ámbar en el siguiente ciclo | M | Auto-Vitest + Manual | Vitest con estados simulados; manual con cuentas reales | Pendiente |
+| GD-CUST-09 | Exportar e importar configuración sin credenciales | El JSON exportado no tiene tokens ni cookies | D | Auto-Rust + Manual | 1. Auto-Rust: con un secreto en la bóveda, el JSON no lo contiene.<br>2. Manual: exportar e importar | Pendiente |
+
+## Fases 3 y 4 (esqueleto)
 
 ### Fase 3 — Controles
 
@@ -217,7 +290,7 @@ Se detalla al iniciar la fase.
 |---|---|---|---|
 | 0 | 1 (R-01) | 0 | 1 |
 | 1 | 79 | 33 | 46 |
-| 2 | 34 | Por definir | Por definir |
+| 2 | 40 filas: 34 de la SPEC, GD-CUST-09 y GD-NFR-REL-02 diferidos de la fase 1, y 4 ampliaciones de filas de la fase 1 | 26 | 14 |
 | 3 | 15 | Por definir | Por definir |
 | 4 | 16 | Por definir | Por definir |
 | **Total SPEC** | **144** (+ R-01) | — | — |

@@ -37,7 +37,30 @@ Complementa a `SPEC.md` (sección 6). Cada bloque termina con un commit en `main
 
 **VoBo condicionado (Luis, 2026-10-28):** la fase 2 arranca en la rama `fase-2` mientras la QA manual de la fase 1 se cierra en `main`. La fase 1 queda cerrada cuando sus filas estén en «Pasa» o «Diferido»; `fase-2` no se integra a `main` antes de eso.
 
-## Fases 2 a 4
+## Fase 2 — Servicios
+
+Se construye en la rama `fase-2` (worktree `tools/glassdeck-fase2`) mientras se cierra la QA de la fase 1 en `main`. Cada bloque termina con commit en `fase-2`, `cargo test` y `npm run build` en verde, y sus filas en `QA_MATRIZ.md`. Los bloques 9 a 12 no necesitan cuentas de Luis; los bloques 13 y 14 esperan su login y su cliente OAuth.
+
+| Bloque | Contenido | Requerimientos | Necesita a Luis | Estado |
+|---|---|---|---|---|
+| 9 · Bóveda y red | Bóveda en el Administrador de credenciales (prefijo `Glassdeck/`, el valor nunca sale del backend ni llega a logs); cliente HTTP único con lista de dominios de SPEC §5.3; reintentos con espera de 1, 2, 5 y 15 min; `state.json` para último dato válido y avisos enviados | GD-NFR-SEC-01, GD-NFR-REL-01/02, GD-INST-03 (credenciales al desinstalar) | No | Pendiente |
+| 10 · Claude Code local | Lectura incremental por posición de archivo de `~/.claude/projects/**/*.jsonl`; solo tokens, modelo, fecha y proyecto; suma por día, modelo y proyecto; tabla de precios editable; widget Spending con la sección de Claude Code | GD-CLA-01..03 | No | Pendiente |
+| 11 · Clima | Open-Meteo actual, 24 h y 7 días; ubicación por `ipapi.co` (solo en modo automático) o ciudad manual con el buscador de geocodificación de Open-Meteo; último dato con su hora sin conexión; widget Clima | GD-WX-01..03, GD-CUST-08 | No | Pendiente |
+| 12 · Avisos de umbral | Motor de umbrales (Cursor 50/80/100 %; Claude 80 % de 5 h y semanal), un aviso por ciclo, historial en `state.json`, notificación de Windows que abre Spending maximizado; umbrales editables | GD-ALERT-01..03, GD-CUST-04 | No (se prueba con datos simulados hasta el bloque 13) | Pendiente |
+| 13 · Cursor y claude.ai | Ventanas de login aisladas sin acceso a comandos; captura de cookie a la bóveda; adaptadores de solo lectura aislados; etiqueta «no oficial»; motivo del error y última lectura válida | GD-CUR-01..06, GD-CLA-04..06, GD-NFR-SEC-04 | Sí: iniciar sesión en cursor.com y claude.ai | Pendiente |
+| 14 · Google | Importar el JSON del cliente OAuth (GUIA_GOOGLE_OAUTH.md); OAuth de escritorio con PKCE y varias cuentas; Gmail `gmail.metadata` solo no leídos de INBOX; Calendar de solo lectura; encabezados solo en memoria; alerta rotativa; modo privacidad (`Win+Alt+P`) | GD-MAIL-01..07, GD-CAL-01, GD-ROT-01..03, GD-NFR-SEC-07 | Sí: crear el cliente OAuth y conectar cuentas | Pendiente (la importación del JSON se adelanta en el bloque 15) |
+| 15 · Dock y Customize | Estado de cuentas en el dock (verde, ámbar, gris; Conectar/Desconectar); Customize con precios, umbrales, ubicación, importación del cliente OAuth; exportar e importar configuración sin credenciales | GD-DOCK-02, GD-CUST-04/08/09 | Parcial (las cuentas reales llegan con 13 y 14) | Pendiente |
+
+**Riesgos de la fase 2**
+
+- Cursor y claude.ai pueden cambiar su web interna (R-02): adaptador aislado y aviso claro; nunca números inventados.
+- La fase 2 abre conexiones salientes: GD-NFR-SEC-06 y GD-INST-04 pasan a «solo hacia SPEC §5.3»; el cliente HTTP rechaza cualquier otro dominio.
+- El correo puede traer datos de pacientes (GD-NFR-SEC-07): encabezados solo en memoria, nunca en logs ni en `state.json`.
+- Más widgets suben la RAM: el presupuesto de la fase 4 es < 250 MB (ADR-001); se mide al cerrar la fase.
+
+**Salida:** instalador funcional, todos los CA de la fase en «Pasa» o «Diferido» con motivo, y VoBo de Luis. `fase-2` se integra a `main` solo después de cerrar la fase 1.
+
+## Fases 3 y 4
 
 Se detallan al iniciar cada una, con el mismo formato. Contenido en `SPEC.md` §6.
 
