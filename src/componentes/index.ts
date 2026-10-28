@@ -19,6 +19,7 @@ export {
   type SerieHistorial,
 } from './GraficaHistorial';
 export { Barra, type BarraProps } from './Barra';
+export { GraficaBarras, type GraficaBarrasProps } from './GraficaBarras';
 export { Pildora, type PildoraProps } from './Pildora';
 export { Dialogo, type DialogoProps, type ElementoDialogo } from './Dialogo';
 export { Interruptor, type InterruptorProps } from './Interruptor';

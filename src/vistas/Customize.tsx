@@ -1,29 +1,40 @@
 import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react';
-import { api, enTauri, mensajeError, type AccionAtajo, type Capa, type Config, type EstadoAtajo, type TemaConfig } from '../api';
+import {
+  api,
+  enTauri,
+  escuchar,
+  EVENTOS,
+  mensajeError,
+  type AccionAtajo,
+  type Capa,
+  type Config,
+  type EstadoAtajo,
+  type TemaConfig,
+} from '../api';
 import { Interruptor, Selector, Vidrio } from '../componentes';
-import { useConfig } from '../hooks';
+import { useCatalogo, useConfig } from '../hooks';
 import { IconoCandado } from '../iconos';
 import { ACENTOS, aplicarTema } from '../tema/tema';
+import { SeccionClima, SeccionCuentas, SeccionGasto } from './CustomizeServicios';
 import { BarraPanel } from './Limpieza';
 
-type Pestana = 'widgets' | 'apariencia' | 'intervalos' | 'procesos' | 'atajos' | 'general';
+type Pestana = 'widgets' | 'apariencia' | 'intervalos' | 'gasto' | 'clima' | 'cuentas' | 'procesos' | 'atajos' | 'general';
 
 const PESTANAS: ReadonlyArray<{ id: Pestana; nombre: string }> = [
   { id: 'widgets', nombre: 'Widgets' },
   { id: 'apariencia', nombre: 'Apariencia' },
   { id: 'intervalos', nombre: 'Intervalos' },
+  { id: 'gasto', nombre: 'Gasto y avisos' },
+  { id: 'clima', nombre: 'Clima' },
+  { id: 'cuentas', nombre: 'Cuentas' },
   { id: 'procesos', nombre: 'Procesos' },
   { id: 'atajos', nombre: 'Atajos' },
   { id: 'general', nombre: 'General' },
 ];
 
-const NOMBRES_WIDGET: Record<string, string> = {
-  cpu: 'CPU',
-  ram: 'Memoria',
-  disco: 'Disco',
-  red: 'Red',
-  procesos: 'Procesos',
-};
+export function pestanaValida(valor: string | null | undefined): Pestana | null {
+  return PESTANAS.find((p) => p.id === valor)?.id ?? null;
+}
 
 const ESPERA_GUARDADO_MS = 400;
 
@@ -47,20 +58,42 @@ export function combinacionDeTecla(e: Pick<KeyboardEvent, 'ctrlKey' | 'altKey' |
 
 export function VistaCustomize() {
   const [config, setConfig] = useConfig();
-  const [pestana, setPestana] = useState<Pestana>('widgets');
+  const [pestana, setPestana] = useState<Pestana>(
+    () => pestanaValida(new URLSearchParams(window.location.search).get('pestana')) ?? 'widgets',
+  );
   const [error, setError] = useState<string | null>(null);
   const [guardado, setGuardado] = useState(false);
   const temporizador = useRef<number | undefined>(undefined);
+  const pendiente = useRef<Config | null>(null);
 
   useEffect(() => () => window.clearTimeout(temporizador.current), []);
 
+  useEffect(() => {
+    const quitar = escuchar<string>(EVENTOS.pestana, (p) => {
+      const valida = pestanaValida(p);
+      if (valida) setPestana(valida);
+    });
+    return () => {
+      quitar.then((f) => f());
+    };
+  }, []);
+
+  /** `clima_fijar_ubicacion` cambia la configuración por su lado: un guardado pendiente no debe pisarla. */
+  const alFijarClima = (c: Config): void => {
+    if (pendiente.current) pendiente.current = { ...pendiente.current, clima: c.clima };
+    setConfig(pendiente.current ?? c);
+  };
+
   const guardar = (siguiente: Config): void => {
+    pendiente.current = siguiente;
     setConfig(siguiente);
     aplicarTema({ ...siguiente.apariencia, animaciones: true });
     window.clearTimeout(temporizador.current);
     temporizador.current = window.setTimeout(() => {
+      const aGuardar = pendiente.current ?? siguiente;
+      pendiente.current = null;
       api
-        .configGuardar(siguiente)
+        .configGuardar(aGuardar)
         .then(() => {
           setError(null);
           setGuardado(true);
@@ -106,6 +139,9 @@ export function VistaCustomize() {
               {pestana === 'widgets' && <SeccionWidgets config={config} alCambiar={setConfig} alError={setError} />}
               {pestana === 'apariencia' && <SeccionApariencia config={config} guardar={guardar} />}
               {pestana === 'intervalos' && <SeccionIntervalos config={config} guardar={guardar} />}
+              {pestana === 'gasto' && <SeccionGasto config={config} guardar={guardar} />}
+              {pestana === 'clima' && <SeccionClima config={config} alFijar={alFijarClima} />}
+              {pestana === 'cuentas' && <SeccionCuentas />}
               {pestana === 'procesos' && <SeccionProcesos config={config} guardar={guardar} />}
               {pestana === 'atajos' && <SeccionAtajos />}
               {pestana === 'general' && <SeccionGeneral config={config} guardar={guardar} alError={setError} />}
@@ -126,15 +162,17 @@ interface PropsSeccion {
 }
 
 function SeccionWidgets({ config, alCambiar, alError }: { config: Config; alCambiar: (c: Config) => void; alError: (e: string | null) => void }) {
+  const catalogo = useCatalogo();
   return (
     <div className="gd-vista gd-vista--pila">
       <h2 className="gd-customize__titulo">Widgets visibles</h2>
-      {Object.entries(NOMBRES_WIDGET).map(([id, nombre]) => {
+      {catalogo.map(({ id, titulo, subtitulo }) => {
         const w = config.widgets[id];
         return (
           <Interruptor
             key={id}
-            etiqueta={nombre}
+            etiqueta={titulo}
+            descripcion={subtitulo}
             activo={w?.activo ?? false}
             onCambiar={(activo) => {
               if (w) alCambiar({ ...config, widgets: { ...config.widgets, [id]: { ...w, activo } } });
@@ -146,7 +184,7 @@ function SeccionWidgets({ config, alCambiar, alError }: { config: Config; alCamb
           />
         );
       })}
-      <p className="gd-etiqueta">Zonas, notas y clima llegan en fases posteriores.</p>
+      <p className="gd-etiqueta">Spending y Clima arrancan apagados: al encenderlos se suma su ventana y su recolección. Zonas llega en la fase 4.</p>
     </div>
   );
 }
@@ -220,10 +258,16 @@ export const OPCIONES_INTERVALO = {
   clima_ms: [900000, 1800000, 3600000],
 } as const satisfies Record<keyof Config['intervalos'], readonly number[]>;
 
+export function etiquetaIntervalo(ms: number): string {
+  if (ms >= 3_600_000 && ms % 3_600_000 === 0) return `${ms / 3_600_000} h`;
+  if (ms >= 60_000 && ms % 60_000 === 0) return `${ms / 60_000} min`;
+  return `${ms / 1000} s`;
+}
+
 function SeccionIntervalos({ config, guardar }: PropsSeccion) {
   const i = config.intervalos;
   const cambiar = (parcial: Partial<Config['intervalos']>): void => guardar({ ...config, intervalos: { ...i, ...parcial } });
-  const opciones = (valores: readonly number[]) => valores.map((v) => ({ valor: String(v), etiqueta: `${v / 1000} s` }));
+  const opciones = (valores: readonly number[]) => valores.map((v) => ({ valor: String(v), etiqueta: etiquetaIntervalo(v) }));
   return (
     <div className="gd-vista gd-vista--pila">
       <h2 className="gd-customize__titulo">Cada cuánto se actualiza</h2>
@@ -234,6 +278,11 @@ function SeccionIntervalos({ config, guardar }: PropsSeccion) {
       <Selector etiqueta="Procesos" opciones={opciones(OPCIONES_INTERVALO.procesos_ms)} valor={String(i.procesos_ms)} onCambiar={(v) => cambiar({ procesos_ms: Number(v) })} />
       <span className="gd-deslizador__cabecera">Disco</span>
       <Selector etiqueta="Disco" opciones={opciones(OPCIONES_INTERVALO.disco_ms)} valor={String(i.disco_ms)} onCambiar={(v) => cambiar({ disco_ms: Number(v) })} />
+      <span className="gd-deslizador__cabecera">Gasto (Claude Code; Cursor y Claude.ai al conectarse)</span>
+      <Selector etiqueta="Gasto" opciones={opciones(OPCIONES_INTERVALO.spending_ms)} valor={String(i.spending_ms)} onCambiar={(v) => cambiar({ spending_ms: Number(v) })} />
+      <span className="gd-deslizador__cabecera">Clima</span>
+      <Selector etiqueta="Clima" opciones={opciones(OPCIONES_INTERVALO.clima_ms)} valor={String(i.clima_ms)} onCambiar={(v) => cambiar({ clima_ms: Number(v) })} />
+      <p className="gd-etiqueta">Mínimos: gasto cada 5 min y clima cada 15 min, para no saturar los servicios.</p>
     </div>
   );
 }

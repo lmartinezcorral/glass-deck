@@ -306,7 +306,8 @@ export const api = {
   procesosFijos: () => invoke<string[]>('procesos_fijos'),
   limpiezaVistaPrevia: () => invoke<OrigenLimpieza[]>('limpieza_vista_previa'),
   limpiezaEjecutar: (opciones: OpcionesLimpieza) => invoke<ResumenLimpieza>('limpieza_ejecutar', { opciones }),
-  panelAbrir: (panel: 'customize' | 'limpieza' | 'procesos' | 'dock') => invoke<void>('panel_abrir', { panel }),
+  /** `cuentas` y `clima` abren Customize en esa pestaña. */
+  panelAbrir: (panel: 'customize' | 'cuentas' | 'clima' | 'limpieza' | 'procesos' | 'dock') => invoke<void>('panel_abrir', { panel }),
   panelCerrar: () => invoke<void>('panel_cerrar'),
   atajosEstado: () => invoke<EstadoAtajo[]>('atajos_estado'),
   atajoCambiar: (accion: AccionAtajo, combinacion: string) =>
@@ -329,6 +330,8 @@ export const api = {
   climaFijarUbicacion: (ubicacion: Ubicacion | null) => invoke<Config>('clima_fijar_ubicacion', { ubicacion }),
   avisosProbar: () => invoke<void>('avisos_probar'),
   avisosHistorial: () => invoke<AvisoEnviado[]>('avisos_historial'),
+  /** Abre el diálogo de Windows y guarda el cliente en la bóveda; `false` si se cancela. Nunca devuelve el contenido. */
+  googleClienteImportar: () => invoke<boolean>('google_cliente_importar'),
 };
 
 export async function escuchar<T>(evento: string, manejar: (carga: T) => void): Promise<UnlistenFn> {
@@ -344,6 +347,7 @@ export const EVENTOS = {
   maximizado: 'gd://maximizado',
   estado: 'gd://estado',
   aviso: 'gd://aviso',
+  pestana: 'gd://pestana',
 } as const;
 
 export function mensajeError(e: unknown): string {
