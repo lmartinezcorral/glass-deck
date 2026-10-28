@@ -91,7 +91,7 @@ flowchart LR
 | Atajos globales | Registro y detección de conflictos | GD-HOT-*, GD-CUST-06 | `tauri-plugin-global-shortcut` (`RegisterHotKey`) |
 | Notificaciones | Avisos de umbral con acción de abrir | GD-ALERT-* | `tauri-plugin-notification` |
 | Motor de zonas | Huellas de monitor, cuadrículas, superposición, modificadores, memoria por app, recuperar todo | GD-ZONE-* | Ver sección 5 |
-| Ciclo de vida | Instancia única, arranque con Windows, bandeja | GD-DOCK-04/05, GD-INST-* | `tauri-plugin-single-instance`, `tauri-plugin-autostart`, bandeja de Tauri |
+| Ciclo de vida | Instancia única, arranque con Windows, bandeja | GD-DOCK-04/05, GD-INST-* | `tauri-plugin-single-instance`; tarea programada al iniciar sesión con `schtasks /XML` (`arranque.rs`) y `tauri-plugin-autostart` (clave Run) como respaldo; bandeja de Tauri |
 
 ## 3. Interfaz (React + TypeScript)
 
@@ -110,6 +110,7 @@ Acuerdo entre el núcleo (bloques 9 a 12) y las vistas de Spending, Clima, Custo
 | Fuente | Widget | Intervalo | Se guarda en `state.json` | Datos (`EstadoFuente<T>.datos`) |
 |---|---|---|---|---|
 | `claude_code` | `spending` | `intervalos.spending_ms` (15 min; mínimo 5) | No (los nombres de proyecto podrían ser personales; se recalcula al arrancar) | `ResumenClaudeCode` |
+| `codex` | `spending` | `intervalos.spending_ms` | No (se recalcula al arrancar) | `ResumenCodex` |
 | `clima` | `clima` | `intervalos.clima_ms` (30 min; mínimo 15) | Sí (sin coordenadas) | `Clima` |
 
 **Comandos nuevos.** Todos devuelven error como texto en español listo para mostrar.
