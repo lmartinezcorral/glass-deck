@@ -48,12 +48,13 @@
 
   --gd-vidrio-rgb: 14, 19, 30;
   --gd-vidrio-opacidad: 0.44;
-  --gd-vidrio-minimo: 0.2;
+  /* 0.72: el texto del cuerpo sostiene 4.5:1 aun sobre un escritorio blanco (GD-NFR-UX-01). */
+  --gd-vidrio-minimo: 0.72;
   --gd-vidrio-solido-extra: 0.22;
-  --gd-vidrio-brillo: linear-gradient(180deg, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0.035) 40%, rgba(255, 255, 255, 0.02));
+  --gd-vidrio-brillo: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.03) 40%, rgba(255, 255, 255, 0.02));
   --gd-vidrio-borde: linear-gradient(155deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.08) 34%, rgba(255, 255, 255, 0.03) 62%, rgba(255, 255, 255, 0.26));
-  --gd-vidrio-destello: linear-gradient(180deg, rgba(255, 255, 255, 0.12), transparent 26%);
-  --gd-reflejo-color: rgba(255, 255, 255, 0.13);
+  --gd-vidrio-destello: linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent 26%);
+  --gd-reflejo-color: rgba(255, 255, 255, 0.06);
   --gd-reflejo-acento: rgba(var(--gd-acento-rgb), 0.05);
   --gd-reflejo-tamano: 380px;
   --gd-desenfoque: 24px;

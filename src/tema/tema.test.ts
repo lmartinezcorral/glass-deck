@@ -125,18 +125,19 @@ describe('contraste sobre vidrio (GD-NFR-UX-01)', () => {
     expect(filas).toHaveLength(18);
   });
 
-  it('tema claro sobre escritorio claro (todo el widget) y tema oscuro sobre escritorio oscuro (cuerpo): ≥ 4.5', () => {
+  it('tema claro sobre escritorio claro y tema oscuro sobre escritorio oscuro (todo el widget): ≥ 4.5', () => {
     expect(minimo(CLARO, tinteClaro, BLANCO, gama)).toBeGreaterThanOrEqual(4.5);
-    expect(minimo(OSCURO, tinteOscuro, NEGRO, gama, ['abajo'])).toBeGreaterThanOrEqual(4.5);
+    expect(minimo(OSCURO, tinteOscuro, NEGRO, gama)).toBeGreaterThanOrEqual(4.5);
   });
 
-  // Fallas conocidas del 2026-10-28: cuando un ajuste de tokens las corrija, `it.fails` avisará.
-  it.fails('falla conocida: tema oscuro, zona alta (brillo + reflejo + destello) sobre escritorio oscuro', () => {
-    expect(minimo(OSCURO, tinteOscuro, NEGRO, gama, ['arriba'])).toBeGreaterThanOrEqual(4.5);
+  it('tema oscuro sobre escritorio claro, cuerpo del widget con cualquier opacidad: ≥ 4.5', () => {
+    expect(minimo(OSCURO, tinteOscuro, BLANCO, gama, ['abajo'])).toBeGreaterThanOrEqual(4.5);
   });
 
-  it.fails('falla conocida: tema oscuro sobre escritorio claro con la opacidad por defecto', () => {
-    expect(minimo(OSCURO, tinteOscuro, BLANCO, [porDefecto])).toBeGreaterThanOrEqual(4.5);
+  // Fallas conocidas: cuando un ajuste de tokens las corrija, `it.fails` avisará.
+  // Sobre blanco, la zona alta pide ~0.85 de opacidad mínima para 4.5:1; queda en ~3.4 (≥ 3:1, texto grande).
+  it.fails('falla conocida: tema oscuro, zona alta (brillo + reflejo + destello) sobre escritorio claro', () => {
+    expect(minimo(OSCURO, tinteOscuro, BLANCO, gama, ['arriba'])).toBeGreaterThanOrEqual(4.5);
   });
 
   it.fails('falla conocida: tema claro, zona baja sobre escritorio oscuro (texto-3 4.36)', () => {

@@ -2,8 +2,8 @@
 
 | Campo | Valor |
 |---|---|
-| Versión | 1.3 |
-| Fecha | 2026-10-27 |
+| Versión | 1.4 |
+| Fecha | 2026-10-28 |
 | Dueño | Luis Ángel Martínez Corral |
 | Estado | **Aprobado por el CEO el 2026-10-27.** Construcción en curso (fases 0 y 1) |
 | Paquete | `SPEC.md` (este), `ARQUITECTURA.md`, `FLUJOS.md`, `GUIA_GOOGLE_OAUTH.md`, `PLAN_FASES.md`, `QA_MATRIZ.md`, `adr/`, `mockups/glassdeck_mockup.html` + `mockups/capturas/`, `referencias/MAXTO_ANALISIS.md` |
@@ -16,6 +16,7 @@
 | 1.1 | 2026-10-27 | VoBo del CEO. Se fija `ipapi.co` como geolocalización por IP. La fase 0 entrega la decisión de R-01 en `adr/ADR-001-estrategia-ventanas.md`. Se agregan `PLAN_FASES.md` (backlog por bloques) y `QA_MATRIZ.md` (verificación de cada CA). El repo es git local en `tools/glassdeck`, rama `main`, sin remoto |
 | 1.2 | 2026-10-27 | Decisión de Luis sobre R-01 (ADR-001 aceptado): una ventana por widget; RAM < 200 MB en la fase 1 y < 250 MB con los 11 widgets; CPU, RAM y red a 2 s por defecto. Se agrega GD-NFR-UX-06 (título y subtítulo visibles en cada widget), a pedido de Luis |
 | 1.3 | 2026-10-27 | Decisiones de Luis al entregar la fase 1: mostrar u ocultar todo pasa a `Ctrl+Alt+M` por defecto, porque la Xbox Game Bar ocupa `Win+Alt+G` (D-22, GD-HOT-01; las configuraciones con el valor de fábrica anterior se migran solas); la instalación queda en `%LocalAppData%\Glassdeck`, la carpeta por defecto de Tauri (GD-INST-01); la RAM se optimiza para cumplir < 200 MB en la fase 1 |
+| 1.4 | 2026-10-28 | Decisiones de Luis tras la QA automatizada de la fase 1: encender un widget desde el dock puede tardar hasta 3.5 s (se recrea la ventana; no se conserva oculta para no subir la RAM, GD-DOCK-01); el control de intensidad del desenfoque sale de Customize en la fase 1 (GD-CUST-02); disco < 6 s y red < 2.5 s en lugar de bajar los intervalos (GD-SYS-06 y GD-SYS-07); el tema oscuro sube su opacidad mínima para sostener el contraste sobre escritorios claros (GD-NFR-UX-01) |
 
 ## 0. Resumen
 
@@ -96,7 +97,7 @@ Glassdeck es un panel de widgets flotantes de vidrio oscuro para el escritorio d
 
 | ID | Requerimiento | CA | Prio |
 |---|---|---|---|
-| GD-DOCK-01 | Dock flotante de vidrio, arrastrable, con: interruptor por widget, estado de cuentas, Customize y Zonas | Cada acción del dock funciona y su estado se refleja en tiempo real | M |
+| GD-DOCK-01 | Dock flotante de vidrio, arrastrable, con: interruptor por widget, estado de cuentas, Customize y Zonas | Cada acción del dock funciona y su estado se refleja en tiempo real; un widget apagado desaparece en < 1 s y uno encendido aparece en ≤ 3.5 s | M |
 | GD-DOCK-02 | Estado de cuentas: Google (una línea por cuenta), Cursor y Claude, con punto verde (conectada), ámbar (requiere reconexión) o gris (sin conectar) y botón Conectar/Desconectar | Al expirar una sesión, el punto pasa a ámbar en el siguiente ciclo de actualización | M (fase 2) |
 | GD-DOCK-03 | El dock se puede ocultar y fijar a un borde de cualquier monitor | Con el dock oculto, el icono de la bandeja sigue disponible | M |
 | GD-DOCK-04 | Icono en la bandeja de Windows con menú: Mostrar/ocultar todo, Customize, Zonas, Modo privacidad, Pausar, Salir | Todas las opciones del menú funcionan aunque el dock esté oculto | M |
@@ -107,7 +108,7 @@ Glassdeck es un panel de widgets flotantes de vidrio oscuro para el escritorio d
 | ID | Requerimiento | CA | Prio |
 |---|---|---|---|
 | GD-CUST-01 | Activar o desactivar cada widget y el módulo Zonas | Desactivar un widget detiene su recolección de datos (no solo lo oculta) | M |
-| GD-CUST-02 | Tema: vidrio oscuro por defecto, seguir modo claro/oscuro de Windows, color de acento, intensidad del desenfoque y opacidad | El cambio se aplica en vivo a todos los widgets | M |
+| GD-CUST-02 | Tema: vidrio oscuro por defecto, seguir modo claro/oscuro de Windows, color de acento y opacidad (la intensidad del desenfoque queda fuera de la fase 1) | El cambio se aplica en vivo a todos los widgets | M |
 | GD-CUST-03 | Intervalos de actualización editables con los valores por defecto de la sección 4.1 y mínimos seguros | No se aceptan intervalos menores al mínimo (CPU/RAM/red 1 s, procesos 2 s, correo 2 min, spending 5 min) | M |
 | GD-CUST-04 | Umbrales de gasto: Cursor 50/80/100 %; Claude 80 % del límite de 5 h y del semanal; presupuesto mensual de Cursor editable | Cambiar un umbral surte efecto en el siguiente ciclo | M (fase 2) |
 | GD-CUST-05 | Lista negra de procesos: muestra los fijos con candado; permite agregar y quitar procesos personalizados | Los fijos no tienen botón de quitar; los agregados se respetan en GD-PROC | M |
@@ -126,8 +127,8 @@ Glassdeck es un panel de widgets flotantes de vidrio oscuro para el escritorio d
 | GD-SYS-03 | RAM normal: medidor y GB usados de GB totales | Coincide con el Administrador de tareas ± 0.3 GB | M |
 | GD-SYS-04 | RAM maximizado: desglose (en uso, en caché/standby, libre, comprometida) e historial de 1 h | Los componentes suman el total ± 1 % | M |
 | GD-SYS-05 | Disco normal: una barra por unidad fija con espacio usado/libre | Aparecen todas las unidades fijas; las USB extraíbles se marcan aparte | M |
-| GD-SYS-06 | Disco maximizado: lectura y escritura en vivo (MB/s) por unidad | Copiar un archivo grande refleja la actividad en < 5 s | M |
-| GD-SYS-07 | Red normal: subida y bajada en vivo con sparkline del adaptador activo | Una descarga se refleja en < 2 s | M |
+| GD-SYS-06 | Disco maximizado: lectura y escritura en vivo (MB/s) por unidad | Copiar un archivo grande refleja la actividad en < 6 s | M |
+| GD-SYS-07 | Red normal: subida y bajada en vivo con sparkline del adaptador activo | Una descarga se refleja en < 2.5 s | M |
 | GD-SYS-08 | Red maximizado: historial de 1 h, nombre del adaptador, tipo (Wi-Fi/Ethernet) e IP local | Al cambiar de Wi-Fi a Ethernet, el adaptador mostrado cambia en < 10 s | M |
 | GD-SYS-09 | El historial de 1 h vive en memoria y no se escribe a disco | Reiniciar Glassdeck vacía el historial | M |
 

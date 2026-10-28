@@ -184,7 +184,6 @@ function SeccionApariencia({ config, guardar }: PropsSeccion) {
         ))}
       </div>
       <Deslizador etiqueta="Opacidad del vidrio" min={0.2} max={0.9} paso={0.02} valor={a.opacidad} texto={`${Math.round(a.opacidad * 100)} %`} alCambiar={(opacidad) => cambiar({ opacidad })} />
-      <Deslizador etiqueta="Desenfoque" min={0} max={48} paso={1} valor={a.desenfoque} texto={`${a.desenfoque} px`} alCambiar={(desenfoque) => cambiar({ desenfoque })} />
     </div>
   );
 }
