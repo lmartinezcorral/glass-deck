@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-clima-buscar-ciudad"
+description = "Enables the clima_buscar_ciudad command without any pre-configured scope."
+commands.allow = ["clima_buscar_ciudad"]
+
+[[permission]]
+identifier = "deny-clima-buscar-ciudad"
+description = "Denies the clima_buscar_ciudad command without any pre-configured scope."
+commands.deny = ["clima_buscar_ciudad"]

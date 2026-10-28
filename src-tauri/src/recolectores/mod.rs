@@ -1,6 +1,9 @@
+pub mod claude_code;
+pub mod clima;
 pub mod historial;
 #[cfg(all(test, windows))]
 mod qa;
+pub mod servicios;
 #[cfg(windows)]
 pub mod win;
 
@@ -354,7 +357,7 @@ fn widgets_suscritos(app: &AppHandle) -> HashSet<&'static str> {
     let cfg = app.state::<AlmacenConfig>().leer();
     suscribibles(
         todos_visibles,
-        catalogo::WIDGETS_FASE_1
+        catalogo::WIDGETS
             .iter()
             .map(|w| (w.id, cfg.widget(w.id).activo, ventanas::ventana_widget(app, w.id).is_some())),
     )

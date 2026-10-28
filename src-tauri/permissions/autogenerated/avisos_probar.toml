@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-avisos-probar"
+description = "Enables the avisos_probar command without any pre-configured scope."
+commands.allow = ["avisos_probar"]
+
+[[permission]]
+identifier = "deny-avisos-probar"
+description = "Denies the avisos_probar command without any pre-configured scope."
+commands.deny = ["avisos_probar"]

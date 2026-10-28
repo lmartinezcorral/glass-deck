@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-catalogo-widgets"
+description = "Enables the catalogo_widgets command without any pre-configured scope."
+commands.allow = ["catalogo_widgets"]
+
+[[permission]]
+identifier = "deny-catalogo-widgets"
+description = "Denies the catalogo_widgets command without any pre-configured scope."
+commands.deny = ["catalogo_widgets"]

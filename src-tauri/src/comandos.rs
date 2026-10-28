@@ -1,8 +1,14 @@
 use crate::acciones::limpieza::{self, Opciones, Origen, Resumen};
 use crate::acciones::procesos::{Politica, Rechazo, ResultadoCierre};
 use crate::atajos::{self, Accion, EstadoAtajo};
-use crate::config::{AlmacenConfig, Config, EstadoWidget};
+use crate::avisos;
+use crate::conexion::Internet;
+use crate::config::{AlmacenConfig, AlmacenEstado, Config, EstadoWidget, ModoUbicacion, Ubicacion};
+use crate::recolectores::clima;
+use crate::recolectores::servicios::{EstadoFuente, EstadoServicios};
 use crate::recolectores::{EstadoRecoleccion, SerieHistorial};
+use crate::seguridad::boveda::{self, Clave};
+use crate::seguridad::google_cliente;
 use crate::ventanas::{self, catalogo, paneles};
 use serde::Serialize;
 use std::path::PathBuf;
@@ -34,10 +40,16 @@ pub fn config_guardar(app: AppHandle, config: Config) -> R<Config> {
         aplicar_arranque(&app, guardada.arranque_windows);
     }
     if guardada.capa_defecto != anterior.capa_defecto {
-        for w in catalogo::WIDGETS_FASE_1 {
+        for w in catalogo::WIDGETS {
             ventanas::aplicar_capa(&app, w.id);
         }
         paneles::aplicar_capa_dock(&app);
+    }
+    if guardada.precios_modelos != anterior.precios_modelos {
+        app.state::<EstadoServicios>().forzar("claude_code");
+    }
+    if guardada.clima != anterior.clima {
+        app.state::<EstadoServicios>().forzar("clima");
     }
     let _ = app.emit("gd://config", ());
     Ok(guardada)
@@ -72,7 +84,11 @@ pub fn aplicar_arranque(app: &AppHandle, activo: bool) {
 #[tauri::command]
 pub async fn widget_activar(app: AppHandle, id: String, activo: bool) -> R<()> {
     catalogo::buscar(&id).ok_or("Widget desconocido")?;
-    ventanas::activar_widget(&app, &id, activo)
+    ventanas::activar_widget(&app, &id, activo)?;
+    if activo {
+        app.state::<EstadoServicios>().forzar_widget(&id);
+    }
+    Ok(())
 }
 
 #[tauri::command]
@@ -208,9 +224,10 @@ pub async fn limpieza_ejecutar(app: AppHandle, opciones: Opciones) -> R<Resumen>
     Ok(r)
 }
 
-pub fn abrir_procesos_maximizado(app: &AppHandle) {
-    if ventanas::activar_widget(app, "procesos", true).is_ok() {
-        let _ = ventanas::maximizar(app, "procesos", true);
+pub fn abrir_maximizado(app: &AppHandle, id: &str) {
+    if ventanas::activar_widget(app, id, true).is_ok() {
+        app.state::<EstadoServicios>().forzar_widget(id);
+        let _ = ventanas::maximizar(app, id, true);
     }
 }
 
@@ -218,9 +235,10 @@ pub fn abrir_procesos_maximizado(app: &AppHandle) {
 pub async fn panel_abrir(app: AppHandle, panel: String) -> R<()> {
     match panel.as_str() {
         "procesos" => {
-            abrir_procesos_maximizado(&app);
+            abrir_maximizado(&app, "procesos");
             Ok(())
         }
+        "cuentas" | "clima" => paneles::abrir_en(&app, paneles::CUSTOMIZE, Some(panel.as_str())),
         p => paneles::abrir(&app, p),
     }
 }
@@ -274,6 +292,108 @@ pub fn estado_entorno(app: AppHandle) -> serde_json::Value {
         "pausado": e.pausado.load(Ordering::Relaxed),
         "version": env!("CARGO_PKG_VERSION"),
     })
+}
+
+#[derive(Serialize)]
+pub struct EstadoCredencial {
+    pub clave: Clave,
+    pub presente: bool,
+}
+
+/// GD-NFR-SEC-01: a la interfaz solo llega si la credencial existe, nunca su valor.
+#[tauri::command]
+pub async fn boveda_estado() -> Vec<EstadoCredencial> {
+    tauri::async_runtime::spawn_blocking(|| {
+        Clave::TODAS.iter().map(|c| EstadoCredencial { clave: *c, presente: boveda::existe(c.nombre()) }).collect()
+    })
+    .await
+    .unwrap_or_default()
+}
+
+#[tauri::command]
+pub fn boveda_guardar(clave: Clave, valor: String) -> R<()> {
+    if !clave.se_captura_a_mano() {
+        return Err("Esta credencial se obtiene con su propio inicio de sesión".into());
+    }
+    boveda::guardar(clave.nombre(), valor.trim())
+}
+
+#[tauri::command]
+pub fn boveda_borrar(clave: Clave) -> R<()> {
+    boveda::borrar(clave.nombre())
+}
+
+/// GD-MAIL-07: el núcleo abre el diálogo, lee y valida el archivo; a la interfaz no llegan ni la ruta ni el contenido.
+/// `false` si se cancela el diálogo.
+#[tauri::command]
+pub async fn google_cliente_importar(ventana: WebviewWindow) -> R<bool> {
+    #[cfg(windows)]
+    {
+        let dueno = ventanas::win32::hwnd_de(&ventana).map(|h| h.0 as isize).unwrap_or(0);
+        tauri::async_runtime::spawn_blocking(move || {
+            let Some(ruta) = ventanas::win32::elegir_json(dueno, "Importar cliente de Google")? else {
+                return Ok(false);
+            };
+            google_cliente::importar_archivo(&ruta)?;
+            Ok(true)
+        })
+        .await
+        .map_err(|e| e.to_string())?
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = ventana;
+        Err("Solo disponible en Windows".into())
+    }
+}
+
+#[tauri::command]
+pub fn catalogo_widgets() -> &'static [catalogo::DefWidget] {
+    catalogo::WIDGETS
+}
+
+#[tauri::command]
+pub fn servicio_ultimo(app: AppHandle, fuente: String) -> Option<EstadoFuente> {
+    app.state::<EstadoServicios>().ultimo(&fuente)
+}
+
+#[tauri::command]
+pub async fn clima_buscar_ciudad(texto: String) -> R<Vec<Ubicacion>> {
+    if !clima::LARGO_BUSQUEDA.contains(&texto.trim().chars().count()) {
+        return Err("Escribe entre 2 y 80 caracteres".into());
+    }
+    tauri::async_runtime::spawn_blocking(move || clima::buscar_ciudad(&Internet, &texto))
+        .await
+        .map_err(|e| e.to_string())?
+        .map_err(|m| m.texto().to_string())
+}
+
+/// `None` vuelve a la ubicación automática por IP.
+#[tauri::command]
+pub fn clima_fijar_ubicacion(app: AppHandle, ubicacion: Option<Ubicacion>) -> R<Config> {
+    if let Some(u) = &ubicacion {
+        u.validar()?;
+    }
+    let guardada = app.state::<AlmacenConfig>().modificar(|c| {
+        c.clima.modo = if ubicacion.is_some() { ModoUbicacion::Manual } else { ModoUbicacion::Automatica };
+        if ubicacion.is_some() {
+            c.clima.ubicacion = ubicacion;
+        }
+    })?;
+    app.state::<EstadoServicios>().forzar("clima");
+    let _ = app.emit("gd://config", ());
+    Ok(guardada)
+}
+
+/// Aviso de muestra para comprobar que Windows lo muestra y que el clic abre Spending; no entra al historial.
+#[tauri::command]
+pub fn avisos_probar(app: AppHandle) {
+    avisos::notificar(&app, "Glassdeck: aviso de prueba", "Así se verán los avisos de gasto. Haz clic para abrir Spending.");
+}
+
+#[tauri::command]
+pub fn avisos_historial(app: AppHandle) -> Vec<avisos::AvisoEnviado> {
+    avisos::historial(&app.state::<AlmacenEstado>())
 }
 
 #[cfg(test)]

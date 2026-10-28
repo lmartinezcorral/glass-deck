@@ -1,8 +1,9 @@
 import { useState, type ReactNode } from 'react';
 import { api, mensajeError } from '../api';
 import { Vidrio } from '../componentes';
-import { useConfig, useEvento } from '../hooks';
+import { useCatalogo, useConfig, useEvento } from '../hooks';
 import {
+  IconoCartera,
   IconoCpu,
   IconoDisco,
   IconoEngrane,
@@ -13,19 +14,25 @@ import {
   IconoProcesos,
   IconoRam,
   IconoRed,
+  IconoSolNube,
   IconoZonas,
 } from '../iconos';
+import { PuntoCuenta, resumenCuentas, textoEstadoCuenta, useCredenciales } from './Cuentas';
 
-const WIDGETS: ReadonlyArray<{ id: string; nombre: string; icono: ReactNode }> = [
-  { id: 'cpu', nombre: 'CPU', icono: <IconoCpu /> },
-  { id: 'ram', nombre: 'Memoria', icono: <IconoRam /> },
-  { id: 'disco', nombre: 'Disco', icono: <IconoDisco /> },
-  { id: 'red', nombre: 'Red', icono: <IconoRed /> },
-  { id: 'procesos', nombre: 'Procesos', icono: <IconoProcesos /> },
-];
+const ICONOS_WIDGET: Record<string, ReactNode> = {
+  cpu: <IconoCpu />,
+  ram: <IconoRam />,
+  disco: <IconoDisco />,
+  red: <IconoRed />,
+  procesos: <IconoProcesos />,
+  spending: <IconoCartera />,
+  clima: <IconoSolNube />,
+};
 
 export function VistaDock() {
   const [config, setConfig] = useConfig();
+  const catalogo = useCatalogo();
+  const [credenciales] = useCredenciales();
   const privacidadEvento = useEvento<boolean | null>('gd://privacidad', null);
   const privacidad = privacidadEvento ?? config?.privacidad ?? false;
   const [error, setError] = useState<string | null>(null);
@@ -57,17 +64,22 @@ export function VistaDock() {
     </button>
   );
 
+  const cuentas = resumenCuentas(credenciales);
+  const conectadas = cuentas.filter((c) => c.estado === 'conectada').length;
+  const descripcionCuentas = cuentas.map((c) => `${c.nombre}: ${textoEstadoCuenta(c.estado).toLowerCase()}`).join(', ');
+
   return (
     <Vidrio elemento="main" lleno className="gd-dock" aria-label="Dock de Glassdeck">
       <span className="gd-dock__asa" data-tauri-drag-region="" aria-hidden="true" />
       <div className="gd-dock__grupo" role="group" aria-label="Widgets">
-        {WIDGETS.map((w) =>
-          boton(`${w.nombre}: ${config?.widgets[w.id]?.activo ? 'activo' : 'inactivo'}`, w.icono, () => alternarWidget(w.id), {
-            activo: config?.widgets[w.id]?.activo ?? false,
-            titulo: w.nombre,
+        {catalogo.map((w) => {
+          const activo = config?.widgets[w.id]?.activo ?? false;
+          return boton(`${w.titulo}: ${activo ? 'activo' : 'inactivo'}`, ICONOS_WIDGET[w.id] ?? <IconoZonas />, () => alternarWidget(w.id), {
+            activo,
+            titulo: w.titulo,
             clave: w.id,
-          }),
-        )}
+          });
+        })}
       </div>
       <span className="gd-dock__separador" aria-hidden="true" />
       <div className="gd-dock__grupo" role="group" aria-label="Acciones">
@@ -81,6 +93,29 @@ export function VistaDock() {
         {boton('Customize', <IconoEngrane />, () => ejecutar(api.panelAbrir('customize')))}
         {boton('Ocultar dock (vuelve desde la bandeja)', <IconoOcultar />, () => ejecutar(api.panelCerrar()))}
       </div>
+      <span className="gd-dock__separador" aria-hidden="true" />
+      <button
+        type="button"
+        className="gd-dock__cuentas"
+        aria-label={`Cuentas, ${conectadas} de ${cuentas.length} conectadas. ${descripcionCuentas}. Abrir Customize, Cuentas`}
+        title={descripcionCuentas}
+        onClick={() => ejecutar(api.panelAbrir('cuentas'))}
+      >
+        <span className="gd-dock__avatares" aria-hidden="true">
+          {cuentas.map((c) => (
+            <span key={c.id} className="gd-dock__avatar" data-cuenta={c.id}>
+              {c.icono}
+              <PuntoCuenta estado={c.estado} />
+            </span>
+          ))}
+        </span>
+        <span className="gd-dock__cuentas-texto" aria-hidden="true">
+          <b className="num">
+            {conectadas} de {cuentas.length}
+          </b>
+          <small>{conectadas === cuentas.length ? 'Conectadas' : 'Conectar'}</small>
+        </span>
+      </button>
       {error && (
         <span className="gd-dock__error" role="alert" title={error}>
           !

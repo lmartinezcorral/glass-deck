@@ -16,6 +16,8 @@
     "allow-proceso-es-fijo",
     "allow-panel-abrir",
     "allow-reiniciar-explorer",
-    "allow-estado-entorno"
+    "allow-estado-entorno",
+    "allow-servicio-ultimo",
+    "allow-catalogo-widgets"
   ]
 }

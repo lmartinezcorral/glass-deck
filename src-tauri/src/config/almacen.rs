@@ -1,5 +1,7 @@
 use super::Config;
 use parking_lot::Mutex;
+use serde::de::DeserializeOwned;
+use serde::Serialize;
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -24,12 +26,15 @@ impl AlmacenConfig {
         let mut c = self.actual.lock();
         f(&mut c);
         c.normalizar();
-        guardar(&self.ruta, &c).map_err(|e| format!("No se pudo guardar la configuración: {e}"))?;
+        guardar(&self.ruta, &*c).map_err(|e| format!("No se pudo guardar la configuración: {e}"))?;
         Ok(c.clone())
     }
 
     pub fn reemplazar(&self, nueva: Config) -> Result<Config, String> {
         nueva.intervalos.validar()?;
+        if let Some(u) = &nueva.clima.ubicacion {
+            u.validar()?;
+        }
         self.modificar(|c| *c = nueva)
     }
 }
@@ -38,30 +43,31 @@ fn ruta_respaldo(ruta: &Path) -> PathBuf {
     ruta.with_extension("json.bak")
 }
 
-fn leer_json(ruta: &Path) -> Option<Config> {
+fn leer_json<T: DeserializeOwned>(ruta: &Path) -> Option<T> {
     let texto = fs::read_to_string(ruta).ok()?;
-    serde_json::from_str::<Config>(texto.trim_start_matches('\u{feff}')).ok()
+    serde_json::from_str::<T>(texto.trim_start_matches('\u{feff}')).ok()
+}
+
+/// Si el archivo principal está dañado se guarda una copia `.corrupto` y se intenta el respaldo.
+pub fn cargar_json<T: DeserializeOwned>(ruta: &Path) -> Option<T> {
+    if let Some(v) = leer_json(ruta) {
+        return Some(v);
+    }
+    if ruta.exists() {
+        let nombre = ruta.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+        log::warn!("{nombre} inválido; se guarda copia y se intenta el respaldo");
+        let _ = fs::copy(ruta, ruta.with_extension("json.corrupto"));
+    }
+    leer_json(&ruta_respaldo(ruta))
 }
 
 pub fn cargar(ruta: &Path) -> Config {
-    let mut c = match leer_json(ruta) {
-        Some(c) => c,
-        None => {
-            if ruta.exists() {
-                log::warn!("settings.json inválido; se guarda copia y se intenta el respaldo");
-                let _ = fs::copy(ruta, ruta.with_extension("json.corrupto"));
-            }
-            match leer_json(&ruta_respaldo(ruta)) {
-                Some(c) => c,
-                None => Config::default(),
-            }
-        }
-    };
+    let mut c: Config = cargar_json(ruta).unwrap_or_default();
     c.normalizar();
     c
 }
 
-pub fn guardar(ruta: &Path, c: &Config) -> std::io::Result<()> {
+pub fn guardar<T: Serialize>(ruta: &Path, c: &T) -> std::io::Result<()> {
     if let Some(dir) = ruta.parent() {
         fs::create_dir_all(dir)?;
     }
@@ -79,15 +85,16 @@ pub fn guardar(ruta: &Path, c: &Config) -> std::io::Result<()> {
 }
 
 #[cfg(test)]
+pub(crate) fn dir_temporal(nombre: &str) -> PathBuf {
+    let d = std::env::temp_dir().join(format!("glassdeck-prueba-{nombre}-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&d);
+    fs::create_dir_all(&d).unwrap();
+    d
+}
+
+#[cfg(test)]
 mod pruebas {
     use super::*;
-
-    fn dir_temporal(nombre: &str) -> PathBuf {
-        let d = std::env::temp_dir().join(format!("glassdeck-prueba-{nombre}-{}", std::process::id()));
-        let _ = fs::remove_dir_all(&d);
-        fs::create_dir_all(&d).unwrap();
-        d
-    }
 
     #[test]
     fn guardar_y_cargar_conserva_los_datos() {
@@ -164,7 +171,7 @@ mod pruebas {
         guardar(&ruta, &c).unwrap();
         fs::write(ruta.with_extension("json.tmp"), b"{ escritura a me").unwrap();
         assert!(cargar(&ruta).iman);
-        assert!(leer_json(&ruta_respaldo(&ruta)).is_some());
+        assert!(leer_json::<Config>(&ruta_respaldo(&ruta)).is_some());
         let _ = fs::remove_dir_all(&d);
     }
 

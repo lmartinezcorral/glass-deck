@@ -46,7 +46,7 @@ const CONFIG: Config = {
   widgets: Object.fromEntries(['cpu', 'ram', 'disco', 'red', 'procesos'].map((id) => [id, { ...widget }])),
   dock: { visible: true, x: null, y: null, monitor: null },
   apariencia: { tema: 'oscuro', acento: '#22d3ee', opacidad: 0.44, desenfoque: 24 },
-  intervalos: { cpu_ram_red_ms: 2000, procesos_ms: 3000, disco_ms: 5000 },
+  intervalos: { cpu_ram_red_ms: 2000, procesos_ms: 3000, disco_ms: 5000, spending_ms: 900000, clima_ms: 1800000 },
   lista_negra_usuario: ['programa-qa.exe'],
   atajos: { mostrar_ocultar: 'Ctrl+Alt+M', privacidad: 'Super+Alt+P' },
   arranque_windows: false,
@@ -54,6 +54,9 @@ const CONFIG: Config = {
   pausar_con_bateria: true,
   iman: false,
   privacidad: false,
+  precios_modelos: [{ patron: 'sonnet', entrada: 3, salida: 15, cache_escritura: 3.75, cache_lectura: 0.3 }],
+  clima: { modo: 'automatica', ubicacion: null },
+  umbrales: { notificaciones: true, cursor: [50, 80, 100], claude_5h: [80], claude_semanal: [80], presupuesto_cursor_usd: null },
 };
 
 const LECTURAS: Lectura[] = [
@@ -74,6 +77,9 @@ const LECTURAS: Lectura[] = [
 
 Object.assign(tauri.respuestas, {
   config_leer: CONFIG,
+  avisos_historial: [],
+  boveda_estado: [],
+  catalogo_widgets: ['cpu', 'ram', 'disco', 'red', 'procesos'].map((id) => ({ id, titulo: id.toUpperCase(), subtitulo: '', activo_defecto: true })),
   historial: [],
   procesos_fijos: ['lsass.exe', 'csrss.exe'],
   atajos_estado: [
@@ -239,7 +245,7 @@ describe('teclado y foco visible (GD-NFR-UX-02)', () => {
   it('Customize: cada pestaña se alcanza y opera con teclado, con anillo de foco', async () => {
     await montar(<VistaCustomize />);
     const pestanas = [...contenedor.querySelectorAll<HTMLButtonElement>('[role="tab"]')];
-    expect(pestanas).toHaveLength(6);
+    expect(pestanas).toHaveLength(9);
     for (const p of pestanas) {
       act(() => p.focus());
       expect(document.activeElement).toBe(p);

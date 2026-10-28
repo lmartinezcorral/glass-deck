@@ -22,6 +22,16 @@ const COMANDOS: &[&str] = &[
     "reiniciar_explorer",
     "abrir_administrador_tareas",
     "estado_entorno",
+    "boveda_estado",
+    "boveda_guardar",
+    "boveda_borrar",
+    "servicio_ultimo",
+    "catalogo_widgets",
+    "clima_buscar_ciudad",
+    "clima_fijar_ubicacion",
+    "avisos_probar",
+    "avisos_historial",
+    "google_cliente_importar",
 ];
 
 fn main() {

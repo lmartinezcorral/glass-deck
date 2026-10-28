@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-clima-fijar-ubicacion"
+description = "Enables the clima_fijar_ubicacion command without any pre-configured scope."
+commands.allow = ["clima_fijar_ubicacion"]
+
+[[permission]]
+identifier = "deny-clima-fijar-ubicacion"
+description = "Denies the clima_fijar_ubicacion command without any pre-configured scope."
+commands.deny = ["clima_fijar_ubicacion"]

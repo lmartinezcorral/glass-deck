@@ -180,7 +180,7 @@ pub fn aplicar_capa(app: &AppHandle, id: &str) {
 
 pub fn al_cambiar_primer_plano(app: &AppHandle, es_escritorio: bool) {
     gestor(app).escritorio_visible.store(es_escritorio, Ordering::Relaxed);
-    for w in catalogo::WIDGETS_FASE_1 {
+    for w in catalogo::WIDGETS {
         aplicar_capa(app, w.id);
     }
     paneles::aplicar_capa_dock(app);
@@ -247,7 +247,7 @@ pub fn abrir_widget(app: &AppHandle, id: &str) -> tauri::Result<()> {
     }
     let cfg = almacen(app).leer();
     let wcfg = cfg.widget(id);
-    let indice = catalogo::WIDGETS_FASE_1.iter().position(|w| w.id == id).unwrap_or(0);
+    let indice = catalogo::WIDGETS.iter().position(|w| w.id == id).unwrap_or(0);
     let (pos, desplazado) = match posicion_guardada_valida(app, id) {
         Some(p) => (Some(p), false),
         None => (posicion_por_defecto(app, indice).map(|(p, _)| p), wcfg.x.is_some()),
@@ -399,7 +399,7 @@ fn imantar(app: &AppHandle, id: &str, v: &WebviewWindow, pos: PhysicalPosition<i
     let m = monitor_de_punto(app, pos.x + 20, pos.y + 20)?;
     let sep = (SEPARACION_IMAN as f64 * m.scale_factor()) as i32;
     let dist = (DISTANCIA_IMAN as f64 * m.scale_factor()) as i32;
-    let otros: Vec<Rect> = catalogo::WIDGETS_FASE_1
+    let otros: Vec<Rect> = catalogo::WIDGETS
         .iter()
         .filter(|o| o.id != id)
         .filter_map(|o| ventana_widget(app, o.id))
@@ -482,7 +482,7 @@ pub fn fijar(app: &AppHandle, id: &str, fijado: bool) -> Result<(), String> {
 
 pub fn abrir_activos(app: &AppHandle) {
     let cfg = almacen(app).leer();
-    for w in catalogo::WIDGETS_FASE_1 {
+    for w in catalogo::WIDGETS {
         if cfg.widget(w.id).activo {
             if let Err(e) = abrir_widget(app, w.id) {
                 log::error!("No se pudo abrir el widget {}: {e}", w.id);
@@ -495,7 +495,7 @@ pub fn mostrar_ocultar_todo(app: &AppHandle) {
     let g = gestor(app);
     let visibles = !g.todos_visibles.load(Ordering::Relaxed);
     g.todos_visibles.store(visibles, Ordering::Relaxed);
-    for w in catalogo::WIDGETS_FASE_1 {
+    for w in catalogo::WIDGETS {
         if let Some(v) = ventana_widget(app, w.id) {
             let _ = if visibles { mostrar_ventana(&v) } else { v.hide() };
             if visibles {
@@ -519,7 +519,7 @@ pub fn restablecer_posiciones(app: &AppHandle) -> Result<(), String> {
             }
         }
     })?;
-    for (i, w) in catalogo::WIDGETS_FASE_1.iter().enumerate() {
+    for (i, w) in catalogo::WIDGETS.iter().enumerate() {
         let Some(v) = ventana_widget(app, w.id) else { continue };
         let Some((p, escala)) = posicion_por_defecto(app, i) else { continue };
         gestor(app).marcar_movimiento_propio(w.id);
@@ -557,7 +557,7 @@ pub fn revisar_monitores(app: &AppHandle) {
     log::info!("Cambio de monitores detectado ({} conectados)", ms.len());
     let cfg = almacen(app).leer();
     let mut desplazados = 0usize;
-    for (i, w) in catalogo::WIDGETS_FASE_1.iter().enumerate() {
+    for (i, w) in catalogo::WIDGETS.iter().enumerate() {
         let Some(v) = ventana_widget(app, w.id) else { continue };
         let wcfg = cfg.widget(w.id);
         match posicion_guardada_valida(app, w.id) {
@@ -588,7 +588,7 @@ pub fn revisar_monitores(app: &AppHandle) {
 }
 
 pub fn aplicar_tema_a_todos(app: &AppHandle) {
-    for w in catalogo::WIDGETS_FASE_1 {
+    for w in catalogo::WIDGETS {
         if let Some(v) = ventana_widget(app, w.id) {
             aplicar_efecto(app, &v, false);
         }

@@ -21,6 +21,16 @@
     "allow-mostrar-ocultar-todo",
     "allow-restablecer-posiciones",
     "allow-abrir-administrador-tareas",
-    "allow-estado-entorno"
+    "allow-estado-entorno",
+    "allow-boveda-estado",
+    "allow-boveda-guardar",
+    "allow-boveda-borrar",
+    "allow-servicio-ultimo",
+    "allow-catalogo-widgets",
+    "allow-clima-buscar-ciudad",
+    "allow-clima-fijar-ubicacion",
+    "allow-avisos-probar",
+    "allow-avisos-historial",
+    "allow-google-cliente-importar"
   ]
 }

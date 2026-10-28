@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, type ReactNode } from 'react';
 import { api, enTauri, EVENTOS } from './api';
-import { useConfig, useEvento } from './hooks';
+import { useConfig, useEvento, usePrivacidad } from './hooks';
 import { aplicarTema, OPCIONES_TEMA_PREDETERMINADAS, seguirTemaSistema } from './tema/tema';
 import { VistaCpu } from './vistas/Cpu';
 import { VistaDisco } from './vistas/Disco';
@@ -8,6 +8,8 @@ import { VistaProcesos } from './vistas/Procesos';
 import { VistaRam } from './vistas/Ram';
 import { VistaRed } from './vistas/Red';
 import { VistaDock } from './vistas/Dock';
+import { VistaSpending } from './vistas/Spending';
+import { VistaClima } from './vistas/Clima';
 import { VistaPoc } from './vistas/Poc';
 
 const VistaCustomize = lazy(() => import('./vistas/Customize').then((m) => ({ default: m.VistaCustomize })));
@@ -26,6 +28,10 @@ function vistaPara(nombre: string, parametros: URLSearchParams): ReactNode {
       return <VistaRed />;
     case 'procesos':
       return <VistaProcesos />;
+    case 'spending':
+      return <VistaSpending />;
+    case 'clima':
+      return <VistaClima />;
     case 'dock':
       return <VistaDock />;
     case 'customize':
@@ -44,7 +50,7 @@ export function App() {
   const vista = parametros.get('vista') ?? 'galeria';
   const [config] = useConfig();
   const bateria = useEvento<boolean | null>(EVENTOS.bateria, null);
-  const privacidad = useEvento<boolean | null>(EVENTOS.privacidad, null);
+  const modoPrivado = usePrivacidad(config);
   const enBateria = bateria ?? false;
 
   useEffect(() => {
@@ -72,7 +78,6 @@ export function App() {
 
   useEffect(() => seguirTemaSistema(), []);
 
-  const modoPrivado = privacidad ?? config?.privacidad ?? false;
   useEffect(() => {
     document.documentElement.toggleAttribute('data-privacidad', modoPrivado);
   }, [modoPrivado]);

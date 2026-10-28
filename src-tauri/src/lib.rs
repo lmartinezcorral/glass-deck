@@ -1,14 +1,17 @@
 mod acciones;
 mod atajos;
+mod avisos;
 mod bandeja;
 mod comandos;
+mod conexion;
 mod config;
 mod poc;
 mod recolectores;
 mod seguridad;
 mod ventanas;
 
-use config::AlmacenConfig;
+use config::{AlmacenConfig, AlmacenEstado};
+use recolectores::servicios::{self, EstadoServicios};
 use std::path::PathBuf;
 use tauri::{Manager, RunEvent};
 use ventanas::paneles::{self, EstadoDock};
@@ -22,6 +25,11 @@ fn carpeta_logs(app: &tauri::App) -> PathBuf {
         .local_data_dir()
         .map(|d| d.join("Glassdeck").join("logs"))
         .unwrap_or_else(|_| PathBuf::from("logs"))
+}
+
+pub fn borrar_credenciales() {
+    #[cfg(windows)]
+    seguridad::boveda::borrar_todas();
 }
 
 pub fn run() {
@@ -40,10 +48,13 @@ pub fn run() {
                 .with_handler(|app, atajo, evento| atajos::al_pulsar(app, atajo, evento))
                 .build(),
         )
+        .plugin(tauri_plugin_notification::init())
         .setup(|app| {
             seguridad::registro::iniciar(&carpeta_logs(app));
             log::info!("Glassdeck {} iniciando", env!("CARGO_PKG_VERSION"));
             app.manage(AlmacenConfig::nuevo(&carpeta_config(app)));
+            app.manage(AlmacenEstado::nuevo(&carpeta_config(app)));
+            app.manage(EstadoServicios::default());
             app.manage(ventanas::Gestor::nuevo());
             app.manage(recolectores::EstadoRecoleccion::default());
             app.manage(atajos::Atajos::default());
@@ -59,6 +70,7 @@ pub fn run() {
                 log::error!("No se pudo crear el icono de la bandeja: {e}");
             }
             atajos::registrar_todos(h);
+            avisos::instalar(h);
             let cfg = app.state::<AlmacenConfig>().leer();
             comandos::aplicar_arranque(h, cfg.arranque_windows);
             ventanas::abrir_activos(h);
@@ -67,6 +79,14 @@ pub fn run() {
             }
             ventanas::iniciar_vigilancia(h);
             recolectores::iniciar(h);
+            let inicio = app.path().home_dir().unwrap_or_else(|_| PathBuf::from("."));
+            servicios::iniciar(
+                h,
+                vec![
+                    Box::new(recolectores::claude_code::ClaudeCode::nuevo(&inicio)),
+                    Box::new(recolectores::clima::FuenteClima::nueva(std::sync::Arc::new(conexion::Internet))),
+                ],
+            );
             ventanas::marcar_arranque_listo();
             Ok(())
         })
@@ -94,6 +114,16 @@ pub fn run() {
             comandos::reiniciar_explorer,
             comandos::abrir_administrador_tareas,
             comandos::estado_entorno,
+            comandos::boveda_estado,
+            comandos::boveda_guardar,
+            comandos::boveda_borrar,
+            comandos::servicio_ultimo,
+            comandos::catalogo_widgets,
+            comandos::clima_buscar_ciudad,
+            comandos::clima_fijar_ubicacion,
+            comandos::avisos_probar,
+            comandos::avisos_historial,
+            comandos::google_cliente_importar,
         ])
         .build(tauri::generate_context!())
         .expect("no se pudo iniciar Glassdeck");

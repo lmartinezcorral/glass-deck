@@ -522,6 +522,594 @@
   color: var(--gd-texto-acento);
 }
 
+/* Comunes de fase 2 */
+.gd-lectura {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--gd-esp-3);
+  margin-top: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+.gd-punto {
+  display: inline-block;
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--gd-texto-3);
+}
+
+.gd-punto--conectada {
+  background: var(--gd-ok);
+  box-shadow: 0 0 6px rgba(var(--gd-ok-rgb), var(--gd-brillo-trazo));
+}
+
+.gd-punto--reconectar {
+  background: var(--gd-aviso);
+  box-shadow: 0 0 6px rgba(var(--gd-aviso-rgb), var(--gd-brillo-trazo));
+}
+
+.gd-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--gd-esp-5);
+}
+
+.gd-kpis--2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.gd-kpi {
+  display: grid;
+  align-content: start;
+  gap: var(--gd-esp-2);
+  min-width: 0;
+  padding: var(--gd-esp-6) var(--gd-esp-7);
+  border: 1px solid var(--gd-borde-suave);
+  border-radius: var(--gd-radio-xl);
+  background: var(--gd-superficie-1);
+}
+
+.gd-kpi small {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--gd-esp-3);
+  font-size: var(--gd-txt-xs);
+  color: var(--gd-texto-3);
+}
+
+.gd-kpi b {
+  overflow: hidden;
+  font-size: var(--gd-txt-3xl);
+  font-weight: var(--gd-peso-medio);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.gd-rejilla-2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--gd-esp-8);
+}
+
+.gd-lista-pares > div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--gd-esp-6);
+}
+
+.gd-tabla--compacta td,
+.gd-tabla--compacta th {
+  padding: var(--gd-esp-2) var(--gd-esp-4);
+}
+
+.gd-tabla .gd-tabla__num {
+  text-align: right;
+}
+
+.gd-tabla__nombre {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gd-barras {
+  position: relative;
+  min-width: 0;
+}
+
+.gd-barras__lienzo {
+  display: block;
+  width: 100%;
+  border-radius: var(--gd-radio-lg);
+  background: repeating-linear-gradient(0deg, var(--gd-guia) 0 1px, transparent 1px 25%), var(--gd-superficie-0);
+}
+
+.gd-barras__barra {
+  fill: rgba(var(--gd-acento-rgb), 0.45);
+}
+
+.gd-barras__barra--hoy {
+  fill: var(--gd-acento-trazo);
+}
+
+.gd-grafica__eje.gd-barras__eje {
+  position: static;
+  padding: var(--gd-esp-2) 0 0;
+}
+
+/* Spending */
+.gd-vista.gd-spending {
+  gap: var(--gd-esp-5);
+  height: 100%;
+}
+
+.gd-vista--detalle.gd-spending {
+  gap: var(--gd-esp-8);
+  height: auto;
+}
+
+.gd-spending__cabecera {
+  display: flex;
+  align-items: center;
+  gap: var(--gd-esp-4);
+  margin-bottom: var(--gd-esp-3);
+}
+
+.gd-spending__cabecera h3 {
+  font-size: var(--gd-txt-md);
+  font-weight: var(--gd-peso-medio);
+  color: var(--gd-texto-2);
+}
+
+.gd-spending__cifras {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--gd-esp-6);
+}
+
+.gd-spending__cifras dt {
+  font-size: var(--gd-txt-xs);
+  color: var(--gd-texto-3);
+}
+
+.gd-spending__monto {
+  font-size: var(--gd-txt-4xl);
+  font-weight: var(--gd-peso-medio);
+  letter-spacing: -0.3px;
+}
+
+.gd-spending__remotas {
+  display: grid;
+  gap: var(--gd-esp-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.gd-spending__remota {
+  display: flex;
+  align-items: center;
+  gap: var(--gd-esp-4);
+  min-width: 0;
+  font-size: var(--gd-txt-sm);
+}
+
+.gd-spending__remota-detalle {
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.gd-spending__fuentes .gd-spending__remotas {
+  margin-bottom: var(--gd-esp-4);
+}
+
+/* Clima */
+.gd-vista.gd-clima {
+  gap: var(--gd-esp-5);
+  height: 100%;
+}
+
+.gd-vista--detalle.gd-clima {
+  gap: var(--gd-esp-8);
+  height: auto;
+}
+
+.gd-clima__actual {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gd-esp-6);
+}
+
+.gd-clima__texto {
+  min-width: 0;
+}
+
+.gd-clima__lugar {
+  display: flex;
+  align-items: center;
+  gap: var(--gd-esp-3);
+  min-width: 0;
+  font-size: var(--gd-txt-md);
+  color: var(--gd-texto-2);
+}
+
+.gd-clima__lugar b {
+  overflow: hidden;
+  font-weight: var(--gd-peso-medio);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.gd-clima__temp {
+  font-size: 34px;
+  font-weight: var(--gd-peso-medio);
+  line-height: 1.1;
+  letter-spacing: -1px;
+}
+
+.gd-clima__temp--grande {
+  font-size: var(--gd-txt-display);
+}
+
+.gd-clima__extremos {
+  display: flex;
+  gap: var(--gd-esp-8);
+  font-size: var(--gd-txt-sm);
+}
+
+.gd-clima__extremos div {
+  display: flex;
+  gap: var(--gd-esp-3);
+}
+
+.gd-clima__extremos dt {
+  color: var(--gd-texto-3);
+}
+
+.gd-clima__extremos dd {
+  font-weight: var(--gd-peso-medio);
+}
+
+.gd-clima__horas {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: var(--gd-esp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.gd-clima__horas li {
+  display: grid;
+  justify-items: center;
+  gap: var(--gd-esp-1);
+  font-size: var(--gd-txt-sm);
+}
+
+.gd-clima__horas--todas {
+  grid-auto-columns: 52px;
+  padding-bottom: var(--gd-esp-4);
+  overflow-x: auto;
+  border-radius: var(--gd-radio-md);
+}
+
+.gd-clima__horas--todas li {
+  padding: var(--gd-esp-3) 0;
+  border-radius: var(--gd-radio-md);
+  background: var(--gd-superficie-1);
+}
+
+.gd-clima__dias {
+  display: grid;
+  gap: var(--gd-esp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.gd-clima__dias li {
+  display: grid;
+  grid-template-columns: 52px 24px minmax(0, 1fr) 40px 36px minmax(60px, 140px) 36px;
+  align-items: center;
+  gap: var(--gd-esp-5);
+  padding: var(--gd-esp-2) var(--gd-esp-3);
+  border-radius: var(--gd-radio-md);
+  font-size: var(--gd-txt-sm);
+}
+
+.gd-clima__dias li:nth-child(odd) {
+  background: var(--gd-superficie-1);
+}
+
+.gd-clima__dia {
+  font-weight: var(--gd-peso-medio);
+}
+
+.gd-clima__descripcion {
+  overflow: hidden;
+  color: var(--gd-texto-2);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.gd-clima__lluvia,
+.gd-clima__min {
+  text-align: right;
+}
+
+.gd-clima__min {
+  color: var(--gd-texto-3);
+}
+
+.gd-clima__rango {
+  position: relative;
+  height: 5px;
+  border-radius: var(--gd-radio-total);
+  background: var(--gd-pista);
+}
+
+.gd-clima__rango > i {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--desde);
+  right: calc(100% - var(--hasta));
+  min-width: 4px;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--gd-acento-trazo), var(--gd-coral));
+}
+
+.gd-clima-icono {
+  flex: none;
+}
+
+.gd-clima-icono__sol {
+  color: var(--gd-aviso);
+}
+
+.gd-clima-icono__luna {
+  color: var(--gd-acento-2-trazo);
+}
+
+.gd-clima-icono__nube {
+  color: var(--gd-texto-2);
+}
+
+.gd-clima-icono__agua {
+  color: var(--gd-acento-trazo);
+}
+
+.gd-clima-icono__rayo {
+  color: var(--gd-aviso);
+}
+
+/* Customize: gasto, clima y cuentas */
+.gd-customize__subtitulo {
+  font-size: var(--gd-txt-sm);
+  font-weight: var(--gd-peso-medio);
+  color: var(--gd-texto-2);
+}
+
+.gd-customize__estimacion {
+  padding: var(--gd-esp-4) var(--gd-esp-6);
+  border-radius: var(--gd-radio-md);
+  background: rgba(var(--gd-acento-rgb), 0.08);
+  font-size: var(--gd-txt-sm);
+  color: var(--gd-texto-2);
+}
+
+.gd-precios {
+  flex: none;
+  min-height: 0;
+  max-height: 240px;
+}
+
+.gd-precios td:first-child {
+  font-family: var(--gd-fuente-mono);
+  font-size: var(--gd-txt-xs);
+}
+
+.gd-campo--numero {
+  width: 72px;
+  padding: var(--gd-esp-2) var(--gd-esp-3);
+  text-align: right;
+}
+
+.gd-campo[aria-invalid="true"] {
+  border-color: var(--gd-peligro);
+}
+
+.gd-campo-etiquetado {
+  display: grid;
+  gap: var(--gd-esp-2);
+}
+
+.gd-campo-etiquetado .gd-campo--numero {
+  width: 200px;
+  text-align: left;
+}
+
+.gd-umbrales {
+  display: grid;
+  gap: var(--gd-esp-3);
+}
+
+.gd-umbrales__fila {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--gd-esp-3);
+}
+
+.gd-umbrales__chip {
+  cursor: pointer;
+}
+
+.gd-umbrales__chip:hover {
+  background: rgba(var(--gd-acento-rgb), 0.22);
+}
+
+.gd-umbrales__nuevo {
+  display: flex;
+  gap: var(--gd-esp-3);
+  margin-left: auto;
+}
+
+.gd-umbrales__nuevo .gd-campo--numero {
+  width: 56px;
+}
+
+.gd-buscador {
+  gap: var(--gd-esp-3);
+}
+
+.gd-buscador .gd-lista-editable li {
+  padding: 0;
+}
+
+.gd-buscador__opcion {
+  display: flex;
+  align-items: baseline;
+  gap: var(--gd-esp-4);
+  width: 100%;
+  padding: var(--gd-esp-3) var(--gd-esp-4);
+  color: var(--gd-texto);
+  font: inherit;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-radius: var(--gd-radio-md);
+  cursor: pointer;
+}
+
+.gd-buscador__opcion:hover {
+  background: var(--gd-superficie-hover);
+}
+
+.gd-cuenta > h3 {
+  flex-wrap: wrap;
+}
+
+.gd-cuenta__estado {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--gd-esp-3);
+  margin-left: auto;
+}
+
+.gd-cuenta > .gd-etiqueta {
+  margin: calc(var(--gd-esp-3) * -1) 0 var(--gd-esp-4);
+}
+
+.gd-cuenta__fila {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--gd-esp-3) var(--gd-esp-4);
+  padding: var(--gd-esp-4) 0;
+  border-top: 1px solid var(--gd-borde-suave);
+  font-size: var(--gd-txt-sm);
+}
+
+.gd-cuenta__fila > .gd-etiqueta {
+  flex: 1 1 200px;
+}
+
+.gd-cuenta__fila--consola .gd-vista__herramientas {
+  flex: 1 1 100%;
+}
+
+.gd-cuenta__letra {
+  font-size: 13px;
+  font-weight: var(--gd-peso-fuerte);
+  line-height: 1;
+}
+
+.gd-guia {
+  display: grid;
+  gap: var(--gd-esp-4);
+  margin: 0 0 var(--gd-esp-4);
+  padding-left: var(--gd-esp-10);
+  font-size: var(--gd-txt-md);
+  color: var(--gd-texto-2);
+}
+
+/* Dock: cuentas */
+.gd-dock__cuentas {
+  display: flex;
+  align-items: center;
+  gap: var(--gd-esp-4);
+  height: 38px;
+  padding: 0 var(--gd-esp-5) 0 var(--gd-esp-3);
+  color: var(--gd-texto-2);
+  font: inherit;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--gd-radio-lg);
+  cursor: pointer;
+}
+
+.gd-dock__cuentas:hover {
+  color: var(--gd-texto);
+  background: var(--gd-superficie-hover);
+}
+
+.gd-dock__avatares {
+  display: flex;
+}
+
+.gd-dock__avatar {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  margin-left: -6px;
+  border: 1px solid var(--gd-borde-control);
+  border-radius: 50%;
+  background: rgba(var(--gd-vidrio-rgb), 0.9);
+  color: var(--gd-texto);
+}
+
+.gd-dock__avatar:first-child {
+  margin-left: 0;
+}
+
+.gd-dock__avatar svg {
+  width: 14px;
+  height: 14px;
+}
+
+.gd-dock__avatar .gd-punto {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  box-shadow: 0 0 0 2px rgba(var(--gd-vidrio-rgb), 0.95);
+}
+
+.gd-dock__cuentas-texto {
+  display: grid;
+  line-height: 1.15;
+  text-align: left;
+}
+
+.gd-dock__cuentas-texto b {
+  font-size: var(--gd-txt-sm);
+  font-weight: var(--gd-peso-medio);
+  color: var(--gd-texto);
+}
+
+.gd-dock__cuentas-texto small {
+  font-size: var(--gd-txt-micro);
+  color: var(--gd-texto-3);
+}
+
 /* Prueba de concepto R-01 */
 .gd-poc {
   display: flex;

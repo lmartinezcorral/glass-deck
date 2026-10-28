@@ -37,6 +37,45 @@ export function puntosPorHora(intervaloMs: number): number {
   return Math.min(PUNTOS_HORA_MAX, Math.max(1, Math.round(3_600_000 / ms)));
 }
 
+export function usd(valor: number): string {
+  if (!Number.isFinite(valor)) return '—';
+  const decimales = Math.abs(valor) >= 1000 ? 0 : 2;
+  return `$${valor.toLocaleString('en-US', { minimumFractionDigits: decimales, maximumFractionDigits: decimales })}`;
+}
+
+export function tokens(valor: number): string {
+  if (!Number.isFinite(valor) || valor <= 0) return '0';
+  if (valor >= 1e9) return `${(valor / 1e9).toFixed(2)} B`;
+  if (valor >= 1e6) return `${(valor / 1e6).toFixed(2)} M`;
+  if (valor >= 1e3) return `${(valor / 1e3).toFixed(valor >= 1e5 ? 0 : 1)} k`;
+  return String(Math.round(valor));
+}
+
+export function hace(horaMs: number, ahoraMs: number): string {
+  const min = Math.floor(Math.max(0, ahoraMs - horaMs) / 60_000);
+  if (min < 1) return 'hace un momento';
+  if (min < 60) return `hace ${min} min`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `hace ${h} h`;
+  return `hace ${Math.floor(h / 24)} d`;
+}
+
+export function horaCorta(horaMs: number): string {
+  return new Date(horaMs).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false });
+}
+
+/** Fecha `AAAA-MM-DD` como día local (no UTC), p. ej. «mié 28». */
+export function diaCorto(fecha: string): string {
+  const [a, m, d] = fecha.split('-').map(Number);
+  if (!a || !m || !d) return fecha;
+  const dia = new Date(a, m - 1, d);
+  return `${dia.toLocaleDateString('es-MX', { weekday: 'short' }).replace('.', '')} ${d}`;
+}
+
+export function grados(valor: number | null): string {
+  return valor === null || !Number.isFinite(valor) ? '—' : `${Math.round(valor)}°`;
+}
+
 export function agregarAcotado(lista: readonly number[], valor: number, maximo: number): number[] {
   const siguiente = lista.length >= maximo ? lista.slice(lista.length - maximo + 1) : lista.slice();
   siguiente.push(valor);

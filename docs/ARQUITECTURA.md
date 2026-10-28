@@ -101,6 +101,73 @@ flowchart LR
 - **Estado:** cada widget se suscribe solo a su fuente; el historial de 1 h lo guarda el núcleo en un búfer circular y la interfaz lo pide al maximizar.
 - **Accesibilidad:** `aria-label` en botones de icono, foco visible, `prefers-reduced-motion`.
 
+### 3.1 Contrato de la fase 2
+
+Acuerdo entre el núcleo (bloques 9 a 12) y las vistas de Spending, Clima, Customize y dock. Los tipos de referencia viven en `src/api.ts`; este apartado resume qué existe, quién puede llamarlo y cómo se comporta. La interfaz no hace red: todo llega por comandos o eventos (CSP estricta).
+
+**Fuentes de servicio.** Cada fuente corre en su propio hilo y solo recolecta mientras su widget está activo y la recolección no está en pausa. Encender el widget (o abrir Spending desde un aviso) fuerza una lectura inmediata.
+
+| Fuente | Widget | Intervalo | Se guarda en `state.json` | Datos (`EstadoFuente<T>.datos`) |
+|---|---|---|---|---|
+| `claude_code` | `spending` | `intervalos.spending_ms` (15 min; mínimo 5) | No (los nombres de proyecto podrían ser personales; se recalcula al arrancar) | `ResumenClaudeCode` |
+| `clima` | `clima` | `intervalos.clima_ms` (30 min; mínimo 15) | Sí (sin coordenadas) | `Clima` |
+
+**Comandos nuevos.** Todos devuelven error como texto en español listo para mostrar.
+
+| Comando (`api.*`) | Ventanas | Parámetros | Respuesta | Notas |
+|---|---|---|---|---|
+| `catalogo_widgets` (`catalogoWidgets`) | paneles y widgets | — | `DefWidget[]` | Título, subtítulo y si arranca encendido; sustituye las listas fijas del dock y Customize |
+| `servicio_ultimo` (`servicioUltimo`) | paneles y widgets | `fuente: 'claude_code' \| 'clima'` | `EstadoFuente<T> \| null` | Estado inicial al montar la vista; luego llegan eventos |
+| `boveda_estado` (`bovedaEstado`) | paneles | — | `EstadoCredencial[]` | Solo `presente: boolean`; nunca el valor |
+| `boveda_guardar` (`bovedaGuardar`) | paneles | `clave`, `valor` | `void` | Solo `anthropic_admin`; las demás se obtienen con su inicio de sesión |
+| `boveda_borrar` (`bovedaBorrar`) | paneles | `clave` | `void` | Borrar una que no existe no es error |
+| `clima_buscar_ciudad` (`climaBuscarCiudad`) | paneles | `texto` (2 a 80 caracteres) | `Ubicacion[]` (máximo 8) | Fuera de rango: error «Escribe entre 2 y 80 caracteres»; sin red: «Sin conexión» |
+| `clima_fijar_ubicacion` (`climaFijarUbicacion`) | paneles | `ubicacion: Ubicacion \| null` | `Config` | `null` vuelve a la ubicación automática por IP; fuerza una lectura del clima y emite `gd://config` |
+| `avisos_probar` (`avisosProbar`) | paneles | — | `void` | Notificación de muestra; su clic abre Spending maximizado; no entra al historial |
+| `avisos_historial` (`avisosHistorial`) | paneles | — | `AvisoEnviado[]` | Del más reciente al más viejo; `clave` = `medidor:ciclo:umbral` |
+
+«Paneles» son el dock, Customize y Limpieza (`capabilities/paneles.json`); «widgets» son las ventanas `w-*` (`capabilities/widgets.json`).
+
+**Configuración v3.** `config_guardar` sigue siendo la vía para estos campos (Customize). Cambiar `precios_modelos` recalcula Claude Code y cambiar `clima` refresca el clima de inmediato; los umbrales se aplican en la siguiente evaluación.
+
+```ts
+intervalos: { …; spending_ms: number; clima_ms: number };  // opciones: 5/15/30/60 min y 15/30/60 min
+precios_modelos: PrecioModelo[];   // USD por millón de tokens; patron en minúsculas
+clima: { modo: 'automatica' | 'manual'; ubicacion: Ubicacion | null };
+umbrales: {
+  notificaciones: boolean;
+  cursor: number[];          // [50, 80, 100]
+  claude_5h: number[];       // [80]
+  claude_semanal: number[];  // [80]
+  presupuesto_cursor_usd: number | null;  // si existe, el % de Cursor se mide contra él
+};
+```
+
+**Eventos.**
+
+| Evento | Destino | Carga | Cuándo |
+|---|---|---|---|
+| `gd://datos` | Solo la ventana del widget de la fuente (`w-spending`, `w-clima`) | `LecturaServicio` = `{ fuente, datos: EstadoFuente<T> }` | Tras cada lectura, buena o fallida |
+| `gd://aviso` | Todas las ventanas | `Aviso` | Al mandar una notificación de umbral |
+| `gd://config` | Todas las ventanas | `null` | Igual que en la fase 1; también tras `clima_fijar_ubicacion` |
+
+```ts
+interface EstadoFuente<T> {
+  datos: T | null;                 // último dato válido; se conserva aunque la última lectura falle
+  hora_ms: number | null;          // hora de ese dato (epoch ms); mostrar «hace X min»
+  error: Motivo | null;            // motivo de la última lectura fallida, o null
+  texto_error: string | null;      // «Sin conexión», «Formato cambió», «Sesión expirada», «Servicio no disponible»,
+                                   // «Dominio no permitido», «Sin ubicación», «Error interno»
+  proximo_intento_ms: number | null;  // reintento programado (1, 2, 5 y 15 min, sin pasar del intervalo)
+}
+```
+
+- **`ResumenClaudeCode`:** `hoy` (AAAA-MM-DD local), `total_hoy` y `total_mes` (`{ tokens, costo_usd }`), `dias` (siempre 30, del más viejo a hoy, para la gráfica), `filas` (día × modelo × proyecto de esos 30 días) y `sin_precio` (modelos sin precio en la tabla; Customize debería invitar a agregarlo).
+- **`Clima`:** `lugar` (nombre, región, país, `automatica`), `actual` (temperatura, sensación, humedad, viento en km/h, `icono`, `descripcion`, `es_dia`, `maxima` y `minima` del día), `horas` (24 desde la hora en curso) y `dias` (7). `icono` es una clave fija: `despejado`, `parcial`, `nublado`, `niebla`, `llovizna`, `lluvia`, `chubascos`, `nieve`, `tormenta` o `desconocido`; con `es_dia: false` la vista elige la variante nocturna.
+- **`Aviso`:** `medidor` (`cursor`, `claude_5h`, `claude_semanal`), `ciclo`, `umbral`, `porcentaje`, `titulo` y `cuerpo` ya redactados.
+
+**Avisos (GD-ALERT-*).** Un aviso por umbral, ciclo y medidor; si una lectura cruza varios umbrales se avisa solo el más alto. El historial se escribe en `state.json` antes de notificar, así un reinicio no repite avisos. Las fuentes de gasto del bloque 13 solo implementan `Fuente::usos()`; el planificador evalúa cada lectura buena. En Windows el clic en la notificación abre Spending maximizado únicamente mientras el aviso está en pantalla; desde el Centro de actividades no se reporta (limitación de `tauri-plugin-notification`).
+
 ## 4. Seguridad
 
 ```mermaid
