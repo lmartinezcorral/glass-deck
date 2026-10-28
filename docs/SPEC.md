@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Versión | 1.5 |
+| Versión | 1.6 |
 | Fecha | 2026-10-28 |
 | Dueño | Luis Ángel Martínez Corral |
 | Estado | **Aprobado por el CEO el 2026-10-27.** Construcción en curso (fases 0 y 1) |
@@ -18,6 +18,7 @@
 | 1.3 | 2026-10-27 | Decisiones de Luis al entregar la fase 1: mostrar u ocultar todo pasa a `Ctrl+Alt+M` por defecto, porque la Xbox Game Bar ocupa `Win+Alt+G` (D-22, GD-HOT-01; las configuraciones con el valor de fábrica anterior se migran solas); la instalación queda en `%LocalAppData%\Glassdeck`, la carpeta por defecto de Tauri (GD-INST-01); la RAM se optimiza para cumplir < 200 MB en la fase 1 |
 | 1.4 | 2026-10-28 | Decisiones de Luis tras la QA automatizada de la fase 1: encender un widget desde el dock puede tardar hasta 3.5 s (se recrea la ventana; no se conserva oculta para no subir la RAM, GD-DOCK-01); el control de intensidad del desenfoque sale de Customize en la fase 1 (GD-CUST-02); disco < 6 s y red < 2.5 s en lugar de bajar los intervalos (GD-SYS-06 y GD-SYS-07); el tema oscuro sube su opacidad mínima para sostener el contraste sobre escritorios claros (GD-NFR-UX-01) |
 | 1.5 | 2026-10-28 | Decisiones de Luis tras los reinicios (20–25 s hasta ver los widgets; el log muestra que Windows lanza Glassdeck 25–27 s después del inicio de sesión): el arranque con Windows pasa a una tarea programada al iniciar sesión, con la clave Run como respaldo (GD-INST-02, el criterio de < 10 s se mantiene). Se agrega OpenAI al widget Spending (GD-OAI: Codex local, límites de ChatGPT por login web y API opcional) y Gemini como deseable (GD-GEM: uso de la API vía Google Cloud con la cuenta de Google ya conectada) |
+| 1.6 | 2026-10-28 | Microsoft Defender detectó Glassdeck como `Behavior:Win32/Execution.A!ml` un segundo después de guardar la sesión de Cursor, lo cerró, lo puso en cuarentena y borró la tarea de arranque (R-10). Decisiones de Luis: exclusión de Defender solo para `glassdeck.exe` mientras tanto y cambio de diseño. Las sesiones de Cursor, claude.ai y ChatGPT se quedan dentro del perfil aislado de WebView2 y las lecturas se hacen ahí; Glassdeck ya no lee ni copia cookies (GD-CUR-01/02, GD-NFR-SEC-01, §5.2). La tarea de arranque se crea con la API del Programador de tareas, sin lanzar `schtasks.exe` (GD-INST-02) |
 
 ## 0. Resumen
 
@@ -161,8 +162,8 @@ Glassdeck es un panel de widgets flotantes de vidrio oscuro para el escritorio d
 
 | ID | Requerimiento | CA | Prio |
 |---|---|---|---|
-| GD-CUR-01 | Login desde el dock en una ventana web de cursor.com; Glassdeck captura la cookie de sesión del dashboard al terminar el login | Tras iniciar sesión, la ventana se cierra sola y el dock marca Cursor en verde | M |
-| GD-CUR-02 | La cookie se guarda en el Administrador de credenciales de Windows, nunca en archivos ni en logs | Buscar el valor de la cookie en `%AppData%\Glassdeck` y en los logs no devuelve resultados | M |
+| GD-CUR-01 | Login desde el dock en una ventana web aislada de cursor.com; Glassdeck sabe que el login terminó porque una lectura autenticada dentro de esa ventana responde bien | Tras iniciar sesión, la ventana se cierra sola y el dock marca Cursor en verde | M |
+| GD-CUR-02 | La sesión se queda en el perfil aislado de WebView2 de Glassdeck (cifrado por WebView2 con DPAPI) y las lecturas se hacen dentro de ese perfil. Glassdeck nunca lee, copia ni guarda el valor de la cookie: ni en el Administrador de credenciales, ni en archivos propios, ni en logs (aplica también a claude.ai y chatgpt.com) | Revisión de código: ninguna llamada a la API de cookies; el Administrador de credenciales no tiene entradas de sesión web | M |
 | GD-CUR-03 | Solo lectura: gasto del ciclo actual, presupuesto o límite, uso incluido en el plan y fecha de corte | No existe en el código ninguna llamada de escritura a cursor.com | M |
 | GD-CUR-04 | Las direcciones exactas del dashboard se identifican en la fase 2 observando el dashboard con sesión iniciada, y se aíslan en un único adaptador | Un cambio en la web de Cursor solo requiere modificar ese adaptador | M |
 | GD-CUR-05 | Etiqueta visible «no oficial» en el widget | La etiqueta es visible en vista normal y maximizada | M |
@@ -299,7 +300,7 @@ Basado en `referencias/MAXTO_ANALISIS.md`. Se aplica a las ventanas de **todas**
 | ID | Requerimiento | CA | Prio |
 |---|---|---|---|
 | GD-INST-01 | Instalador `.exe` (NSIS) por usuario, sin firma digital, sin permisos de administrador | Instala en `%LocalAppData%\Glassdeck` sin UAC | M |
-| GD-INST-02 | Arranque con Windows (GD-CUST-07) con una tarea programada «al iniciar sesión» del usuario, sin retraso y con prioridad normal, que no necesita permisos de administrador; si no se puede crear, se usa la clave Run. Desactivar el arranque o desinstalar borra la tarea | Tras iniciar sesión, los widgets aparecen en < 10 s | M |
+| GD-INST-02 | Arranque con Windows (GD-CUST-07) con una tarea programada «al iniciar sesión» del usuario, sin retraso y con prioridad normal, que no necesita permisos de administrador y se crea con la API del Programador de tareas (sin lanzar `schtasks.exe` ni escribir archivos temporales); si no se puede crear, se usa la clave Run. Desactivar el arranque o desinstalar borra la tarea | Tras iniciar sesión, los widgets aparecen en < 10 s | M |
 | GD-INST-03 | Desinstalación limpia, con opción de conservar o borrar la configuración y las credenciales | Al elegir borrar, no quedan entradas de Glassdeck en el Administrador de credenciales | M |
 | GD-INST-04 | Sin actualización automática ni telemetría | Fuera de las fuentes de datos (sección 5.3), Glassdeck no hace conexiones de red | M |
 | GD-INST-05 | Requiere WebView2 (incluido en Windows 10 actualizado); si falta, el instalador lo descarga | Instalación probada en el equipo de Luis | M |
@@ -321,7 +322,7 @@ Basado en `referencias/MAXTO_ANALISIS.md`. Se aplica a las ventanas de **todas**
 
 | ID | Requerimiento | CA |
 |---|---|---|
-| GD-NFR-SEC-01 | Tokens, cookies y claves solo en el Administrador de credenciales de Windows | Revisión de código + búsqueda en disco (GD-CUR-02) |
+| GD-NFR-SEC-01 | Tokens y claves solo en el Administrador de credenciales de Windows; las sesiones web solo dentro del perfil aislado de WebView2, sin extraerse (GD-CUR-02) | Revisión de código + búsqueda en disco |
 | GD-NFR-SEC-02 | Los logs nunca contienen tokens, cookies, asuntos de correo, títulos de eventos ni rutas personales | Revisión de un log de 1 día de uso |
 | GD-NFR-SEC-03 | El frontend no tiene acceso directo a red ni a disco: todo pasa por comandos del backend con permisos de Tauri restringidos (CSP estricta) | Revisión de la configuración de capacidades |
 | GD-NFR-SEC-04 | Las ventanas de login de terceros están aisladas y no pueden invocar comandos de Glassdeck | Revisión de capacidades por ventana |
@@ -366,10 +367,10 @@ Basado en `referencias/MAXTO_ANALISIS.md`. Se aplica a las ventanas de **todas**
 | Servicio | Qué se guarda | Cómo se obtiene |
 |---|---|---|
 | Google (por cuenta) | Token de actualización OAuth | OAuth de escritorio con PKCE |
-| Cursor | Cookie de sesión del dashboard | Ventana de login a cursor.com |
-| Claude.ai | Cookie de sesión | Ventana de login a claude.ai |
+| Cursor | Nada en la bóveda: la sesión vive en el perfil aislado de WebView2 (`%LocalAppData%\Glassdeck\perfiles\cursor`) | Ventana de login a cursor.com |
+| Claude.ai | Igual que Cursor (`perfiles\claude_ai`) | Ventana de login a claude.ai |
 | Consola de Anthropic (opcional) | Clave de administrador | Captura manual en Customize |
-| ChatGPT | Cookie de sesión | Ventana de login a chatgpt.com |
+| ChatGPT | Igual que Cursor (`perfiles\chatgpt`); el token de acceso se pide y se usa dentro de la página, nunca sale de ella | Ventana de login a chatgpt.com |
 | API de OpenAI (opcional) | Clave de administrador | Captura manual en Customize |
 | Gemini (opcional) | Ninguna adicional: usa el token de la cuenta de Google con el permiso de Cloud Monitoring | Al activar Gemini en Customize |
 
@@ -412,6 +413,7 @@ Basado en `referencias/MAXTO_ANALISIS.md`. Se aplica a las ventanas de **todas**
 | R-07 | Google limita apps sin verificar a 100 usuarios y muestra advertencia | Ninguno para uso personal | Guía paso a paso |
 | R-08 | Ventanas elevadas no se pueden mover (UIPI) | Zonas no aplica a esas apps | GD-ZONE-13 |
 | R-09 | El instalador sin firma muestra la advertencia de SmartScreen | Un clic extra al instalar | Aceptado (D-14) |
+| R-10 | Microsoft Defender confunde a Glassdeck (sin firma) con malware por su comportamiento: ocurrió el 2026-10-28 al guardar la sesión de Cursor (`Behavior:Win32/Execution.A!ml`) | Cierre, cuarentena y borrado de la tarea de arranque | Sin extracción de cookies y tarea creada por API (SPEC 1.6); exclusión de Defender solo para `glassdeck.exe`, aprobada por Luis; si se repite, evaluar firma de código (revisa D-14) o reportar el falso positivo a Microsoft |
 
 Supuestos: Windows 10 Pro 22H2 con WebView2 actualizado; Luis tiene plan individual de Cursor y suscripción de Claude; Claude Code guarda registros en `~/.claude/projects/`; Codex Desktop guarda sus sesiones en `~/.codex/sessions/`.
 

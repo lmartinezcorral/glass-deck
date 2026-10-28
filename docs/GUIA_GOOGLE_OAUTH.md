@@ -57,6 +57,7 @@ Esto evita que Google te pida volver a iniciar sesión cada 7 días, que es lo q
 1. **Google Auth Platform** → **Público** (*Audience*).
 2. En **Estado de publicación** pulsa **Publicar app** → **Confirmar**.
 3. Google mostrará que la app necesita verificación. **No la envíes a verificar.** Para uso personal (menos de 100 usuarios) no es obligatorio: la app funciona y solo verás una advertencia al iniciar sesión.
+4. Comprueba que el estado diga **En producción**. Si se queda en **Prueba**, Google bloquea cualquier cuenta que no esté en **Usuarios de prueba** con el mensaje «Acceso bloqueado».
 
 ## Paso 6. Crear el cliente OAuth de escritorio
 
@@ -106,7 +107,8 @@ Si no eres administrador del dominio, esa cuenta no se podrá conectar sin la ay
 | Síntoma | Causa probable | Solución |
 |---|---|---|
 | Te pide iniciar sesión cada 7 días | La app quedó en modo de prueba | Paso 5 |
-| `access_denied` o «app bloqueada» | Cuenta de Workspace con apps no verificadas bloqueadas | Paso 8 |
+| «Acceso bloqueado: … no completó el proceso de verificación» o «solo pueden acceder los testers aprobados» | La app sigue en modo de prueba y tu cuenta no está en la lista de usuarios de prueba | Publica la app (paso 5) o, en **Público** → **Usuarios de prueba**, pulsa **Agregar usuarios** y escribe cada cuenta que vas a conectar |
+| `access_denied` o «app bloqueada» en una cuenta de dominio propio | Cuenta de Workspace con apps no verificadas bloqueadas | Paso 8 |
 | `redirect_uri_mismatch` | El cliente no es de tipo «App de escritorio» | Crea otro cliente, paso 6 |
 | La cuenta queda en ámbar | Revocaste el acceso o cambiaste la contraseña | **Reconectar** en Customize › Cuentas |
 | «Deja marcados los permisos de Gmail y de Calendar» | Desmarcaste una casilla en la pantalla de consentimiento | Conecta de nuevo y deja las casillas marcadas |
