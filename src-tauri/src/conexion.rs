@@ -117,6 +117,20 @@ impl ClienteHttp {
     }
 }
 
+/// Los recolectores piden datos a través de este rasgo para poder probarse con respuestas grabadas, sin red.
+pub trait Transporte: Send + Sync {
+    fn obtener(&self, url: &str, consulta: &[(&str, String)]) -> Result<serde_json::Value, ErrorRed>;
+}
+
+/// Crea el cliente en el primer uso, siempre desde un hilo de servicio o `spawn_blocking`.
+pub struct Internet;
+
+impl Transporte for Internet {
+    fn obtener(&self, url: &str, consulta: &[(&str, String)]) -> Result<serde_json::Value, ErrorRed> {
+        cliente().obtener_json(url, consulta)
+    }
+}
+
 fn clasificar(e: &reqwest::Error) -> ErrorRed {
     if e.is_timeout() {
         ErrorRed::TiempoAgotado

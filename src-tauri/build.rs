@@ -27,6 +27,8 @@ const COMANDOS: &[&str] = &[
     "boveda_borrar",
     "servicio_ultimo",
     "catalogo_widgets",
+    "clima_buscar_ciudad",
+    "clima_fijar_ubicacion",
 ];
 
 fn main() {

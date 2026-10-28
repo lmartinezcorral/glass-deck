@@ -1,4 +1,5 @@
 pub mod claude_code;
+pub mod clima;
 pub mod historial;
 pub mod servicios;
 #[cfg(windows)]

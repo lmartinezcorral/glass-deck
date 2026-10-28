@@ -1,0 +1,16 @@
+{
+  "ip": "203.0.113.10",
+  "network": "203.0.113.0/24",
+  "version": "IPv4",
+  "city": "Chihuahua",
+  "region": "Chihuahua",
+  "region_code": "CHH",
+  "country": "MX",
+  "country_name": "Mexico",
+  "country_code": "MX",
+  "latitude": 28.6353,
+  "longitude": -106.0889,
+  "timezone": "America/Chihuahua",
+  "utc_offset": "-0600",
+  "org": "Red de ejemplo (documentación)"
+}

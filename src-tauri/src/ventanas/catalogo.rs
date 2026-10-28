@@ -28,6 +28,7 @@ pub const WIDGETS: &[DefWidget] = &[
     def("red", "Red", "Velocidad de bajada y subida", true, [260, 200, 680, 460]),
     def("procesos", "Procesos", "Los 5 que más consumen", true, [300, 270, 860, 600]),
     def("spending", "Spending", "Gasto y uso de Cursor y Claude", false, [300, 260, 860, 600]),
+    def("clima", "Clima", "Clima y pronóstico de tu ubicación", false, [260, 220, 760, 520]),
 ];
 
 pub const ANCHO_PILDORA: u32 = 148;

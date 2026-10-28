@@ -219,6 +219,18 @@
           "markdownDescription": "Enables the catalogo_widgets command without any pre-configured scope."
         },
         {
+          "description": "Enables the clima_buscar_ciudad command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-clima-buscar-ciudad",
+          "markdownDescription": "Enables the clima_buscar_ciudad command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the clima_fijar_ubicacion command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-clima-fijar-ubicacion",
+          "markdownDescription": "Enables the clima_fijar_ubicacion command without any pre-configured scope."
+        },
+        {
           "description": "Enables the config_guardar command without any pre-configured scope.",
           "type": "string",
           "const": "allow-config-guardar",
@@ -385,6 +397,18 @@
           "type": "string",
           "const": "deny-catalogo-widgets",
           "markdownDescription": "Denies the catalogo_widgets command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the clima_buscar_ciudad command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-clima-buscar-ciudad",
+          "markdownDescription": "Denies the clima_buscar_ciudad command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the clima_fijar_ubicacion command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-clima-fijar-ubicacion",
+          "markdownDescription": "Denies the clima_fijar_ubicacion command without any pre-configured scope."
         },
         {
           "description": "Denies the config_guardar command without any pre-configured scope.",

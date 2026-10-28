@@ -32,6 +32,9 @@ impl AlmacenConfig {
 
     pub fn reemplazar(&self, nueva: Config) -> Result<Config, String> {
         nueva.intervalos.validar()?;
+        if let Some(u) = &nueva.clima.ubicacion {
+            u.validar()?;
+        }
         self.modificar(|c| *c = nueva)
     }
 }

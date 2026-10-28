@@ -20,16 +20,22 @@ impl Rect {
 const MARGEN: f64 = 24.0;
 const COLUMNA: f64 = 320.0;
 const FILA: f64 = 290.0;
+const CASCADA: f64 = 16.0;
 
 /// Celda de la rejilla por defecto: columnas desde la derecha del área de trabajo, de arriba abajo.
+/// Si no caben todas, vuelve a empezar con un pequeño corrimiento en cascada en lugar de salirse del área.
 pub fn celda_por_defecto(area: Rect, escala: f64, indice: usize) -> (i32, i32) {
     let margen = (MARGEN * escala) as i32;
     let columna = (COLUMNA * escala) as i32;
     let fila_alto = (FILA * escala) as i32;
     let filas = ((area.alto - margen) / fila_alto).max(1) as usize;
-    let col = (indice / filas) as i32;
-    let fila = (indice % filas) as i32;
-    (area.x + area.ancho - margen - (col + 1) * columna, area.y + margen + fila * fila_alto)
+    let columnas = ((area.ancho - margen) / columna).max(1) as usize;
+    let celdas = filas * columnas;
+    let corrimiento = (indice / celdas) as i32 * (CASCADA * escala) as i32;
+    let i = indice % celdas;
+    let col = (i / filas) as i32;
+    let fila = (i % filas) as i32;
+    (area.x + area.ancho - margen - (col + 1) * columna - corrimiento, area.y + margen + fila * fila_alto + corrimiento)
 }
 
 /// Posición imantada a los bordes del área o a otros widgets si alguno queda a `distancia` o menos.
@@ -59,9 +65,9 @@ mod pruebas {
 
     #[test]
     fn la_rejilla_por_defecto_no_superpone_widgets() {
-        for (area, escala) in [(Rect::nuevo(0, 0, 1920, 1040), 1.0), (Rect::nuevo(-1280, 0, 1920, 1032), 1.5)] {
+        for (area, escala, cuantos) in [(Rect::nuevo(0, 0, 1920, 1040), 1.0, 11), (Rect::nuevo(-1280, 0, 1920, 1032), 1.5, 6)] {
             let fisica = |v: u32| (v as f64 * escala) as i32;
-            let rects: Vec<Rect> = (0..11)
+            let rects: Vec<Rect> = (0..cuantos)
                 .map(|i| {
                     let def = &WIDGETS[i % WIDGETS.len()];
                     let (x, y) = celda_por_defecto(area, escala, i);
@@ -77,7 +83,7 @@ mod pruebas {
     }
 
     #[test]
-    fn los_widgets_de_fase_1_caben_en_el_area_del_principal() {
+    fn todos_los_widgets_caben_en_el_area_del_principal() {
         let casos = [
             (Rect::nuevo(0, 0, 1920, 1040), 1.0),
             (Rect::nuevo(0, 0, 1920, 1032), 1.5),
@@ -85,7 +91,7 @@ mod pruebas {
         ];
         for (area, escala) in casos {
             let fisica = |v: u32| (v as f64 * escala) as i32;
-            for (i, def) in WIDGETS.iter().enumerate() {
+            for (i, def) in WIDGETS.iter().cycle().take(11).enumerate() {
                 let (x, y) = celda_por_defecto(area, escala, i);
                 let r = Rect::nuevo(x, y, fisica(def.ancho), fisica(def.alto));
                 assert!(r.x >= area.x && r.y >= area.y, "{} sale por arriba o la izquierda: {r:?}", def.id);

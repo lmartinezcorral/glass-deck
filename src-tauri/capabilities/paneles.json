@@ -26,6 +26,8 @@
     "allow-boveda-guardar",
     "allow-boveda-borrar",
     "allow-servicio-ultimo",
-    "allow-catalogo-widgets"
+    "allow-catalogo-widgets",
+    "allow-clima-buscar-ciudad",
+    "allow-clima-fijar-ubicacion"
   ]
 }

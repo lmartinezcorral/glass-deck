@@ -64,11 +64,12 @@ pub struct Intervalos {
     pub procesos_ms: u64,
     pub disco_ms: u64,
     pub spending_ms: u64,
+    pub clima_ms: u64,
 }
 
 impl Default for Intervalos {
     fn default() -> Self {
-        Self { cpu_ram_red_ms: 2_000, procesos_ms: 3_000, disco_ms: 5_000, spending_ms: 900_000 }
+        Self { cpu_ram_red_ms: 2_000, procesos_ms: 3_000, disco_ms: 5_000, spending_ms: 900_000, clima_ms: 1_800_000 }
     }
 }
 
@@ -77,6 +78,7 @@ impl Intervalos {
     pub const MIN_PROCESOS_MS: u64 = 2_000;
     pub const MIN_DISCO_MS: u64 = 1_000;
     pub const MIN_SPENDING_MS: u64 = 300_000;
+    pub const MIN_CLIMA_MS: u64 = 900_000;
 
     pub fn validar(&self) -> Result<(), String> {
         if self.cpu_ram_red_ms < Self::MIN_CPU_RAM_RED_MS {
@@ -91,7 +93,57 @@ impl Intervalos {
         if self.spending_ms < Self::MIN_SPENDING_MS {
             return Err("El intervalo de spending no puede ser menor a 5 min".into());
         }
+        if self.clima_ms < Self::MIN_CLIMA_MS {
+            return Err("El intervalo del clima no puede ser menor a 15 min".into());
+        }
         Ok(())
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ModoUbicacion {
+    Automatica,
+    Manual,
+}
+
+/// Ciudad elegida en el buscador; las coordenadas solo viajan a Open-Meteo.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Ubicacion {
+    pub nombre: String,
+    #[serde(default)]
+    pub region: Option<String>,
+    #[serde(default)]
+    pub pais: Option<String>,
+    pub latitud: f64,
+    pub longitud: f64,
+}
+
+impl Ubicacion {
+    pub fn validar(&self) -> Result<(), String> {
+        let largo_ok = |t: &str| !t.trim().is_empty() && t.chars().count() <= 120;
+        if !largo_ok(&self.nombre) || ![&self.region, &self.pais].iter().all(|o| o.as_deref().map(largo_ok).unwrap_or(true)) {
+            return Err("El nombre de la ubicación no es válido".into());
+        }
+        let lat_ok = self.latitud.is_finite() && (-90.0..=90.0).contains(&self.latitud);
+        let lon_ok = self.longitud.is_finite() && (-180.0..=180.0).contains(&self.longitud);
+        if !lat_ok || !lon_ok {
+            return Err("Las coordenadas de la ubicación no son válidas".into());
+        }
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct ConfigClima {
+    pub modo: ModoUbicacion,
+    pub ubicacion: Option<Ubicacion>,
+}
+
+impl Default for ConfigClima {
+    fn default() -> Self {
+        Self { modo: ModoUbicacion::Automatica, ubicacion: None }
     }
 }
 
@@ -180,6 +232,7 @@ pub struct Config {
     pub iman: bool,
     pub privacidad: bool,
     pub precios_modelos: Vec<PrecioModelo>,
+    pub clima: ConfigClima,
 }
 
 impl Default for Config {
@@ -205,6 +258,7 @@ impl Default for Config {
             iman: false,
             privacidad: false,
             precios_modelos: precios_por_defecto(),
+            clima: ConfigClima::default(),
         }
     }
 }
@@ -227,6 +281,12 @@ impl Config {
             p.patron = p.patron.trim().to_lowercase();
         }
         self.precios_modelos.retain(precio_valido);
+        if self.clima.ubicacion.as_ref().map(|u| u.validar().is_err()).unwrap_or(false) {
+            self.clima.ubicacion = None;
+        }
+        if self.clima.ubicacion.is_none() {
+            self.clima.modo = ModoUbicacion::Automatica;
+        }
         if self.version < 2 && self.atajos.mostrar_ocultar == ATAJO_MOSTRAR_V1 {
             self.atajos.mostrar_ocultar = Atajos::default().mostrar_ocultar;
         }
@@ -297,9 +357,11 @@ mod pruebas {
 
     #[test]
     fn intervalos_en_el_minimo_se_aceptan() {
-        let i = Intervalos { cpu_ram_red_ms: 1_000, procesos_ms: 2_000, disco_ms: 1_000, spending_ms: 300_000 };
+        let i = Intervalos { cpu_ram_red_ms: 1_000, procesos_ms: 2_000, disco_ms: 1_000, spending_ms: 300_000, clima_ms: 900_000 };
         assert!(i.validar().is_ok());
         let i = Intervalos { spending_ms: 299_999, ..Intervalos::default() };
+        assert!(i.validar().is_err());
+        let i = Intervalos { clima_ms: 899_999, ..Intervalos::default() };
         assert!(i.validar().is_err());
         let i = Intervalos { disco_ms: 999, ..Intervalos::default() };
         assert!(i.validar().is_err());
@@ -342,9 +404,46 @@ mod pruebas {
         assert_eq!(c.atajos.mostrar_ocultar, "Ctrl+Shift+F9");
         assert_eq!(c.lista_negra_usuario, vec!["spotify".to_string()]);
         assert!(!c.arranque_windows && c.iman);
-        assert!(c.widgets.contains_key("spending"));
-        assert!(!c.widget("spending").activo, "los widgets nuevos llegan apagados");
+        for id in ["spending", "clima"] {
+            assert!(c.widgets.contains_key(id), "falta {id}");
+            assert!(!c.widget(id).activo, "los widgets nuevos llegan apagados");
+        }
         assert_eq!(c.precios_modelos, precios_por_defecto());
+        assert_eq!(c.intervalos.clima_ms, 1_800_000);
+        assert_eq!(c.clima, ConfigClima::default());
+    }
+
+    fn chihuahua() -> Ubicacion {
+        Ubicacion { nombre: "Chihuahua".into(), region: Some("Chihuahua".into()), pais: Some("México".into()), latitud: 28.63528, longitud: -106.08889 }
+    }
+
+    #[test]
+    fn la_ubicacion_manual_sobrevive_a_normalizar() {
+        let mut c = Config::default();
+        c.clima = ConfigClima { modo: ModoUbicacion::Manual, ubicacion: Some(chihuahua()) };
+        let json = serde_json::to_string(&c).unwrap();
+        let mut leida: Config = serde_json::from_str(&json).unwrap();
+        leida.normalizar();
+        assert_eq!(leida.clima, c.clima);
+    }
+
+    #[test]
+    fn una_ubicacion_invalida_vuelve_al_modo_automatico() {
+        for mala in [
+            Ubicacion { latitud: 91.0, ..chihuahua() },
+            Ubicacion { longitud: f64::NAN, ..chihuahua() },
+            Ubicacion { nombre: "  ".into(), ..chihuahua() },
+            Ubicacion { pais: Some("x".repeat(121)), ..chihuahua() },
+        ] {
+            let mut c = Config::default();
+            c.clima = ConfigClima { modo: ModoUbicacion::Manual, ubicacion: Some(mala) };
+            c.normalizar();
+            assert_eq!(c.clima, ConfigClima::default());
+        }
+        let mut sin_ciudad = Config::default();
+        sin_ciudad.clima.modo = ModoUbicacion::Manual;
+        sin_ciudad.normalizar();
+        assert_eq!(sin_ciudad.clima.modo, ModoUbicacion::Automatica);
     }
 
     #[test]
@@ -354,14 +453,16 @@ mod pruebas {
         assert_eq!(c.version, 3);
         assert_eq!(c.atajos.mostrar_ocultar, "Ctrl+Alt+M");
         assert_eq!(c.intervalos.cpu_ram_red_ms, 3_000);
-        assert!(!c.widget("spending").activo);
+        assert!(!c.widget("spending").activo && !c.widget("clima").activo);
         assert_eq!(c.intervalos.spending_ms, 900_000);
+        assert_eq!(c.clima.modo, ModoUbicacion::Automatica);
     }
 
     #[test]
     fn los_widgets_de_servicios_arrancan_apagados() {
         let c = Config::default();
         assert!(!c.widget("spending").activo);
+        assert!(!c.widget("clima").activo);
         assert!(c.widget("cpu").activo);
     }
 

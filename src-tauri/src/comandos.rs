@@ -1,7 +1,9 @@
 use crate::acciones::limpieza::{self, Opciones, Origen, Resumen};
 use crate::acciones::procesos::{Politica, Rechazo, ResultadoCierre};
 use crate::atajos::{self, Accion, EstadoAtajo};
-use crate::config::{AlmacenConfig, Config, EstadoWidget};
+use crate::conexion::Internet;
+use crate::config::{AlmacenConfig, Config, EstadoWidget, ModoUbicacion, Ubicacion};
+use crate::recolectores::clima;
 use crate::recolectores::servicios::{EstadoFuente, EstadoServicios};
 use crate::recolectores::{EstadoRecoleccion, SerieHistorial};
 use crate::seguridad::boveda::{self, Clave};
@@ -43,6 +45,9 @@ pub fn config_guardar(app: AppHandle, config: Config) -> R<Config> {
     }
     if guardada.precios_modelos != anterior.precios_modelos {
         app.state::<EstadoServicios>().forzar("claude_code");
+    }
+    if guardada.clima != anterior.clima {
+        app.state::<EstadoServicios>().forzar("clima");
     }
     let _ = app.emit("gd://config", ());
     Ok(guardada)
@@ -318,6 +323,34 @@ pub fn catalogo_widgets() -> &'static [catalogo::DefWidget] {
 #[tauri::command]
 pub fn servicio_ultimo(app: AppHandle, fuente: String) -> Option<EstadoFuente> {
     app.state::<EstadoServicios>().ultimo(&fuente)
+}
+
+#[tauri::command]
+pub async fn clima_buscar_ciudad(texto: String) -> R<Vec<Ubicacion>> {
+    if !clima::LARGO_BUSQUEDA.contains(&texto.trim().chars().count()) {
+        return Err("Escribe entre 2 y 80 caracteres".into());
+    }
+    tauri::async_runtime::spawn_blocking(move || clima::buscar_ciudad(&Internet, &texto))
+        .await
+        .map_err(|e| e.to_string())?
+        .map_err(|m| m.texto().to_string())
+}
+
+/// `None` vuelve a la ubicación automática por IP.
+#[tauri::command]
+pub fn clima_fijar_ubicacion(app: AppHandle, ubicacion: Option<Ubicacion>) -> R<Config> {
+    if let Some(u) = &ubicacion {
+        u.validar()?;
+    }
+    let guardada = app.state::<AlmacenConfig>().modificar(|c| {
+        c.clima.modo = if ubicacion.is_some() { ModoUbicacion::Manual } else { ModoUbicacion::Automatica };
+        if ubicacion.is_some() {
+            c.clima.ubicacion = ubicacion;
+        }
+    })?;
+    app.state::<EstadoServicios>().forzar("clima");
+    let _ = app.emit("gd://config", ());
+    Ok(guardada)
 }
 
 #[cfg(test)]
