@@ -1,4 +1,5 @@
 mod acciones;
+mod arranque;
 mod atajos;
 mod avisos;
 mod bandeja;
@@ -33,6 +34,7 @@ pub fn borrar_credenciales() {
 }
 
 pub fn run() {
+    arranque::esperar_escritorio_si_hace_falta();
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             ventanas::diferir(app, |a| {
@@ -72,7 +74,7 @@ pub fn run() {
             atajos::registrar_todos(h);
             avisos::instalar(h);
             let cfg = app.state::<AlmacenConfig>().leer();
-            comandos::aplicar_arranque(h, cfg.arranque_windows);
+            arranque::aplicar(h, cfg.arranque_windows);
             ventanas::abrir_activos(h);
             if cfg.dock.visible {
                 let _ = paneles::mostrar_dock(h, true);
@@ -88,6 +90,7 @@ pub fn run() {
                 ],
             );
             ventanas::marcar_arranque_listo();
+            arranque::registrar_arranque_listo();
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

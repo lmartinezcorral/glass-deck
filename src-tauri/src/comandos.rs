@@ -37,7 +37,7 @@ pub fn config_guardar(app: AppHandle, config: Config) -> R<Config> {
         ventanas::aplicar_tema_a_todos(&app);
     }
     if guardada.arranque_windows != anterior.arranque_windows {
-        aplicar_arranque(&app, guardada.arranque_windows);
+        crate::arranque::aplicar(&app, guardada.arranque_windows);
     }
     if guardada.capa_defecto != anterior.capa_defecto {
         for w in catalogo::WIDGETS {
@@ -53,32 +53,6 @@ pub fn config_guardar(app: AppHandle, config: Config) -> R<Config> {
     }
     let _ = app.emit("gd://config", ());
     Ok(guardada)
-}
-
-fn es_binario_de_desarrollo(exe: &std::path::Path) -> bool {
-    exe.components().any(|c| c.as_os_str().eq_ignore_ascii_case("target"))
-        && exe.components().any(|c| {
-            let s = c.as_os_str();
-            s.eq_ignore_ascii_case("debug") || s.eq_ignore_ascii_case("release")
-        })
-}
-
-pub fn aplicar_arranque(app: &AppHandle, activo: bool) {
-    use tauri_plugin_autostart::ManagerExt;
-    if activo && std::env::current_exe().map(|e| es_binario_de_desarrollo(&e)).unwrap_or(false) {
-        log::info!("Binario de desarrollo: no se registra el arranque con Windows");
-        return;
-    }
-    let gestor = app.autolaunch();
-    let actual = gestor.is_enabled().unwrap_or(false);
-    let r = match (activo, actual) {
-        (true, false) => gestor.enable(),
-        (false, true) => gestor.disable(),
-        _ => Ok(()),
-    };
-    if let Err(e) = r {
-        log::warn!("No se pudo cambiar el arranque con Windows: {e}");
-    }
 }
 
 #[tauri::command]
@@ -394,18 +368,4 @@ pub fn avisos_probar(app: AppHandle) {
 #[tauri::command]
 pub fn avisos_historial(app: AppHandle) -> Vec<avisos::AvisoEnviado> {
     avisos::historial(&app.state::<AlmacenEstado>())
-}
-
-#[cfg(test)]
-mod pruebas {
-    use super::es_binario_de_desarrollo;
-    use std::path::Path;
-
-    #[test]
-    fn detecta_binarios_de_cargo() {
-        assert!(es_binario_de_desarrollo(Path::new(r"C:\x\glassdeck\src-tauri\target\release\glassdeck.exe")));
-        assert!(es_binario_de_desarrollo(Path::new(r"C:\x\target\debug\glassdeck.exe")));
-        assert!(!es_binario_de_desarrollo(Path::new(r"C:\Program Files\Glassdeck\glassdeck.exe")));
-        assert!(!es_binario_de_desarrollo(Path::new(r"C:\Users\x\AppData\Local\Glassdeck\glassdeck.exe")));
-    }
 }
