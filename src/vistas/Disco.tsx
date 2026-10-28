@@ -8,7 +8,7 @@ import { MarcoWidget, useMaximizado } from './MarcoWidget';
 const MB = 1_048_576;
 
 export function VistaDisco() {
-  const maximizado = useMaximizado();
+  const maximizado = useMaximizado('disco');
   const [series, agregar, capacidad] = useHistorial('disco', maximizado);
   const unidades = useLectura('disco', (lista) => {
     agregar(

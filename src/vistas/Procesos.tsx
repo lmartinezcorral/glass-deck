@@ -109,7 +109,7 @@ export function FilaTablaProceso({ fila: f, marcada, onAlternar, onReiniciarExpl
 }
 
 export function VistaProcesos() {
-  const maximizado = useMaximizado();
+  const maximizado = useMaximizado('procesos');
   const filas = useLectura('procesos') ?? [];
   const [orden, setOrden] = useState<Orden>('cpu');
   const [asc, setAsc] = useState(false);

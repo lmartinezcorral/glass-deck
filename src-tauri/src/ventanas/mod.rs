@@ -465,7 +465,8 @@ pub fn maximizar(app: &AppHandle, id: &str, activo: bool) -> Result<(), String> 
         v.set_position(pos).map_err(|e| e.to_string())?;
         aplicar_capa(app, id);
     }
-    let _ = v.emit("gd://maximizado", activo);
+    // `emit` llega a todas las ventanas: la carga lleva el id para que solo reaccione este widget.
+    let _ = v.emit("gd://maximizado", serde_json::json!({ "id": id, "activo": activo }));
     Ok(())
 }
 

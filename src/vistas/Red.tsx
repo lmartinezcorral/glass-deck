@@ -7,7 +7,7 @@ import { useHistorial, usePuntosUltimoMinuto } from './historial';
 import { MarcoWidget, useMaximizado } from './MarcoWidget';
 
 export function VistaRed() {
-  const maximizado = useMaximizado();
+  const maximizado = useMaximizado('red');
   const puntos = usePuntosUltimoMinuto();
   const [bajadas, setBajadas] = useState<number[]>([]);
   const [subidas, setSubidas] = useState<number[]>([]);

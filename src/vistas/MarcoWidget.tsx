@@ -1,10 +1,19 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { api, escuchar, EVENTOS, mensajeError, type EstadoWidget } from '../api';
 import { BarraWidget, Pildora, Vidrio } from '../componentes';
-import { useConfig, useEvento } from '../hooks';
+import { useConfig } from '../hooks';
 
-export function useMaximizado(): boolean {
-  return useEvento<boolean>(EVENTOS.maximizado, false);
+export function useMaximizado(id: string): boolean {
+  const [maximizado, setMaximizado] = useState(false);
+  useEffect(() => {
+    const quitar = escuchar<{ id: string; activo: boolean }>(EVENTOS.maximizado, (c) => {
+      if (c.id === id) setMaximizado(c.activo);
+    });
+    return () => {
+      quitar.then((f) => f());
+    };
+  }, [id]);
+  return maximizado;
 }
 
 interface Props {

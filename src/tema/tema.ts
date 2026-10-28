@@ -44,7 +44,7 @@ export function hexARgb(hex: string): [number, number, number] | null {
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 }
 
-function luminancia([r, g, b]: [number, number, number]): number {
+export function luminancia([r, g, b]: [number, number, number]): number {
   const canal = (v: number): number => {
     const s = v / 255;
     return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;

@@ -6,7 +6,7 @@ import { useHistorial } from './historial';
 import { MarcoWidget, useMaximizado } from './MarcoWidget';
 
 export function VistaRam() {
-  const maximizado = useMaximizado();
+  const maximizado = useMaximizado('ram');
   const [series, agregar, capacidad] = useHistorial('ram', maximizado);
   const m = useLectura('ram', (d) => {
     if (d.total > 0) agregar({ usada: (d.usada * 100) / d.total });

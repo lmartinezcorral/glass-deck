@@ -7,7 +7,7 @@ import { useHistorial, usePuntosUltimoMinuto } from './historial';
 import { MarcoWidget, useMaximizado } from './MarcoWidget';
 
 export function VistaCpu() {
-  const maximizado = useMaximizado();
+  const maximizado = useMaximizado('cpu');
   const puntos = usePuntosUltimoMinuto();
   const [reciente, setReciente] = useState<number[]>([]);
   const [series, agregar, capacidad] = useHistorial('cpu', maximizado);

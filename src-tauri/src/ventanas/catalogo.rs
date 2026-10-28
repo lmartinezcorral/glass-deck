@@ -18,7 +18,7 @@ pub const WIDGETS_FASE_1: &[DefWidget] = &[
 
 pub const ANCHO_PILDORA: u32 = 148;
 pub const ALTO_PILDORA: u32 = 40;
-pub const RADIO_ESQUINA: f64 = 14.0;
+pub const RADIO_ESQUINA: f64 = 22.0;
 
 pub fn buscar(id: &str) -> Option<&'static DefWidget> {
     WIDGETS_FASE_1.iter().find(|w| w.id == id)
@@ -30,4 +30,21 @@ pub fn etiqueta(id: &str) -> String {
 
 pub fn id_de_etiqueta(etiqueta: &str) -> Option<&str> {
     etiqueta.strip_prefix("w-")
+}
+
+#[cfg(test)]
+mod pruebas {
+    use super::RADIO_ESQUINA;
+
+    #[test]
+    fn la_region_de_clic_usa_el_mismo_radio_que_el_vidrio_del_widget() {
+        let tokens = include_str!("../../../src/tema/tokens.css");
+        let radio: f64 = tokens
+            .split("--gd-radio-widget:")
+            .nth(1)
+            .and_then(|r| r.split("px").next())
+            .and_then(|r| r.trim().parse().ok())
+            .expect("--gd-radio-widget en tokens.css");
+        assert_eq!(RADIO_ESQUINA, radio);
+    }
 }

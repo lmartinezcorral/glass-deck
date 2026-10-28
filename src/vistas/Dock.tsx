@@ -42,8 +42,9 @@ export function VistaDock() {
     ejecutar(api.widgetActivar(id, activo).then(() => api.configLeer().then(setConfig)));
   };
 
-  const boton = (etiqueta: string, icono: ReactNode, accion: () => void, extra: { activo?: boolean; deshabilitado?: boolean; titulo?: string } = {}) => (
+  const boton = (etiqueta: string, icono: ReactNode, accion: () => void, extra: { activo?: boolean; deshabilitado?: boolean; titulo?: string; clave?: string } = {}) => (
     <button
+      key={extra.clave}
       type="button"
       className={`gd-dock__boton${extra.activo ? ' gd-dock__boton--activo' : ''}`}
       aria-label={etiqueta}
@@ -64,6 +65,7 @@ export function VistaDock() {
           boton(`${w.nombre}: ${config?.widgets[w.id]?.activo ? 'activo' : 'inactivo'}`, w.icono, () => alternarWidget(w.id), {
             activo: config?.widgets[w.id]?.activo ?? false,
             titulo: w.nombre,
+            clave: w.id,
           }),
         )}
       </div>
