@@ -61,7 +61,11 @@ export function VistaLimpieza() {
 
   return (
     <Vidrio elemento="main" lleno solido className="gd-panel" aria-label="Limpiar temporales">
-      <BarraPanel titulo="Limpiar temporales" onCerrar={cerrar} />
+      <BarraPanel
+        titulo="Limpiar temporales"
+        subtitulo="Vista previa: solo archivos con más de 24 h; los que estén en uso se omiten"
+        onCerrar={cerrar}
+      />
       <div className="gd-panel__cuerpo">
         {fase === 'hecho' && resumen ? (
           <div className="gd-vista gd-vista--pila">
@@ -145,19 +149,24 @@ export function VistaLimpieza() {
   );
 }
 
-export function BarraPanel({ titulo, onCerrar }: { titulo: string; onCerrar: () => void }) {
+export function BarraPanel({ titulo, subtitulo, onCerrar }: { titulo: string; subtitulo: string; onCerrar: () => void }) {
   return (
-    <header className="gd-barra gd-panel__barra" data-tauri-drag-region="">
-      <h1 className="gd-barra__titulo" data-tauri-drag-region="">
-        {titulo}
-      </h1>
-      <div className="gd-barra__botones">
-        <button type="button" className="gd-barra__boton" aria-label={`Cerrar ${titulo}`} title="Cerrar" onClick={onCerrar}>
-          <svg className="gd-barra__svg" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round">
-            <path d="M6 6l12 12M18 6 6 18" />
-          </svg>
-        </button>
-      </div>
-    </header>
+    <>
+      <header className="gd-barra gd-panel__barra" data-tauri-drag-region="">
+        <h1 className="gd-barra__titulo" data-tauri-drag-region="">
+          {titulo}
+        </h1>
+        <div className="gd-barra__botones">
+          <button type="button" className="gd-barra__boton" aria-label={`Cerrar ${titulo}`} title="Cerrar" onClick={onCerrar}>
+            <svg className="gd-barra__svg" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round">
+              <path d="M6 6l12 12M18 6 6 18" />
+            </svg>
+          </button>
+        </div>
+      </header>
+      <p className="gd-panel__subtitulo" data-tauri-drag-region="">
+        {subtitulo}
+      </p>
+    </>
   );
 }

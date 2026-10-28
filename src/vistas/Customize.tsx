@@ -76,7 +76,11 @@ export function VistaCustomize() {
 
   return (
     <Vidrio elemento="main" lleno solido className="gd-panel gd-customize" aria-label="Customize">
-      <BarraPanel titulo="Customize" onCerrar={cerrar} />
+      <BarraPanel
+        titulo="Customize"
+        subtitulo="Los cambios se aplican al instante y se guardan en %AppData%\Glassdeck\settings.json"
+        onCerrar={cerrar}
+      />
       <div className="gd-customize__contenido">
         <nav className="gd-customize__pestanas" role="tablist" aria-label="Secciones">
           {PESTANAS.map((p) => (

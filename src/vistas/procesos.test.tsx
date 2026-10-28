@@ -3,6 +3,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FilaProceso } from '../api';
 import { Dialogo } from '../componentes';
+import { BarraPanel } from './Limpieza';
 import { FilaTablaProceso, filtrarYOrdenar, ListaTopProcesos } from './Procesos';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -151,5 +152,16 @@ describe('diálogo de cierre (GD-PROC-04, GD-PROC-05)', () => {
     expect(boton?.disabled).toBe(false);
     act(() => boton?.click());
     expect(onConfirmar).toHaveBeenCalledWith('CERRAR');
+  });
+});
+
+describe('BarraPanel', () => {
+  it('muestra título y subtítulo, y el botón cierra', () => {
+    const onCerrar = vi.fn();
+    act(() => raiz.render(<BarraPanel titulo="Customize" subtitulo="Los cambios se aplican al instante" onCerrar={onCerrar} />));
+    expect(contenedor.querySelector('h1')?.textContent).toBe('Customize');
+    expect(contenedor.querySelector('.gd-panel__subtitulo')?.textContent).toBe('Los cambios se aplican al instante');
+    act(() => contenedor.querySelector<HTMLButtonElement>('[aria-label="Cerrar Customize"]')?.click());
+    expect(onCerrar).toHaveBeenCalledOnce();
   });
 });

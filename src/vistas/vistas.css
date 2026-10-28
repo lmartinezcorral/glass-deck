@@ -311,6 +311,17 @@
   padding: 0 var(--gd-esp-6);
 }
 
+.gd-panel__subtitulo {
+  flex: none;
+  margin: calc(var(--gd-esp-2) * -1) 0 var(--gd-esp-2);
+  padding: 0 var(--gd-esp-6);
+  overflow: hidden;
+  font-size: var(--gd-txt-xs);
+  color: var(--gd-texto-3);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
 .gd-panel__cuerpo {
   flex: 1;
   min-height: 0;
