@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Versión | 1.2 |
+| Versión | 1.3 |
 | Fecha | 2026-10-27 |
 | Dueño | Luis Ángel Martínez Corral |
 | Estado | **Aprobado por el CEO el 2026-10-27.** Construcción en curso (fases 0 y 1) |
@@ -15,6 +15,7 @@
 | 1.0 | 2026-10-25 | Borrador para VoBo, a partir del interrogatorio Q1–Q32 |
 | 1.1 | 2026-10-27 | VoBo del CEO. Se fija `ipapi.co` como geolocalización por IP. La fase 0 entrega la decisión de R-01 en `adr/ADR-001-estrategia-ventanas.md`. Se agregan `PLAN_FASES.md` (backlog por bloques) y `QA_MATRIZ.md` (verificación de cada CA). El repo es git local en `tools/glassdeck`, rama `main`, sin remoto |
 | 1.2 | 2026-10-27 | Decisión de Luis sobre R-01 (ADR-001 aceptado): una ventana por widget; RAM < 200 MB en la fase 1 y < 250 MB con los 11 widgets; CPU, RAM y red a 2 s por defecto. Se agrega GD-NFR-UX-06 (título y subtítulo visibles en cada widget), a pedido de Luis |
+| 1.3 | 2026-10-27 | Decisiones de Luis al entregar la fase 1: mostrar u ocultar todo pasa a `Ctrl+Alt+M` por defecto, porque la Xbox Game Bar ocupa `Win+Alt+G` (D-22, GD-HOT-01; las configuraciones con el valor de fábrica anterior se migran solas); la instalación queda en `%LocalAppData%\Glassdeck`, la carpeta por defecto de Tauri (GD-INST-01); la RAM se optimiza para cumplir < 200 MB en la fase 1 |
 
 ## 0. Resumen
 
@@ -59,7 +60,7 @@ Glassdeck es un panel de widgets flotantes de vidrio oscuro para el escritorio d
 | D-19 | Protección de procesos en tres niveles; se pueden agregar procesos a la lista negra, no quitar los fijos | Q24 |
 | D-20 | Contenido de widgets según la tabla de Q25 | Q25 |
 | D-21 | Atajos del sistema de Q26 | Q26 |
-| D-22 | Atajos globales `Win+Alt+G`, `Win+Alt+P`, `Win+Alt+Z` con detección de conflictos | Q27 |
+| D-22 | Atajos globales `Ctrl+Alt+M` (mostrar u ocultar; antes `Win+Alt+G`, ocupado por la Xbox Game Bar), `Win+Alt+P`, `Win+Alt+Z` con detección de conflictos | Q27 + decisión de Luis 2026-10-27 |
 | D-23 | Construcción en 4 fases, con instalador funcional al cierre de cada una | Q29 |
 
 ## 2. Convenciones
@@ -243,7 +244,7 @@ Glassdeck es un panel de widgets flotantes de vidrio oscuro para el escritorio d
 
 | ID | Requerimiento | CA | Prio |
 |---|---|---|---|
-| GD-HOT-01 | `Win+Alt+G`: mostrar u ocultar todos los widgets | Funciona desde cualquier app | M |
+| GD-HOT-01 | `Ctrl+Alt+M`: mostrar u ocultar todos los widgets | Funciona desde cualquier app | M |
 | GD-HOT-02 | `Win+Alt+P`: modo privacidad (GD-ROT-02) | Funciona desde cualquier app | M |
 | GD-HOT-03 | `Win+Alt+Z`: abrir el editor de zonas | Funciona con el módulo Zonas activo | M (fase 4) |
 | GD-HOT-04 | Detección de conflictos al registrar (GD-CUST-06) | Ver GD-CUST-06 | M |
@@ -274,7 +275,7 @@ Basado en `referencias/MAXTO_ANALISIS.md`. Se aplica a las ventanas de **todas**
 
 | ID | Requerimiento | CA | Prio |
 |---|---|---|---|
-| GD-INST-01 | Instalador `.exe` (NSIS) por usuario, sin firma digital, sin permisos de administrador | Instala en `%LocalAppData%\Programs\Glassdeck` sin UAC | M |
+| GD-INST-01 | Instalador `.exe` (NSIS) por usuario, sin firma digital, sin permisos de administrador | Instala en `%LocalAppData%\Glassdeck` sin UAC | M |
 | GD-INST-02 | Arranque con Windows (GD-CUST-07) | Tras iniciar sesión, los widgets aparecen en < 10 s | M |
 | GD-INST-03 | Desinstalación limpia, con opción de conservar o borrar la configuración y las credenciales | Al elegir borrar, no quedan entradas de Glassdeck en el Administrador de credenciales | M |
 | GD-INST-04 | Sin actualización automática ni telemetría | Fuera de las fuentes de datos (sección 5.3), Glassdeck no hace conexiones de red | M |

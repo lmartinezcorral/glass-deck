@@ -1,7 +1,10 @@
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
-pub const VERSION_CONFIG: u32 = 1;
+pub const VERSION_CONFIG: u32 = 2;
+
+/// Valor de fábrica de la versión 1; la Xbox Game Bar lo ocupa en Windows 10 (decisión D-22).
+const ATAJO_MOSTRAR_V1: &str = "Super+Alt+G";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -96,7 +99,7 @@ pub struct Atajos {
 
 impl Default for Atajos {
     fn default() -> Self {
-        Self { mostrar_ocultar: "Super+Alt+G".into(), privacidad: "Super+Alt+P".into() }
+        Self { mostrar_ocultar: "Ctrl+Alt+M".into(), privacidad: "Super+Alt+P".into() }
     }
 }
 
@@ -187,6 +190,9 @@ impl Config {
         self.apariencia.opacidad = self.apariencia.opacidad.clamp(0.2, 0.95);
         self.apariencia.desenfoque = self.apariencia.desenfoque.clamp(0.0, 80.0);
         self.lista_negra_usuario.retain(|n| !n.trim().is_empty());
+        if self.version < 2 && self.atajos.mostrar_ocultar == ATAJO_MOSTRAR_V1 {
+            self.atajos.mostrar_ocultar = Atajos::default().mostrar_ocultar;
+        }
         self.version = VERSION_CONFIG;
     }
 
@@ -198,6 +204,25 @@ impl Config {
 #[cfg(test)]
 mod pruebas {
     use super::*;
+
+    #[test]
+    fn la_version_1_migra_el_atajo_de_fabrica_y_respeta_uno_propio() {
+        let mut de_fabrica = Config { version: 1, ..Config::default() };
+        de_fabrica.atajos.mostrar_ocultar = ATAJO_MOSTRAR_V1.into();
+        de_fabrica.normalizar();
+        assert_eq!(de_fabrica.atajos.mostrar_ocultar, "Ctrl+Alt+M");
+        assert_eq!(de_fabrica.version, VERSION_CONFIG);
+
+        let mut propio = Config { version: 1, ..Config::default() };
+        propio.atajos.mostrar_ocultar = "Ctrl+Shift+F9".into();
+        propio.normalizar();
+        assert_eq!(propio.atajos.mostrar_ocultar, "Ctrl+Shift+F9");
+
+        let mut elegido_despues = Config::default();
+        elegido_despues.atajos.mostrar_ocultar = ATAJO_MOSTRAR_V1.into();
+        elegido_despues.normalizar();
+        assert_eq!(elegido_despues.atajos.mostrar_ocultar, ATAJO_MOSTRAR_V1);
+    }
 
     #[test]
     fn normalizar_sube_tamanos_guardados_al_minimo_del_catalogo() {

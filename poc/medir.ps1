@@ -29,6 +29,8 @@
     Segundos de espera tras encontrar/lanzar la raiz antes de empezar a muestrear.
 .PARAMETER ForzarMetodo
     auto | contador | wmi | private_bytes (para comparar metodos).
+.PARAMETER TituloVentana
+    Prefijo del titulo de la ventana que marca el fin del arranque (por defecto 'Glassdeck').
 
 .EXAMPLE
     .\medir.ps1 -Etiqueta variante-A
@@ -47,7 +49,8 @@ param(
     [string]$ArranqueArgs = '',
     [ValidateRange(1, 600)][int]$TimeoutArranque = 30,
     [ValidateRange(0, 3600)][int]$Calentamiento = 0,
-    [ValidateSet('auto', 'contador', 'wmi', 'private_bytes')][string]$ForzarMetodo = 'auto'
+    [ValidateSet('auto', 'contador', 'wmi', 'private_bytes')][string]$ForzarMetodo = 'auto',
+    [string]$TituloVentana = 'Glassdeck'
 )
 
 $PresupuestoMB = 200.0
@@ -323,9 +326,34 @@ function Get-ArbolProcesos([int]$raiz) {
     return , $resultado.ToArray()
 }
 
+Add-Type -TypeDefinition @'
+using System; using System.Text; using System.Runtime.InteropServices;
+public static class GdVentanaReal {
+    private delegate bool Cb(IntPtr h, IntPtr l);
+    [DllImport("user32.dll")] private static extern bool EnumWindows(Cb cb, IntPtr l);
+    [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
+    [DllImport("user32.dll")] private static extern bool IsWindowVisible(IntPtr h);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int GetWindowText(IntPtr h, StringBuilder s, int n);
+    [StructLayout(LayoutKind.Sequential)] private struct RECT { public int L, T, R, B; }
+    [DllImport("user32.dll")] private static extern bool GetWindowRect(IntPtr h, out RECT r);
+    // La ventana auxiliar de instancia unica (15x15, sin titulo de Glassdeck) no cuenta como arranque.
+    public static bool Hay(uint pid, string prefijo) {
+        bool hay = false;
+        EnumWindows((h, l) => {
+            uint p; GetWindowThreadProcessId(h, out p);
+            if (p != pid || !IsWindowVisible(h)) return true;
+            StringBuilder sb = new StringBuilder(256); GetWindowText(h, sb, 256);
+            RECT r; GetWindowRect(h, out r);
+            if (sb.ToString().StartsWith(prefijo, StringComparison.Ordinal) && r.R - r.L >= 40 && r.B - r.T >= 40) { hay = true; return false; }
+            return true;
+        }, IntPtr.Zero);
+        return hay;
+    }
+}
+'@
+
 function Test-VentanaVisible([int]$raiz, [bool]$incluirDescendientes) {
-    $p = Get-Process -Id $raiz -ErrorAction SilentlyContinue
-    if ($p -and $p.MainWindowHandle -ne [IntPtr]::Zero) { return $true }
+    if ([GdVentanaReal]::Hay([uint32]$raiz, $TituloVentana)) { return $true }
     if (-not $incluirDescendientes) { return $false }
     $desc = @{}
     foreach ($a in (Get-ArbolProcesos $raiz)) { if ([int]$a.ProcessId -ne $raiz) { $desc[[int]$a.ProcessId] = $true } }

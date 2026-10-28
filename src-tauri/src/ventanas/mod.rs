@@ -123,6 +123,38 @@ pub fn mostrar_ventana(ventana: &WebviewWindow) -> tauri::Result<()> {
     Ok(())
 }
 
+/// Solo para el dock y los widgets: en paneles interactivos el nivel bajo puede volver lenta la página.
+/// Durante el arranque el WebView2 todavía no existe: la petición viaja por la cola de eventos, detrás de su creación.
+#[cfg(windows)]
+pub fn memoria_baja(app: &AppHandle, etiqueta: &str) {
+    let etiqueta = etiqueta.to_string();
+    diferir(app, move |a| {
+        if let Some(v) = a.get_webview_window(&etiqueta) {
+            pedir_memoria_baja(&v);
+        }
+    });
+}
+
+#[cfg(windows)]
+fn pedir_memoria_baja(ventana: &WebviewWindow) {
+    let r = ventana.with_webview(|w| {
+        use webview2_com::Microsoft::Web::WebView2::Win32::{ICoreWebView2_19, COREWEBVIEW2_MEMORY_USAGE_TARGET_LEVEL_LOW};
+        use windows_core::Interface;
+        let nivel = unsafe {
+            w.controller()
+                .CoreWebView2()
+                .and_then(|c| c.cast::<ICoreWebView2_19>())
+                .and_then(|c| c.SetMemoryUsageTargetLevel(COREWEBVIEW2_MEMORY_USAGE_TARGET_LEVEL_LOW))
+        };
+        if let Err(e) = nivel {
+            log::warn!("WebView2 no aceptó el nivel de memoria bajo: {e}");
+        }
+    });
+    if let Err(e) = r {
+        log::warn!("Sin acceso a WebView2 para bajar la memoria: {e}");
+    }
+}
+
 fn redondear(ventana: &WebviewWindow) {
     #[cfg(windows)]
     if let (Some(hwnd), Ok(tam), Ok(escala)) = (win32::hwnd_de(ventana), ventana.inner_size(), ventana.scale_factor()) {
@@ -252,6 +284,8 @@ pub fn abrir_widget(app: &AppHandle, id: &str) -> tauri::Result<()> {
     gestor(app).con_runtime(id, |r| r.desplazado = desplazado);
     aplicar_efecto(app, &ventana, false);
     redondear(&ventana);
+    #[cfg(windows)]
+    memoria_baja(app, &catalogo::etiqueta(id));
     let app2 = app.clone();
     let id2 = id.to_string();
     ventana.on_window_event(move |e| match e {

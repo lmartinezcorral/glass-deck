@@ -128,6 +128,8 @@ pub fn mostrar_dock(app: &AppHandle, visible: bool) -> Result<(), String> {
         None => {
             let def = &PANELES[0];
             let v = crear(app, def).map_err(|e| e.to_string())?;
+            #[cfg(windows)]
+            super::memoria_baja(app, DOCK);
             let p = posicion_dock(app, &v);
             *app.state::<EstadoDock>().ignorar_hasta.lock() = Some(Instant::now() + Duration::from_millis(400));
             let _ = v.set_position(p);
