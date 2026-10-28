@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-google-cliente-importar"
+description = "Enables the google_cliente_importar command without any pre-configured scope."
+commands.allow = ["google_cliente_importar"]
+
+[[permission]]
+identifier = "deny-google-cliente-importar"
+description = "Denies the google_cliente_importar command without any pre-configured scope."
+commands.deny = ["google_cliente_importar"]

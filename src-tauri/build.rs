@@ -31,6 +31,7 @@ const COMANDOS: &[&str] = &[
     "clima_fijar_ubicacion",
     "avisos_probar",
     "avisos_historial",
+    "google_cliente_importar",
 ];
 
 fn main() {

@@ -261,6 +261,12 @@
           "markdownDescription": "Enables the estado_entorno command without any pre-configured scope."
         },
         {
+          "description": "Enables the google_cliente_importar command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-google-cliente-importar",
+          "markdownDescription": "Enables the google_cliente_importar command without any pre-configured scope."
+        },
+        {
           "description": "Enables the historial command without any pre-configured scope.",
           "type": "string",
           "const": "allow-historial",
@@ -451,6 +457,12 @@
           "type": "string",
           "const": "deny-estado-entorno",
           "markdownDescription": "Denies the estado_entorno command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the google_cliente_importar command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-google-cliente-importar",
+          "markdownDescription": "Denies the google_cliente_importar command without any pre-configured scope."
         },
         {
           "description": "Denies the historial command without any pre-configured scope.",

@@ -202,6 +202,46 @@ pub fn vigilar_primer_plano<F: Fn(bool) + Send + Sync + 'static>(aviso: F) {
     }
 }
 
+/// Diálogo «Abrir» de Windows filtrado a `*.json`; `None` si se cancela. Se llama fuera del hilo principal:
+/// el diálogo modal tiene su propio bucle de mensajes y bloquearía el de Tauri.
+pub fn elegir_json(dueno: isize, titulo: &str) -> Result<Option<std::path::PathBuf>, String> {
+    use windows::core::{HSTRING, PCWSTR};
+    use windows::Win32::Foundation::ERROR_CANCELLED;
+    use windows::Win32::System::Com::{
+        CoCreateInstance, CoInitializeEx, CoTaskMemFree, CoUninitialize, CLSCTX_INPROC_SERVER, COINIT_APARTMENTTHREADED,
+        COINIT_DISABLE_OLE1DDE,
+    };
+    use windows::Win32::UI::Shell::Common::COMDLG_FILTERSPEC;
+    use windows::Win32::UI::Shell::{FileOpenDialog, IFileOpenDialog, FOS_FILEMUSTEXIST, FOS_FORCEFILESYSTEM, SIGDN_FILESYSPATH};
+
+    let fallo = |_| "No se pudo abrir el diálogo para elegir el archivo".to_string();
+    unsafe {
+        let com = CoInitializeEx(None, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+        let resultado = (|| {
+            let dialogo: IFileOpenDialog = CoCreateInstance(&FileOpenDialog, None, CLSCTX_INPROC_SERVER).map_err(fallo)?;
+            let nombre = HSTRING::from("Cliente de Google (JSON)");
+            let patron = HSTRING::from("*.json");
+            let filtros = [COMDLG_FILTERSPEC { pszName: PCWSTR(nombre.as_ptr()), pszSpec: PCWSTR(patron.as_ptr()) }];
+            dialogo.SetFileTypes(&filtros).map_err(fallo)?;
+            let opciones = dialogo.GetOptions().map_err(fallo)?;
+            dialogo.SetOptions(opciones | FOS_FILEMUSTEXIST | FOS_FORCEFILESYSTEM).map_err(fallo)?;
+            dialogo.SetTitle(&HSTRING::from(titulo)).map_err(fallo)?;
+            let dueno = (dueno != 0).then_some(HWND(dueno as _));
+            if let Err(e) = dialogo.Show(dueno) {
+                return if e.code() == ERROR_CANCELLED.to_hresult() { Ok(None) } else { Err(fallo(e)) };
+            }
+            let ruta = dialogo.GetResult().and_then(|i| i.GetDisplayName(SIGDN_FILESYSPATH)).map_err(fallo)?;
+            let texto = ruta.to_string();
+            CoTaskMemFree(Some(ruta.0 as _));
+            texto.map(|t| Some(std::path::PathBuf::from(t))).map_err(|_| "La ruta del archivo no es válida".to_string())
+        })();
+        if com.is_ok() {
+            CoUninitialize();
+        }
+        resultado
+    }
+}
+
 #[cfg(test)]
 mod pruebas {
     use super::*;

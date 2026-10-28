@@ -30,6 +30,7 @@
     "allow-clima-buscar-ciudad",
     "allow-clima-fijar-ubicacion",
     "allow-avisos-probar",
-    "allow-avisos-historial"
+    "allow-avisos-historial",
+    "allow-google-cliente-importar"
   ]
 }

@@ -123,6 +123,7 @@ pub fn run() {
             comandos::clima_fijar_ubicacion,
             comandos::avisos_probar,
             comandos::avisos_historial,
+            comandos::google_cliente_importar,
         ])
         .build(tauri::generate_context!())
         .expect("no se pudo iniciar Glassdeck");

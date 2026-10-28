@@ -28,13 +28,14 @@ struct DefPanel {
 }
 
 const PANELES: &[DefPanel] = &[
-    DefPanel { etiqueta: DOCK, vista: "dock", titulo: "Glassdeck · Dock", ancho: 560.0, alto: 64.0, en_barra_tareas: false },
+    DefPanel { etiqueta: DOCK, vista: "dock", titulo: "Glassdeck · Dock", ancho: 800.0, alto: 64.0, en_barra_tareas: false },
     DefPanel { etiqueta: CUSTOMIZE, vista: "customize", titulo: "Glassdeck · Customize", ancho: 780.0, alto: 580.0, en_barra_tareas: true },
     DefPanel { etiqueta: LIMPIEZA, vista: "limpieza", titulo: "Glassdeck · Limpiar temporales", ancho: 540.0, alto: 480.0, en_barra_tareas: true },
 ];
 
-fn crear(app: &AppHandle, def: &DefPanel) -> tauri::Result<WebviewWindow> {
-    let url = WebviewUrl::App(format!("index.html?vista={}", def.vista).into());
+fn crear(app: &AppHandle, def: &DefPanel, pestana: Option<&str>) -> tauri::Result<WebviewWindow> {
+    let consulta = pestana.map(|p| format!("&pestana={p}")).unwrap_or_default();
+    let url = WebviewUrl::App(format!("index.html?vista={}{consulta}", def.vista).into());
     let v = WebviewWindowBuilder::new(app, def.etiqueta, url)
         .title(def.titulo)
         .additional_browser_args(super::ARGUMENTOS_WEBVIEW)
@@ -65,14 +66,24 @@ fn centrar_en_monitor_activo(app: &AppHandle, v: &WebviewWindow) {
 }
 
 pub fn abrir(app: &AppHandle, etiqueta: &str) -> Result<(), String> {
+    abrir_en(app, etiqueta, None)
+}
+
+/// Con el panel ya abierto, la pestaña llega por `gd://pestana`; al crearlo, por la URL (aún no hay oyentes).
+pub fn abrir_en(app: &AppHandle, etiqueta: &str, pestana: Option<&str>) -> Result<(), String> {
     if etiqueta == DOCK {
         return mostrar_dock(app, true);
     }
     let def = PANELES.iter().find(|p| p.etiqueta == etiqueta).ok_or("Panel desconocido")?;
     let v = match app.get_webview_window(etiqueta) {
-        Some(v) => v,
+        Some(v) => {
+            if let Some(p) = pestana {
+                let _ = app.emit_to(etiqueta, "gd://pestana", p);
+            }
+            v
+        }
         None => {
-            let v = crear(app, def).map_err(|e| e.to_string())?;
+            let v = crear(app, def, pestana).map_err(|e| e.to_string())?;
             centrar_en_monitor_activo(app, &v);
             v
         }
@@ -127,7 +138,7 @@ pub fn mostrar_dock(app: &AppHandle, visible: bool) -> Result<(), String> {
         Some(v) => v,
         None => {
             let def = &PANELES[0];
-            let v = crear(app, def).map_err(|e| e.to_string())?;
+            let v = crear(app, def, None).map_err(|e| e.to_string())?;
             #[cfg(windows)]
             super::memoria_baja(app, DOCK);
             let p = posicion_dock(app, &v);

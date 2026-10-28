@@ -8,6 +8,7 @@ use crate::recolectores::clima;
 use crate::recolectores::servicios::{EstadoFuente, EstadoServicios};
 use crate::recolectores::{EstadoRecoleccion, SerieHistorial};
 use crate::seguridad::boveda::{self, Clave};
+use crate::seguridad::google_cliente;
 use crate::ventanas::{self, catalogo, paneles};
 use serde::Serialize;
 use std::path::PathBuf;
@@ -237,6 +238,7 @@ pub async fn panel_abrir(app: AppHandle, panel: String) -> R<()> {
             abrir_maximizado(&app, "procesos");
             Ok(())
         }
+        "cuentas" | "clima" => paneles::abrir_en(&app, paneles::CUSTOMIZE, Some(panel.as_str())),
         p => paneles::abrir(&app, p),
     }
 }
@@ -319,6 +321,30 @@ pub fn boveda_guardar(clave: Clave, valor: String) -> R<()> {
 #[tauri::command]
 pub fn boveda_borrar(clave: Clave) -> R<()> {
     boveda::borrar(clave.nombre())
+}
+
+/// GD-MAIL-07: el núcleo abre el diálogo, lee y valida el archivo; a la interfaz no llegan ni la ruta ni el contenido.
+/// `false` si se cancela el diálogo.
+#[tauri::command]
+pub async fn google_cliente_importar(ventana: WebviewWindow) -> R<bool> {
+    #[cfg(windows)]
+    {
+        let dueno = ventanas::win32::hwnd_de(&ventana).map(|h| h.0 as isize).unwrap_or(0);
+        tauri::async_runtime::spawn_blocking(move || {
+            let Some(ruta) = ventanas::win32::elegir_json(dueno, "Importar cliente de Google")? else {
+                return Ok(false);
+            };
+            google_cliente::importar_archivo(&ruta)?;
+            Ok(true)
+        })
+        .await
+        .map_err(|e| e.to_string())?
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = ventana;
+        Err("Solo disponible en Windows".into())
+    }
 }
 
 #[tauri::command]
