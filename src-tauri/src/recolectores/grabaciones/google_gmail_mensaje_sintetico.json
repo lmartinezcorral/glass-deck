@@ -1,0 +1,19 @@
+{
+  "id": "18f0000000000001",
+  "threadId": "18f0000000000001",
+  "labelIds": ["UNREAD", "INBOX", "CATEGORY_UPDATES"],
+  "snippet": "TEXTO-DE-CUERPO-SINTETICO que nunca debe llegar al widget",
+  "sizeEstimate": 5120,
+  "historyId": "100",
+  "internalDate": "1793210400000",
+  "payload": {
+    "mimeType": "multipart/alternative",
+    "headers": [
+      { "name": "From", "value": "\"Banco Ejemplo\" <avisos@example.com>" },
+      { "name": "Subject", "value": "Tu estado de cuenta de prueba" },
+      { "name": "Date", "value": "Wed, 28 Oct 2026 16:00:00 +0000" }
+    ],
+    "body": { "size": 0, "data": "VEVYVE8tREUtQ1VFUlBPLVNJTlRFVElDTw" },
+    "parts": [{ "partId": "0", "mimeType": "text/plain", "body": { "size": 20, "data": "VEVYVE8tREUtQ1VFUlBPLVNJTlRFVElDTw" } }]
+  }
+}

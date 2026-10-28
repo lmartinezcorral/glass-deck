@@ -9,6 +9,9 @@ describe('intervalos de Customize', () => {
     expect(Math.min(...OPCIONES_INTERVALO.disco_ms)).toBeGreaterThanOrEqual(1000);
     expect(Math.min(...OPCIONES_INTERVALO.spending_ms)).toBeGreaterThanOrEqual(300000);
     expect(Math.min(...OPCIONES_INTERVALO.clima_ms)).toBeGreaterThanOrEqual(900000);
+    expect(Math.min(...OPCIONES_INTERVALO.correo_ms)).toBeGreaterThanOrEqual(120000);
+    expect(Math.min(...OPCIONES_INTERVALO.calendario_ms)).toBeGreaterThanOrEqual(300000);
+    expect(Math.min(...OPCIONES_INTERVALO.rotacion_ms)).toBeGreaterThanOrEqual(60000);
   });
 
   it('incluyen los valores por defecto', () => {
@@ -17,6 +20,9 @@ describe('intervalos de Customize', () => {
     expect(OPCIONES_INTERVALO.disco_ms).toContain(5000);
     expect(OPCIONES_INTERVALO.spending_ms).toContain(900000);
     expect(OPCIONES_INTERVALO.clima_ms).toContain(1800000);
+    expect(OPCIONES_INTERVALO.correo_ms).toContain(300000);
+    expect(OPCIONES_INTERVALO.calendario_ms).toContain(600000);
+    expect(OPCIONES_INTERVALO.rotacion_ms).toContain(600000);
   });
 });
 

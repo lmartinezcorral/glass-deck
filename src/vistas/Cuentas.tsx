@@ -6,6 +6,8 @@ export type EstadoCuenta = 'conectada' | 'reconectar' | 'sin_conectar';
 
 export interface ResumenCuenta {
   id: 'google' | 'cursor' | 'claude' | 'chatgpt';
+  /** Distingue varias cuentas del mismo servicio (p. ej. dos de Google). */
+  clave?: string;
   nombre: string;
   estado: EstadoCuenta;
   detalle: string;
@@ -40,7 +42,7 @@ function detalleWeb(estado: EstadoCuenta, web: EstadoCuentas | null, servicio: S
   return estado === 'conectada' ? 'Sesión guardada · lectura no oficial' : 'Sin sesión · lectura no oficial';
 }
 
-/** GD-DOCK-02: ámbar si la última lectura dio sesión vencida o Cloudflare. Google sigue gris hasta el bloque 14. */
+/** GD-DOCK-02: ámbar si la última lectura dio sesión vencida o Cloudflare. La entrada gris de Google la reemplaza `resumenConGoogle` por cuenta. */
 export function resumenCuentas(credenciales: readonly EstadoCredencial[] | null, web: EstadoCuentas | null = null): ResumenCuenta[] {
   const cliente = credencialPresente(credenciales, 'google_cliente');
   const cursor = estadoServicio('cursor', credenciales, web);

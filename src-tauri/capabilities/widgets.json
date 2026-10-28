@@ -19,6 +19,9 @@
     "allow-estado-entorno",
     "allow-servicio-ultimo",
     "allow-catalogo-widgets",
+    "allow-privacidad-alternar",
+    "allow-google-cuentas",
+    "allow-google-abrir",
     "allow-cuentas-estado"
   ]
 }

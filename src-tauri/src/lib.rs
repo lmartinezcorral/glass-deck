@@ -1,4 +1,5 @@
 mod acciones;
+mod arranque;
 mod atajos;
 mod avisos;
 mod bandeja;
@@ -11,9 +12,10 @@ mod seguridad;
 mod ventanas;
 
 use config::{AlmacenConfig, AlmacenEstado};
+use recolectores::google::{self, Google};
 use recolectores::servicios::{self, EstadoServicios};
 use std::path::PathBuf;
-use tauri::{Manager, RunEvent};
+use tauri::{Emitter, Manager, RunEvent};
 use ventanas::paneles::{self, EstadoDock};
 
 fn carpeta_config(app: &tauri::App) -> PathBuf {
@@ -33,6 +35,7 @@ pub fn borrar_credenciales() {
 }
 
 pub fn run() {
+    arranque::esperar_escritorio_si_hace_falta();
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             ventanas::diferir(app, |a| {
@@ -72,21 +75,32 @@ pub fn run() {
             atajos::registrar_todos(h);
             avisos::instalar(h);
             let cfg = app.state::<AlmacenConfig>().leer();
-            comandos::aplicar_arranque(h, cfg.arranque_windows);
+            arranque::aplicar(h, cfg.arranque_windows);
             ventanas::abrir_activos(h);
             if cfg.dock.visible {
                 let _ = paneles::mostrar_dock(h, true);
             }
             ventanas::iniciar_vigilancia(h);
             recolectores::iniciar(h);
+            let cuentas_google = std::sync::Arc::new(Google::nuevo(std::sync::Arc::new(google::InternetGoogle)));
+            let avisador = h.clone();
+            cuentas_google.al_cambiar(move || {
+                let _ = avisador.emit("gd://google", ());
+            });
+            app.manage(cuentas_google.clone());
             let inicio = app.path().home_dir().unwrap_or_else(|_| PathBuf::from("."));
             let mut fuentes: Vec<Box<dyn servicios::Fuente>> = vec![
                 Box::new(recolectores::claude_code::ClaudeCode::nuevo(&inicio)),
+                Box::new(recolectores::codex::Codex::nuevo(&inicio)),
                 Box::new(recolectores::clima::FuenteClima::nueva(std::sync::Arc::new(conexion::Internet))),
+                Box::new(google::FuenteCorreo(cuentas_google.clone())),
+                Box::new(google::FuenteAgenda(cuentas_google.clone())),
+                Box::new(google::FuenteAlerta::nueva(cuentas_google)),
             ];
             fuentes.extend(recolectores::web::fuentes(h));
             servicios::iniciar(h, fuentes);
             ventanas::marcar_arranque_listo();
+            arranque::registrar_arranque_listo();
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -123,6 +137,11 @@ pub fn run() {
             comandos::avisos_probar,
             comandos::avisos_historial,
             comandos::google_cliente_importar,
+            google::comandos::google_cuentas,
+            google::comandos::google_conectar,
+            google::comandos::google_cancelar,
+            google::comandos::google_desconectar,
+            google::comandos::google_abrir,
             comandos::cuenta_conectar,
             comandos::cuenta_desconectar,
             comandos::cuentas_estado,

@@ -28,7 +28,7 @@ struct DefPanel {
 }
 
 const PANELES: &[DefPanel] = &[
-    DefPanel { etiqueta: DOCK, vista: "dock", titulo: "Glassdeck · Dock", ancho: 860.0, alto: 64.0, en_barra_tareas: false },
+    DefPanel { etiqueta: DOCK, vista: "dock", titulo: "Glassdeck · Dock", ancho: 940.0, alto: 64.0, en_barra_tareas: false },
     DefPanel { etiqueta: CUSTOMIZE, vista: "customize", titulo: "Glassdeck · Customize", ancho: 780.0, alto: 580.0, en_barra_tareas: true },
     DefPanel { etiqueta: LIMPIEZA, vista: "limpieza", titulo: "Glassdeck · Limpiar temporales", ancho: 540.0, alto: 480.0, en_barra_tareas: true },
 ];
@@ -178,6 +178,20 @@ pub fn aplicar_capa_dock(app: &AppHandle) {
     }
     #[cfg(not(windows))]
     let _ = v;
+}
+
+#[cfg(test)]
+mod pruebas {
+    use super::*;
+
+    #[test]
+    fn el_dock_cabe_centrado_en_las_areas_mas_angostas() {
+        let dock = &PANELES[0];
+        assert_eq!(dock.etiqueta, DOCK);
+        for (ancho_fisico, escala) in [(1366.0, 1.0), (1920.0, 1.5)] {
+            assert!(dock.ancho + 2.0 * 16.0 <= ancho_fisico / escala, "{} px no cabe en {ancho_fisico} px al {escala}x", dock.ancho);
+        }
+    }
 }
 
 pub fn revisar_dock(app: &AppHandle) {

@@ -1359,13 +1359,16 @@ dependencies = [
 name = "glassdeck"
 version = "0.1.0"
 dependencies = [
+ "base64 0.22.1",
  "chrono",
+ "getrandom 0.3.4",
  "keyring",
  "log",
  "parking_lot",
  "reqwest 0.12.28",
  "serde",
  "serde_json",
+ "sha2",
  "sysinfo",
  "tauri",
  "tauri-build",

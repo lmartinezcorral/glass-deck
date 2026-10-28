@@ -1,10 +1,22 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import type { Clima, DatosChatgpt, DatosClaudeAi, DatosCursor, EstadoFuente, FilaClaude, ResumenClaudeCode, ServicioWeb, Tokens } from '../api';
+import type {
+  Clima,
+  DatosChatgpt,
+  DatosClaudeAi,
+  DatosCursor,
+  EstadoFuente,
+  FilaClaude,
+  ResumenClaudeCode,
+  ResumenCodex,
+  ServicioWeb,
+  Tokens,
+} from '../api';
 import baseCss from '../tema/base.css?raw';
 import vistasCss from './vistas.css?raw';
 import { ContenidoClima } from './Clima';
+import { agruparPorModelo, NOTA_SIN_DESGLOSE } from './SeccionCodex';
 import { WEB_SIN_DATOS, type DatosWeb } from './SeccionesWeb';
 import { agruparFilas, ContenidoSpending, totalTokens } from './Spending';
 
@@ -296,6 +308,92 @@ describe('Spending: Cursor, claude.ai y ChatGPT (GD-CUR-04, GD-CUR-05, GD-CLA-04
     const valores = [...contenedor.querySelectorAll('.gd-spending__fuentes *')].filter((e) => e.children.length === 0 && /\$\d|\d %/.test(e.textContent ?? ''));
     expect(valores.length).toBeGreaterThan(0);
     for (const v of valores) expect(v.closest('.gd-privado')).not.toBeNull();
+  });
+});
+
+function resumenCodex(): ResumenCodex {
+  const dias = Array.from({ length: 30 }, (_, i) => {
+    const d = new Date(2026, 9, 28 - (29 - i));
+    const dia = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    return { dia, tokens: i === 29 ? 290_000 : i === 28 ? 7_000 : 0, costo_usd: null };
+  });
+  return {
+    hoy: '2026-10-28',
+    total_hoy: { tokens: 290_000, costo_usd: null },
+    total_mes: { tokens: 1_297_000, costo_usd: null },
+    dias,
+    filas: [
+      { dia: '2026-10-27', modelo: 'gpt-5.1-codex-mini', sesiones: 1, tokens: 7_000, costo_usd: null },
+      { dia: '2026-10-28', modelo: 'gpt-5.1-codex-mini', sesiones: 2, tokens: 250_000, costo_usd: null },
+      { dia: '2026-10-28', modelo: 'sin modelo', sesiones: 1, tokens: 40_000, costo_usd: null },
+    ],
+    con_desglose: false,
+    sin_precio: [],
+  };
+}
+
+describe('Spending: Codex local (GD-OAI-01, GD-OAI-03)', () => {
+  it('muestra tokens de hoy y del mes con la nota sin costo y sin ningún monto', () => {
+    for (const maximizado of [false, true]) {
+      act(() => raiz.render(<ContenidoSpending claude={null} codex={ok(resumenCodex())} maximizado={maximizado} ahora={AHORA} />));
+      const seccion = contenedor.querySelector('section[aria-label="Codex"]')!;
+      expect(seccion.textContent).toContain('290 k');
+      expect(seccion.textContent).toContain('1.30 M');
+      expect(seccion.textContent).toContain(NOTA_SIN_DESGLOSE);
+      expect(seccion.textContent).not.toMatch(/\$\d/);
+    }
+  });
+
+  it('maximizado: gráfica de 30 días y desglose por modelo con «sin modelo»', () => {
+    act(() => raiz.render(<ContenidoSpending claude={null} codex={ok(resumenCodex())} maximizado ahora={AHORA} />));
+    const seccion = contenedor.querySelector('section[aria-label="Codex"]')!;
+    expect(seccion.querySelectorAll('.gd-barras__barra')).toHaveLength(30);
+    const tabla = seccion.querySelector('table[aria-label^="Codex por modelo"]')!;
+    expect([...tabla.querySelectorAll('tbody .gd-tabla__nombre')].map((c) => c.textContent)).toEqual(['gpt-5.1-codex-mini', 'sin modelo']);
+    expect(tabla.querySelectorAll('thead th')).toHaveLength(3);
+    for (const celda of seccion.querySelectorAll('b.num, tbody')) expect(celda.closest('.gd-privado')).not.toBeNull();
+  });
+
+  it('con error muestra el motivo y la última lectura válida sin perder los tokens', () => {
+    const estado: EstadoFuente<ResumenCodex> = {
+      datos: resumenCodex(),
+      hora_ms: AHORA - 20 * MIN,
+      error: 'interno',
+      texto_error: 'Error interno',
+      proximo_intento_ms: AHORA + MIN,
+    };
+    for (const maximizado of [false, true]) {
+      act(() => raiz.render(<ContenidoSpending claude={ok(resumen())} codex={estado} maximizado={maximizado} ahora={AHORA} />));
+      const seccion = contenedor.querySelector('section[aria-label="Codex"]')!;
+      expect(seccion.textContent).toContain('Error interno');
+      expect(seccion.textContent).toContain('Último dato válido hace 20 min');
+      expect(seccion.textContent).toContain('290 k');
+    }
+  });
+
+  it('sin lectura no inventa cifras', () => {
+    act(() => raiz.render(<ContenidoSpending claude={null} codex={null} maximizado={false} ahora={AHORA} />));
+    expect(contenedor.querySelector('section[aria-label="Codex"]')!.textContent).toContain('Sin datos de Codex todavía.');
+  });
+
+  it('si una versión de Codex trae desglose y el modelo tiene precio, muestra el costo y quita la nota', () => {
+    const r = resumenCodex();
+    const conPrecio: ResumenCodex = {
+      ...r,
+      con_desglose: true,
+      total_hoy: { tokens: 290_000, costo_usd: 1.5 },
+      filas: r.filas.map((f) => ({ ...f, costo_usd: f.modelo === 'sin modelo' ? null : 0.75 })),
+      sin_precio: ['sin modelo'],
+    };
+    act(() => raiz.render(<ContenidoSpending claude={null} codex={ok(conPrecio)} maximizado ahora={AHORA} />));
+    const seccion = contenedor.querySelector('section[aria-label="Codex"]')!;
+    expect(seccion.textContent).toContain('≈ $1.50');
+    expect(seccion.textContent).not.toContain(NOTA_SIN_DESGLOSE);
+    expect(seccion.textContent).toContain('Sin precio en la tabla (sin costo): sin modelo');
+    expect(agruparPorModelo(conPrecio.filas)).toEqual([
+      { modelo: 'gpt-5.1-codex-mini', sesiones: 3, tokens: 257_000, costo_usd: 1.5 },
+      { modelo: 'sin modelo', sesiones: 1, tokens: 40_000, costo_usd: null },
+    ]);
   });
 });
 

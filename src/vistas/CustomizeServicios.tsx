@@ -16,7 +16,7 @@ import {
   type Ubicacion,
   type Umbrales,
 } from '../api';
-import { Dialogo, Interruptor, Selector } from '../componentes';
+import { Interruptor, Selector } from '../componentes';
 import { usd } from '../formato';
 import { useServicio } from '../hooks';
 import {
@@ -30,6 +30,7 @@ import {
   useCuentasWeb,
   type ResumenCuenta,
 } from './Cuentas';
+import { CuentasGoogle } from './CuentasGoogle';
 
 interface PropsSeccion {
   config: Config;
@@ -486,16 +487,6 @@ export function SeccionClima({ config, alFijar }: { config: Config; alFijar: (c:
   );
 }
 
-const PASOS_GUIA: readonly string[] = [
-  'En console.cloud.google.com crea el proyecto «Glassdeck personal».',
-  'Habilita Gmail API y Google Calendar API.',
-  'Configura la pantalla de consentimiento: app «Glassdeck», público Externo.',
-  'Agrega solo los permisos gmail.metadata y calendar.events.readonly.',
-  'Publica la app como producción sin enviarla a verificar.',
-  'Crea un cliente OAuth de tipo «App de escritorio» y descarga su JSON.',
-  'Importa ese JSON aquí y después bórralo de Descargas.',
-];
-
 function Tarjeta({ titulo, detalle, chip, children }: { titulo: string; detalle: string; chip?: ReactNode; children: ReactNode }) {
   return (
     <section className="gd-tarjeta gd-cuenta" aria-label={titulo}>
@@ -605,7 +596,6 @@ export function SeccionCuentas() {
   const [credenciales, recargar] = useCredenciales();
   const [web, recargarWeb] = useCuentasWeb();
   const claude = useServicio('claude_code');
-  const [guia, setGuia] = useState(false);
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const cuentas = resumenCuentas(credenciales, web);
@@ -628,21 +618,6 @@ export function SeccionCuentas() {
     });
   };
 
-  const importar = (): void => {
-    setGuia(false);
-    api
-      .googleClienteImportar()
-      .then((importado) => {
-        setError(null);
-        if (importado) setMensaje('Cliente importado. Ya puedes borrar el JSON de Descargas: quedó en el Administrador de credenciales.');
-        recargar();
-      })
-      .catch((e) => {
-        setMensaje(null);
-        setError(mensajeError(e));
-      });
-  };
-
   const estadoDe = (id: ResumenCuenta['id']) => cuentas.find((c) => c.id === id)!;
   const chipEstado = (id: ResumenCuenta['id']) => {
     const c = estadoDe(id);
@@ -659,36 +634,7 @@ export function SeccionCuentas() {
       <h2 className="gd-customize__titulo">Cuentas e inicios de sesión</h2>
       <p className="gd-etiqueta">Las credenciales se guardan en el Administrador de credenciales de Windows; Glassdeck nunca las muestra.</p>
 
-      <Tarjeta titulo="Google" detalle="Gmail y Calendar, solo lectura, varias cuentas" chip={chipEstado('google')}>
-        {presente('google_cliente') ? (
-          <p className="gd-aviso-linea">
-            <span className="gd-chip gd-chip--ok">Cliente importado</span> El inicio de sesión con Google llega en el bloque 14.
-          </p>
-        ) : (
-          <p className="gd-aviso-linea">Falta importar el cliente OAuth de tu proyecto de Google.</p>
-        )}
-        <div className="gd-panel__acciones">
-          {presente('google_cliente') ? (
-            <>
-              <button type="button" className="gd-boton gd-boton--sm" onClick={() => ejecutar(api.bovedaBorrar('google_cliente'), 'Cliente de Google quitado.')}>
-                Quitar cliente
-              </button>
-              <button type="button" className="gd-boton gd-boton--sm" onClick={importar}>
-                Reemplazar cliente…
-              </button>
-            </>
-          ) : (
-            <>
-              <button type="button" className="gd-boton gd-boton--sm" onClick={importar}>
-                Importar cliente de Google…
-              </button>
-              <button type="button" className="gd-boton gd-boton--sm gd-boton--primario" onClick={() => setGuia(true)}>
-                Conectar Google
-              </button>
-            </>
-          )}
-        </div>
-      </Tarjeta>
+      <CuentasGoogle credenciales={credenciales} recargar={recargar} />
 
       <Tarjeta
         titulo="Cursor"
@@ -773,22 +719,6 @@ export function SeccionCuentas() {
           {error}
         </p>
       )}
-
-      <Dialogo
-        abierto={guia}
-        titulo="Conecta Google en 7 pasos"
-        descripcion="Lo haces una sola vez: unos 15 minutos y sin costo. La guía completa está en docs/GUIA_GOOGLE_OAUTH.md."
-        textoConfirmar="Importar cliente de Google…"
-        textoCancelar="Cerrar"
-        onConfirmar={importar}
-        onCancelar={() => setGuia(false)}
-      >
-        <ol className="gd-guia">
-          {PASOS_GUIA.map((p) => (
-            <li key={p}>{p}</li>
-          ))}
-        </ol>
-      </Dialogo>
     </div>
   );
 }

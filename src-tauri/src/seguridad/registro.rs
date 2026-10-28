@@ -81,6 +81,33 @@ pub fn iniciar(dir: &Path) {
 }
 
 #[cfg(test)]
+struct Captura(Mutex<String>);
+
+#[cfg(test)]
+impl Log for Captura {
+    fn enabled(&self, _: &Metadata) -> bool {
+        true
+    }
+    fn log(&self, r: &Record) {
+        self.0.lock().push_str(&format!("{}\n", r.args()));
+    }
+    fn flush(&self) {}
+}
+
+/// `log` admite un solo registrador por proceso: todas las pruebas que revisan los logs comparten este.
+#[cfg(test)]
+pub(crate) fn captura_de_prueba() -> &'static Mutex<String> {
+    static C: std::sync::OnceLock<&'static Captura> = std::sync::OnceLock::new();
+    &C.get_or_init(|| {
+        let c: &'static Captura = Box::leak(Box::new(Captura(Mutex::new(String::new()))));
+        let _ = log::set_logger(c);
+        log::set_max_level(LevelFilter::Trace);
+        c
+    })
+    .0
+}
+
+#[cfg(test)]
 mod pruebas {
     use super::*;
 

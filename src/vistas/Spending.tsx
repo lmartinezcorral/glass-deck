@@ -1,10 +1,11 @@
-import type { EstadoFuente, FilaClaude, ResumenClaudeCode, Tokens } from '../api';
+import type { EstadoFuente, FilaClaude, ResumenClaudeCode, ResumenCodex, Tokens } from '../api';
 import { GraficaBarras } from '../componentes';
 import { diaCorto, tokens, usd } from '../formato';
 import { useAhora, useConfig, usePrivacidad, useServicio } from '../hooks';
 import { IconoCartera } from '../iconos';
 import { EstadoLectura } from './EstadoLectura';
 import { MarcoWidget, useMaximizado } from './MarcoWidget';
+import { SeccionCodex } from './SeccionCodex';
 import { SeccionesWeb, useDatosWeb, WEB_SIN_DATOS, type DatosWeb } from './SeccionesWeb';
 
 export const totalTokens = (t: Tokens): number => t.entrada + t.salida + t.cache_escritura + t.cache_lectura;
@@ -32,6 +33,7 @@ export function VistaSpending() {
   const [config] = useConfig();
   const privado = usePrivacidad(config);
   const claude = useServicio('claude_code');
+  const codex = useServicio('codex');
   const web = useDatosWeb();
   const ahora = useAhora();
   const hoy = claude?.datos?.total_hoy;
@@ -39,18 +41,19 @@ export function VistaSpending() {
     <MarcoWidget
       id="spending"
       titulo="Spending"
-      subtitulo="Gasto y uso de Cursor, Claude y ChatGPT"
+      subtitulo="Gasto y uso de Cursor, Claude, Codex y ChatGPT"
       icono={<IconoCartera />}
       textoPildora={privado ? 'oculto' : hoy ? `≈ ${usd(hoy.costo_usd)} hoy` : '—'}
       maximizado={maximizado}
     >
-      <ContenidoSpending claude={claude} maximizado={maximizado} ahora={ahora} web={web} />
+      <ContenidoSpending claude={claude} codex={codex} maximizado={maximizado} ahora={ahora} web={web} />
     </MarcoWidget>
   );
 }
 
 interface PropsContenido {
   claude: EstadoFuente<ResumenClaudeCode> | null;
+  codex?: EstadoFuente<ResumenCodex> | null;
   maximizado: boolean;
   ahora: number;
   /** Cursor, Claude.ai, ChatGPT y, solo con clave guardada, las APIs de costos (GD-CLA-05, GD-OAI-05). */
@@ -101,7 +104,7 @@ function TablaDesglose({ titulo, filas, nombreColumna }: { titulo: string; filas
   );
 }
 
-export function ContenidoSpending({ claude, maximizado, ahora, web = WEB_SIN_DATOS }: PropsContenido) {
+export function ContenidoSpending({ claude, codex = null, maximizado, ahora, web = WEB_SIN_DATOS }: PropsContenido) {
   const d = claude?.datos ?? null;
 
   if (!maximizado) {
@@ -129,6 +132,7 @@ export function ContenidoSpending({ claude, maximizado, ahora, web = WEB_SIN_DAT
             <p className="gd-etiqueta">Sin datos de Claude Code todavía.</p>
           )}
         </section>
+        <SeccionCodex codex={codex} maximizado={false} ahora={ahora} />
         <SeccionesWeb web={web} maximizado={false} ahora={ahora} />
         <EstadoLectura estado={claude} ahora={ahora} />
       </div>
@@ -199,6 +203,8 @@ export function ContenidoSpending({ claude, maximizado, ahora, web = WEB_SIN_DAT
         <TablaDesglose titulo="Por modelo · últimos 30 días" nombreColumna="Modelo" filas={agruparFilas(d?.filas ?? [], 'modelo')} />
         <TablaDesglose titulo="Por proyecto · últimos 30 días" nombreColumna="Proyecto" filas={agruparFilas(d?.filas ?? [], 'proyecto')} />
       </div>
+
+      <SeccionCodex codex={codex} maximizado ahora={ahora} />
 
       <SeccionesWeb web={web} maximizado ahora={ahora} />
 

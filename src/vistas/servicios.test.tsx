@@ -1,7 +1,7 @@
 import { act, useState } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Config, EstadoCredencial, EstadoCuentas, EstadoCuentaWeb, FilaClaude, ResumenClaudeCode, ServicioWeb, Ubicacion } from '../api';
+import type { Config, CuentaGoogle, EstadoCredencial, EstadoCuentas, EstadoCuentaWeb, FilaClaude, ResumenClaudeCode, ServicioWeb, Ubicacion } from '../api';
 import { etiquetaIntervalo, pestanaValida } from './Customize';
 import { BuscadorCiudad, describirAviso, estimarCosto, normalizarUmbrales, precioPara, SeccionCuentas, SeccionGasto } from './CustomizeServicios';
 import { VistaDock } from './Dock';
@@ -52,6 +52,7 @@ const CONFIG = {
 
 let credenciales: EstadoCredencial[] = [];
 let cuentasWeb: EstadoCuentas | null = null;
+let cuentasGoogle: CuentaGoogle[] | null = null;
 
 const cuentaWeb = (servicio: ServicioWeb, estado: EstadoCuentaWeb['estado'], extra: Partial<EstadoCuentaWeb> = {}): EstadoCuentaWeb => ({
   servicio,
@@ -72,6 +73,8 @@ function responder(comando: string): unknown {
       return credenciales;
     case 'cuentas_estado':
       return cuentasWeb;
+    case 'google_cuentas':
+      return cuentasGoogle;
     case 'clima_buscar_ciudad':
       return CIUDADES;
     case 'config_leer':
@@ -85,6 +88,7 @@ function responder(comando: string): unknown {
         ['procesos', 'Procesos'],
         ['spending', 'Spending'],
         ['clima', 'Clima'],
+        ['correo', 'Correo'],
       ].map(([id, titulo]) => ({ id, titulo, subtitulo: '', activo_defecto: true }));
     default:
       return null;
@@ -97,6 +101,7 @@ let raiz: Root;
 beforeEach(() => {
   credenciales = [];
   cuentasWeb = null;
+  cuentasGoogle = null;
   invocar.mockReset();
   invocar.mockImplementation(async (comando: string) => responder(comando));
   contenedor = document.createElement('div');
@@ -335,6 +340,25 @@ describe('dock (GD-DOCK-02)', () => {
     expect(llamadas('panel_abrir')).toEqual([['panel_abrir', { panel: 'cuentas' }]]);
   });
 
+  it('cuenta cada cuenta de Google junto con Cursor, Claude y ChatGPT', async () => {
+    cuentasGoogle = [
+      { id: 'cuenta-a', correo: 'ana@ejemplo.test', estado: 'conectada' },
+      { id: 'cuenta-b', correo: 'bea@ejemplo.test', estado: 'reconectar' },
+    ];
+    cuentasWeb = {
+      web: [cuentaWeb('cursor', 'conectada'), cuentaWeb('claude_ai', 'sin_conectar'), cuentaWeb('chatgpt', 'conectada')],
+      claves: { anthropic_admin: false, openai_admin: false },
+    };
+    act(() => raiz.render(<VistaDock />));
+    await esperar();
+    await esperar();
+    const cuentas = contenedor.querySelector<HTMLButtonElement>('.gd-dock__cuentas')!;
+    expect(cuentas.getAttribute('aria-label')).toContain('3 de 5 conectadas');
+    expect([...cuentas.querySelectorAll('.gd-dock__avatar')].map((a) => a.getAttribute('data-cuenta'))).toEqual(['google', 'google', 'cursor', 'claude', 'chatgpt']);
+    expect(cuentas.querySelector('.gd-dock__cuentas-texto')?.textContent).toContain('3 de 5');
+    expect(boton('Conectar Claude.ai')).toBeTruthy();
+  });
+
   it('se pone ámbar con sesión vencida o Cloudflare y ofrece reconectar directo', async () => {
     cuentasWeb = {
       web: [
@@ -368,7 +392,7 @@ describe('dock (GD-DOCK-02)', () => {
     await esperar();
     await esperar();
     const botones = [...contenedor.querySelectorAll<HTMLButtonElement>('button')].filter((b) => !b.disabled);
-    expect(botones.length).toBe(7 + 5 + 2);
+    expect(botones.length).toBe(8 + 5 + 2);
     for (const b of botones) {
       expect(b.tabIndex).toBe(0);
       expect(b.getAttribute('aria-label')).toBeTruthy();

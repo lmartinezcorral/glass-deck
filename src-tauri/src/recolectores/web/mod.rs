@@ -573,27 +573,9 @@ mod pruebas {
         assert!(t.urls().is_empty());
     }
 
-    static CAPTURADOS: parking_lot::Mutex<Vec<String>> = parking_lot::Mutex::new(Vec::new());
-
-    struct Captura;
-
-    impl log::Log for Captura {
-        fn enabled(&self, _: &log::Metadata) -> bool {
-            true
-        }
-        fn log(&self, r: &log::Record) {
-            let linea = format!("{}", r.args());
-            let filtrada = crate::seguridad::filtro::enmascarar(&linea);
-            CAPTURADOS.lock().extend([linea, filtrada]);
-        }
-        fn flush(&self) {}
-    }
-
     #[test]
     fn ni_la_cookie_ni_el_token_llegan_al_log_ni_a_lo_que_ve_la_interfaz() {
-        if log::set_boxed_logger(Box::new(Captura)).is_ok() {
-            log::set_max_level(log::LevelFilter::Trace);
-        }
+        let captura = crate::seguridad::registro::captura_de_prueba();
         let cookie = Secreto::de_prueba("WorkosCursorSessionToken=user_x%3A%3Acookie-de-prueba; sessionKey=cookie-de-prueba");
         let sesion = json!({ "accessToken": "token-de-prueba" });
         let t = Grabado::nuevo(vec![
@@ -620,9 +602,10 @@ mod pruebas {
         };
         let interfaz = format!("{} {}", serde_json::to_string(&cuentas).unwrap(), serde_json::to_string(&fuente).unwrap());
 
-        let capturados = CAPTURADOS.lock();
-        assert!(capturados.iter().any(|l| l.contains("depuración accidental")), "el registrador de prueba está activo");
-        for texto in capturados.iter().map(String::as_str).chain([interfaz.as_str()]) {
+        let capturado = captura.lock().clone();
+        assert!(capturado.contains("depuración accidental"), "el registrador de prueba está activo");
+        let filtrado = crate::seguridad::filtro::enmascarar(&capturado);
+        for texto in [capturado.as_str(), filtrado.as_str(), interfaz.as_str()] {
             assert!(!texto.contains("cookie-de-prueba") && !texto.contains("token-de-prueba"), "{texto}");
         }
     }

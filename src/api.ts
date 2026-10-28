@@ -55,7 +55,16 @@ export interface Config {
   widgets: Record<string, ConfigWidget>;
   dock: { visible: boolean; x: number | null; y: number | null; monitor: string | null };
   apariencia: { tema: TemaConfig; acento: string; opacidad: number; desenfoque: number };
-  intervalos: { cpu_ram_red_ms: number; procesos_ms: number; disco_ms: number; spending_ms: number; clima_ms: number };
+  intervalos: {
+    cpu_ram_red_ms: number;
+    procesos_ms: number;
+    disco_ms: number;
+    spending_ms: number;
+    clima_ms: number;
+    correo_ms: number;
+    calendario_ms: number;
+    rotacion_ms: number;
+  };
   lista_negra_usuario: string[];
   atajos: { mostrar_ocultar: string; privacidad: string };
   arranque_windows: boolean;
@@ -162,6 +171,33 @@ export interface ResumenClaudeCode {
   sin_precio: string[];
 }
 
+/** Codex Desktop hoy solo trae el total de tokens: `costo_usd` es `null` salvo con desglose y precio (GD-OAI-03). */
+export interface TotalCodex {
+  tokens: number;
+  costo_usd: number | null;
+}
+
+export interface DiaCodex extends TotalCodex {
+  dia: string;
+}
+
+export interface FilaCodex extends TotalCodex {
+  dia: string;
+  modelo: string;
+  sesiones: number;
+}
+
+/** `dias` trae siempre 30 elementos (del más viejo a hoy); `filas` cubre esos mismos 30 días por día y modelo. */
+export interface ResumenCodex {
+  hoy: string;
+  total_hoy: TotalCodex;
+  total_mes: TotalCodex;
+  dias: DiaCodex[];
+  filas: FilaCodex[];
+  con_desglose: boolean;
+  sin_precio: string[];
+}
+
 export type IconoClima =
   | 'despejado'
   | 'parcial'
@@ -242,10 +278,66 @@ export interface CostoMes {
   costo_usd: number;
 }
 
+export type EstadoCuentaGoogle = 'conectada' | 'reconectar';
+
+/** El correo de la cuenta solo vive en memoria; arma los enlaces a Gmail y Calendar de esa cuenta. */
+export interface CuentaGoogle {
+  id: string;
+  correo: string;
+  estado: EstadoCuentaGoogle;
+}
+
+/** Solo encabezados (GD-MAIL-03): no hay campo para el cuerpo. */
+export interface CorreoNoLeido {
+  id: string;
+  hilo: string;
+  remitente: string;
+  asunto: string;
+  fecha_ms: number;
+}
+
+export interface EventoAgenda {
+  id: string;
+  titulo: string;
+  ubicacion: string | null;
+  inicio_ms: number;
+  fin_ms: number;
+  todo_el_dia: boolean;
+  /** Vacío si Google mandó un enlace fuera de Calendar. */
+  enlace: string;
+}
+
+interface LecturaCuentaGoogle {
+  cuenta: string;
+  correo: string;
+  estado: EstadoCuentaGoogle;
+  error: string | null;
+}
+
+export interface BuzonCuenta extends LecturaCuentaGoogle {
+  no_leidos: number;
+  mensajes: CorreoNoLeido[];
+}
+
+export interface AgendaCuenta extends LecturaCuentaGoogle {
+  eventos: EventoAgenda[];
+}
+
+/** `clave` es `correo:<cuenta>:<id>` o `evento:<cuenta>:<id>`. */
+export interface AlertaRotativa {
+  clave: string | null;
+  desde_ms: number;
+  proxima_ms: number;
+}
+
 /** Las fuentes web entregan `datos: null` mientras no haya sesión o clave guardada. */
 export type LecturaServicio =
   | { fuente: 'claude_code'; datos: EstadoFuente<ResumenClaudeCode> }
+  | { fuente: 'codex'; datos: EstadoFuente<ResumenCodex> }
   | { fuente: 'clima'; datos: EstadoFuente<Clima> }
+  | { fuente: 'correo'; datos: EstadoFuente<{ cuentas: BuzonCuenta[] }> }
+  | { fuente: 'calendario'; datos: EstadoFuente<{ cuentas: AgendaCuenta[] }> }
+  | { fuente: 'alerta'; datos: EstadoFuente<AlertaRotativa> }
   | { fuente: 'cursor'; datos: EstadoFuente<DatosCursor> }
   | { fuente: 'claude_ai'; datos: EstadoFuente<DatosClaudeAi> }
   | { fuente: 'chatgpt'; datos: EstadoFuente<DatosChatgpt> }
@@ -398,6 +490,14 @@ export const api = {
   avisosHistorial: () => invoke<AvisoEnviado[]>('avisos_historial'),
   /** Abre el diálogo de Windows y guarda el cliente en la bóveda; `false` si se cancela. Nunca devuelve el contenido. */
   googleClienteImportar: () => invoke<boolean>('google_cliente_importar'),
+  googleCuentas: () => invoke<CuentaGoogle[] | null>('google_cuentas'),
+  /** Abre el navegador y espera hasta 5 min la autorización; `googleCancelar` la corta. */
+  googleConectar: () => invoke<CuentaGoogle>('google_conectar'),
+  googleCancelar: () => invoke<void>('google_cancelar'),
+  /** Revoca en Google y borra el token de la bóveda. */
+  googleDesconectar: (id: string) => invoke<void>('google_desconectar', { id }),
+  /** Solo Gmail y Calendar; el núcleo valida el dominio antes de abrir el navegador. */
+  googleAbrir: (url: string) => invoke<void>('google_abrir', { url }),
   /** Abre la ventana de login aislada del servicio; la sesión nunca pasa por la interfaz. */
   cuentaConectar: (servicio: ServicioWeb) => invoke<void>('cuenta_conectar', { servicio }),
   /** Borra la sesión guardada y el perfil de login de ese servicio. */
@@ -419,6 +519,7 @@ export const EVENTOS = {
   estado: 'gd://estado',
   aviso: 'gd://aviso',
   pestana: 'gd://pestana',
+  google: 'gd://google',
   cuentas: 'gd://cuentas',
 } as const;
 

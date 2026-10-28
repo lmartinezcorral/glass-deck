@@ -1,0 +1,9 @@
+{
+  "kind": "calendar#calendarList",
+  "items": [
+    { "id": "cuenta.uno@example.com", "summary": "Principal", "primary": true, "selected": true, "accessRole": "owner" },
+    { "id": "equipo@group.calendar.google.com", "summary": "Equipo", "selected": true, "accessRole": "reader" },
+    { "id": "es.mexican#holiday@group.v.calendar.google.com", "summary": "Festivos", "selected": false, "accessRole": "reader" },
+    { "id": "oculto@group.calendar.google.com", "summary": "Oculto", "selected": true, "hidden": true, "accessRole": "reader" }
+  ]
+}

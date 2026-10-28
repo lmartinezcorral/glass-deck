@@ -4,6 +4,7 @@ import { Vidrio } from '../componentes';
 import { useCatalogo, useConfig, useEvento } from '../hooks';
 import {
   IconoCartera,
+  IconoCorreo,
   IconoCpu,
   IconoDisco,
   IconoEngrane,
@@ -18,6 +19,7 @@ import {
   IconoZonas,
 } from '../iconos';
 import { cuentaPorConectar, NOMBRE_SERVICIO, PuntoCuenta, resumenCuentas, textoEstadoCuenta, useCredenciales, useCuentasWeb } from './Cuentas';
+import { resumenConGoogle, useCuentasGoogle } from './CuentasGoogle';
 
 const ICONOS_WIDGET: Record<string, ReactNode> = {
   cpu: <IconoCpu />,
@@ -27,6 +29,7 @@ const ICONOS_WIDGET: Record<string, ReactNode> = {
   procesos: <IconoProcesos />,
   spending: <IconoCartera />,
   clima: <IconoSolNube />,
+  correo: <IconoCorreo />,
 };
 
 export function VistaDock() {
@@ -34,6 +37,7 @@ export function VistaDock() {
   const catalogo = useCatalogo();
   const [credenciales] = useCredenciales();
   const [web, recargarWeb] = useCuentasWeb();
+  const [cuentasGoogle] = useCuentasGoogle();
   const privacidadEvento = useEvento<boolean | null>('gd://privacidad', null);
   const privacidad = privacidadEvento ?? config?.privacidad ?? false;
   const [error, setError] = useState<string | null>(null);
@@ -65,7 +69,7 @@ export function VistaDock() {
     </button>
   );
 
-  const cuentas = resumenCuentas(credenciales, web);
+  const cuentas = resumenConGoogle(resumenCuentas(credenciales, web), cuentasGoogle);
   const conectadas = cuentas.filter((c) => c.estado === 'conectada').length;
   const descripcionCuentas = cuentas.map((c) => `${c.nombre}: ${textoEstadoCuenta(c.estado).toLowerCase()}`).join(', ');
   const porConectar = cuentaPorConectar(credenciales, web);
@@ -106,7 +110,7 @@ export function VistaDock() {
       >
         <span className="gd-dock__avatares" aria-hidden="true">
           {cuentas.map((c) => (
-            <span key={c.id} className="gd-dock__avatar" data-cuenta={c.id}>
+            <span key={c.clave ?? c.id} className="gd-dock__avatar" data-cuenta={c.id}>
               {c.icono}
               <PuntoCuenta estado={c.estado} />
             </span>

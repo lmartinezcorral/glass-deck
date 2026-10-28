@@ -279,10 +279,40 @@
           "markdownDescription": "Enables the estado_entorno command without any pre-configured scope."
         },
         {
+          "description": "Enables the google_abrir command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-google-abrir",
+          "markdownDescription": "Enables the google_abrir command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the google_cancelar command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-google-cancelar",
+          "markdownDescription": "Enables the google_cancelar command without any pre-configured scope."
+        },
+        {
           "description": "Enables the google_cliente_importar command without any pre-configured scope.",
           "type": "string",
           "const": "allow-google-cliente-importar",
           "markdownDescription": "Enables the google_cliente_importar command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the google_conectar command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-google-conectar",
+          "markdownDescription": "Enables the google_conectar command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the google_cuentas command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-google-cuentas",
+          "markdownDescription": "Enables the google_cuentas command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the google_desconectar command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-google-desconectar",
+          "markdownDescription": "Enables the google_desconectar command without any pre-configured scope."
         },
         {
           "description": "Enables the historial command without any pre-configured scope.",
@@ -495,10 +525,40 @@
           "markdownDescription": "Denies the estado_entorno command without any pre-configured scope."
         },
         {
+          "description": "Denies the google_abrir command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-google-abrir",
+          "markdownDescription": "Denies the google_abrir command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the google_cancelar command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-google-cancelar",
+          "markdownDescription": "Denies the google_cancelar command without any pre-configured scope."
+        },
+        {
           "description": "Denies the google_cliente_importar command without any pre-configured scope.",
           "type": "string",
           "const": "deny-google-cliente-importar",
           "markdownDescription": "Denies the google_cliente_importar command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the google_conectar command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-google-conectar",
+          "markdownDescription": "Denies the google_conectar command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the google_cuentas command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-google-cuentas",
+          "markdownDescription": "Denies the google_cuentas command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the google_desconectar command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-google-desconectar",
+          "markdownDescription": "Denies the google_desconectar command without any pre-configured scope."
         },
         {
           "description": "Denies the historial command without any pre-configured scope.",
