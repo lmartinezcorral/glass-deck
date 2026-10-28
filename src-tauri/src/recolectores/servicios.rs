@@ -142,6 +142,7 @@ impl Ejecutor {
 pub struct EstadoServicios {
     ultimos: Mutex<HashMap<&'static str, EstadoFuente>>,
     forzados: Mutex<HashSet<String>>,
+    widgets: Mutex<HashMap<&'static str, &'static str>>,
 }
 
 impl EstadoServicios {
@@ -151,6 +152,18 @@ impl EstadoServicios {
 
     pub fn forzar(&self, fuente: &str) {
         self.forzados.lock().insert(fuente.to_string());
+    }
+
+    fn registrar(&self, fuente: &'static str, widget: &'static str) {
+        self.widgets.lock().insert(fuente, widget);
+    }
+
+    /// Al encender un widget sus fuentes leen de inmediato en vez de esperar el intervalo completo.
+    pub fn forzar_widget(&self, widget: &str) {
+        let fuentes: Vec<&str> = self.widgets.lock().iter().filter(|(_, w)| **w == widget).map(|(f, _)| *f).collect();
+        for f in fuentes {
+            self.forzar(f);
+        }
     }
 }
 
@@ -171,6 +184,7 @@ fn correr(app: AppHandle, fuente: Box<dyn Fuente>) {
     let (id, widget, persistente) = (fuente.id(), fuente.widget(), fuente.persistente());
     let previo = if persistente { app.state::<AlmacenEstado>().ultimo(id) } else { None };
     let mut e = Ejecutor::nuevo(fuente, previo);
+    app.state::<EstadoServicios>().registrar(id, widget);
     app.state::<EstadoServicios>().ultimos.lock().insert(id, e.estado.clone());
     loop {
         std::thread::sleep(TIC);
@@ -312,6 +326,18 @@ pub(crate) mod pruebas {
         assert_eq!(e.estado.error, None);
         e.ejecutar(&cfg, t, 0);
         assert_eq!(e.estado.proximo_intento_ms, Some(60_000));
+    }
+
+    #[test]
+    fn encender_un_widget_fuerza_solo_sus_fuentes() {
+        let s = EstadoServicios::default();
+        s.registrar("claude_code", "spending");
+        s.registrar("cursor", "spending");
+        s.registrar("clima", "clima");
+        s.forzar_widget("spending");
+        let mut forzados: Vec<String> = s.forzados.lock().iter().cloned().collect();
+        forzados.sort();
+        assert_eq!(forzados, vec!["claude_code", "cursor"]);
     }
 
     #[test]

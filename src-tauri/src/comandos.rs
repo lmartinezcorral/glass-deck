@@ -83,7 +83,11 @@ pub fn aplicar_arranque(app: &AppHandle, activo: bool) {
 #[tauri::command]
 pub async fn widget_activar(app: AppHandle, id: String, activo: bool) -> R<()> {
     catalogo::buscar(&id).ok_or("Widget desconocido")?;
-    ventanas::activar_widget(&app, &id, activo)
+    ventanas::activar_widget(&app, &id, activo)?;
+    if activo {
+        app.state::<EstadoServicios>().forzar_widget(&id);
+    }
+    Ok(())
 }
 
 #[tauri::command]
@@ -221,6 +225,7 @@ pub async fn limpieza_ejecutar(app: AppHandle, opciones: Opciones) -> R<Resumen>
 
 pub fn abrir_maximizado(app: &AppHandle, id: &str) {
     if ventanas::activar_widget(app, id, true).is_ok() {
+        app.state::<EstadoServicios>().forzar_widget(id);
         let _ = ventanas::maximizar(app, id, true);
     }
 }

@@ -216,6 +216,8 @@ export const OPCIONES_INTERVALO = {
   cpu_ram_red_ms: [1000, 2000, 3000, 5000],
   procesos_ms: [2000, 3000, 5000, 10000],
   disco_ms: [1000, 2000, 5000, 10000],
+  spending_ms: [300000, 900000, 1800000, 3600000],
+  clima_ms: [900000, 1800000, 3600000],
 } as const satisfies Record<keyof Config['intervalos'], readonly number[]>;
 
 function SeccionIntervalos({ config, guardar }: PropsSeccion) {
