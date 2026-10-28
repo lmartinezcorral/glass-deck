@@ -223,3 +223,5 @@ Se detalla al iniciar la fase.
 | **Total SPEC** | **144** (+ R-01) | — | — |
 
 **Estado al cierre del bloque 8 (2026-10-27):** 3 pasan (R-01, GD-NFR-PERF-01 y GD-NFR-PERF-02 con la excepción de ~205 MB aceptada por Luis), 49 en prueba (lo automático y la revisión pasan; falta el paso manual), 0 fallan, 0 bloqueadas (GD-HOT-01 pasó a `Ctrl+Alt+M`, SPEC 1.3), 2 diferidas y 27 pendientes (solo manuales, para la revisión de Luis).
+
+**VoBo condicionado de Luis (2026-10-28):** la fase 2 arranca en paralelo; la fase 1 se cierra cuando estas filas queden en «Pasa» o «Diferido». Las filas que no exigen a Luis se automatizan con scripts y con pruebas de interfaz en el monitor integrado de la ThinkPad.

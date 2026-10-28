@@ -35,6 +35,8 @@ Complementa a `SPEC.md` (sección 6). Cada bloque termina con un commit en `main
 
 **Salida:** instalador funcional, todos los CA de la fase en «Pasa» o «Diferido» con motivo en `QA_MATRIZ.md`, y VoBo de Luis.
 
+**VoBo condicionado (Luis, 2026-10-28):** la fase 2 arranca en la rama `fase-2` mientras la QA manual de la fase 1 se cierra en `main`. La fase 1 queda cerrada cuando sus filas estén en «Pasa» o «Diferido»; `fase-2` no se integra a `main` antes de eso.
+
 ## Fases 2 a 4
 
 Se detallan al iniciar cada una, con el mismo formato. Contenido en `SPEC.md` §6.
