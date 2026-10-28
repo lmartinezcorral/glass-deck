@@ -152,9 +152,13 @@ pub fn vista_previa() -> Vec<Origen> {
 }
 
 pub fn ejecutar(op: Opciones, helper: Option<&Path>) -> Resumen {
+    ejecutar_en(op, helper, &temp_usuario())
+}
+
+fn ejecutar_en(op: Opciones, helper: Option<&Path>, raiz_usuario: &Path) -> Resumen {
     let mut r = Resumen::default();
     if op.temp_usuario {
-        let c = recorrer(&temp_usuario(), true, SystemTime::now());
+        let c = recorrer(raiz_usuario, true, SystemTime::now());
         r.liberado += c.bytes;
         r.archivos_borrados += c.archivos;
         r.omitidos += c.omitidos;
@@ -353,5 +357,62 @@ mod pruebas {
         }
         let _ = fs::remove_dir_all(&d);
         let _ = fs::remove_dir_all(&destino);
+    }
+
+    #[cfg(windows)]
+    fn espacio_libre(ruta: &Path) -> u64 {
+        use windows::core::HSTRING;
+        use windows::Win32::Storage::FileSystem::GetDiskFreeSpaceExW;
+        let mut libre = 0u64;
+        unsafe { GetDiskFreeSpaceExW(&HSTRING::from(ruta.as_os_str()), None, None, Some(&mut libre)) }.unwrap();
+        libre
+    }
+
+    /// GD-CLEAN-05 en una raíz propia: el resumen coincide con lo que liberó el disco (± 5 %).
+    #[cfg(windows)]
+    #[test]
+    #[ignore = "QA manual (escribe ~200 MB y mide el disco real): poc/qa/probar-recolectores.ps1"]
+    fn qa_el_resumen_coincide_con_el_espacio_liberado() {
+        use std::os::windows::fs::OpenOptionsExt;
+        let base = std::env::var_os("GD_QA_DIR").map(PathBuf::from).unwrap_or_else(std::env::temp_dir);
+        let raiz = base.join(format!("glassdeck-limpieza-qa-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&raiz);
+        fs::create_dir_all(raiz.join("sub")).unwrap();
+        let hace_3_dias = SystemTime::now() - Duration::from_secs(3 * 24 * 3600);
+        let bloque = vec![7u8; 4 * 1_048_576];
+        let viejo = |ruta: PathBuf| {
+            fs::write(&ruta, &bloque).unwrap();
+            fs::File::options().write(true).open(&ruta).unwrap().set_modified(hace_3_dias).unwrap();
+        };
+        for i in 0..50 {
+            let dir = if i % 2 == 0 { raiz.clone() } else { raiz.join("sub") };
+            viejo(dir.join(format!("viejo-{i}.tmp")));
+        }
+        viejo(raiz.join("en-uso.tmp"));
+        fs::write(raiz.join("nuevo.tmp"), &bloque).unwrap();
+        let en_uso = fs::OpenOptions::new().read(true).share_mode(0).open(raiz.join("en-uso.tmp")).unwrap();
+
+        let op = Opciones { temp_usuario: true, temp_windows: false, papelera: false };
+        let antes = espacio_libre(&raiz);
+        let r = ejecutar_en(op, None, &raiz);
+        let despues = espacio_libre(&raiz);
+        drop(en_uso);
+
+        let liberado_disco = despues.saturating_sub(antes);
+        let dif = liberado_disco.abs_diff(r.liberado) as f64 / r.liberado.max(1) as f64;
+        println!(
+            "GD-CLEAN-05: resumen {} bytes ({} archivos, {} omitidos); disco liberó {} bytes; diferencia {:.2} %",
+            r.liberado,
+            r.archivos_borrados,
+            r.omitidos,
+            liberado_disco,
+            dif * 100.0
+        );
+        assert!(raiz.join("nuevo.tmp").exists() && raiz.join("en-uso.tmp").exists());
+        let _ = fs::remove_dir_all(&raiz);
+        assert_eq!(r.archivos_borrados, 50);
+        assert_eq!(r.liberado, 50 * 4 * 1_048_576);
+        assert!(r.omitidos >= 1);
+        assert!(dif <= 0.05, "el resumen difiere {:.2} % del espacio liberado", dif * 100.0);
     }
 }

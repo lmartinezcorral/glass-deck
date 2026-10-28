@@ -9,8 +9,9 @@ use windows::Win32::NetworkManagement::IpHelper::{
 use windows::Win32::NetworkManagement::Ndis::IfOperStatusUp;
 use windows::Win32::Networking::WinSock::{AF_INET, AF_UNSPEC, SOCKADDR_IN};
 use windows::Win32::System::Performance::{
-    PdhAddEnglishCounterW, PdhCollectQueryData, PdhGetFormattedCounterArrayW, PdhOpenQueryW,
-    PDH_FMT_COUNTERVALUE_ITEM_W, PDH_FMT_DOUBLE, PDH_HCOUNTER, PDH_HQUERY, PDH_MORE_DATA,
+    PdhAddEnglishCounterW, PdhCollectQueryData, PdhGetFormattedCounterArrayW, PdhGetFormattedCounterValue,
+    PdhOpenQueryW, PDH_FMT_COUNTERVALUE, PDH_FMT_COUNTERVALUE_ITEM_W, PDH_FMT_DOUBLE, PDH_FMT_LARGE, PDH_HCOUNTER,
+    PDH_HQUERY, PDH_MORE_DATA,
 };
 use windows::Win32::System::Power::{GetSystemPowerStatus, SYSTEM_POWER_STATUS};
 use windows::Win32::System::ProcessStatus::{GetPerformanceInfo, PERFORMANCE_INFORMATION};
@@ -41,7 +42,109 @@ pub struct Memoria {
     pub limite_comprometida: u64,
 }
 
-pub fn memoria() -> Memoria {
+/// Listas de páginas que el Administrador de tareas no cuenta en «En uso».
+#[derive(Debug, Clone, Copy)]
+pub struct Listas {
+    pub modificada: u64,
+    pub libre: u64,
+}
+
+pub struct ConsultaMemoria {
+    consulta: PDH_HQUERY,
+    modificada: PDH_HCOUNTER,
+    libre: PDH_HCOUNTER,
+}
+
+unsafe impl Send for ConsultaMemoria {}
+
+impl ConsultaMemoria {
+    pub fn nueva() -> Option<Self> {
+        unsafe {
+            let mut consulta = PDH_HQUERY::default();
+            if PdhOpenQueryW(PCWSTR::null(), 0, &mut consulta) != ERROR_SUCCESS.0 {
+                return None;
+            }
+            let mut modificada = PDH_HCOUNTER::default();
+            let mut libre = PDH_HCOUNTER::default();
+            let m = amplio(r"\Memory\Modified Page List Bytes");
+            let l = amplio(r"\Memory\Free & Zero Page List Bytes");
+            if PdhAddEnglishCounterW(consulta, PCWSTR(m.as_ptr()), 0, &mut modificada) != ERROR_SUCCESS.0
+                || PdhAddEnglishCounterW(consulta, PCWSTR(l.as_ptr()), 0, &mut libre) != ERROR_SUCCESS.0
+            {
+                return None;
+            }
+            Some(Self { consulta, modificada, libre })
+        }
+    }
+
+    pub fn leer(&self) -> Option<Listas> {
+        let valor = |c: PDH_HCOUNTER| {
+            let mut v = PDH_FMT_COUNTERVALUE::default();
+            let r = unsafe { PdhGetFormattedCounterValue(c, PDH_FMT_LARGE, None, &mut v) };
+            (r == ERROR_SUCCESS.0).then(|| unsafe { v.Anonymous.largeValue }.max(0) as u64)
+        };
+        if unsafe { PdhCollectQueryData(self.consulta) } != ERROR_SUCCESS.0 {
+            return None;
+        }
+        Some(Listas { modificada: valor(self.modificada)?, libre: valor(self.libre)? })
+    }
+}
+
+/// CPU total como la muestra el Administrador de tareas (`% Processor Utility`, ajustado a la
+/// frecuencia real); el `100 − % Idle Time` de sysinfo se aleja más de 5 puntos con carga variable.
+pub struct ConsultaCpu {
+    consulta: PDH_HQUERY,
+    utilidad: PDH_HCOUNTER,
+}
+
+unsafe impl Send for ConsultaCpu {}
+
+impl ConsultaCpu {
+    pub fn nueva() -> Option<Self> {
+        unsafe {
+            let mut consulta = PDH_HQUERY::default();
+            if PdhOpenQueryW(PCWSTR::null(), 0, &mut consulta) != ERROR_SUCCESS.0 {
+                return None;
+            }
+            let mut utilidad = PDH_HCOUNTER::default();
+            let u = amplio(r"\Processor Information(_Total)\% Processor Utility");
+            if PdhAddEnglishCounterW(consulta, PCWSTR(u.as_ptr()), 0, &mut utilidad) != ERROR_SUCCESS.0 {
+                return None;
+            }
+            PdhCollectQueryData(consulta);
+            Some(Self { consulta, utilidad })
+        }
+    }
+
+    /// Porcentaje desde la lectura anterior; con turbo el contador pasa de 100 y se recorta.
+    pub fn leer(&self) -> Option<f32> {
+        if unsafe { PdhCollectQueryData(self.consulta) } != ERROR_SUCCESS.0 {
+            return None;
+        }
+        let mut v = PDH_FMT_COUNTERVALUE::default();
+        let r = unsafe { PdhGetFormattedCounterValue(self.utilidad, PDH_FMT_DOUBLE, None, &mut v) };
+        (r == ERROR_SUCCESS.0).then(|| (unsafe { v.Anonymous.doubleValue } as f32).clamp(0.0, 100.0))
+    }
+}
+
+/// Reparte la memoria como el Administrador de tareas: «En uso» excluye la lista modificada y
+/// «En caché» = en espera + modificada. Sin listas, «En uso» = total − disponible.
+fn repartir(total: u64, disponible: u64, cache_sistema: u64, listas: Option<Listas>) -> (u64, u64, u64) {
+    let usada_bruta = total.saturating_sub(disponible);
+    match listas {
+        Some(l) => {
+            let usada = usada_bruta.saturating_sub(l.modificada);
+            let libre = l.libre.min(disponible);
+            (usada, total.saturating_sub(usada + libre), libre)
+        }
+        None => {
+            let en_cache = cache_sistema.min(disponible);
+            (usada_bruta, en_cache, disponible - en_cache)
+        }
+    }
+}
+
+pub fn memoria(listas: Option<Listas>) -> Memoria {
     let mut ms = MEMORYSTATUSEX { dwLength: size_of::<MEMORYSTATUSEX>() as u32, ..Default::default() };
     let mut pi = PERFORMANCE_INFORMATION { cb: size_of::<PERFORMANCE_INFORMATION>() as u32, ..Default::default() };
     unsafe {
@@ -50,13 +153,12 @@ pub fn memoria() -> Memoria {
     }
     let pagina = pi.PageSize as u64;
     let total = ms.ullTotalPhys;
-    let disponible = ms.ullAvailPhys;
-    let en_cache = (pi.SystemCache as u64 * pagina).min(disponible);
+    let (usada, en_cache, libre) = repartir(total, ms.ullAvailPhys, pi.SystemCache as u64 * pagina, listas);
     Memoria {
         total,
-        usada: total.saturating_sub(disponible),
+        usada,
         en_cache,
-        libre: disponible.saturating_sub(en_cache),
+        libre,
         comprometida: pi.CommitTotal as u64 * pagina,
         limite_comprometida: pi.CommitLimit as u64 * pagina,
     }
@@ -236,11 +338,36 @@ mod pruebas {
 
     #[test]
     fn en_el_equipo_real_el_desglose_de_ram_suma_el_total() {
-        let m = memoria();
-        assert!(m.total > 0);
-        let suma = m.usada + m.en_cache + m.libre;
-        assert!(suma.abs_diff(m.total) as f64 / m.total as f64 <= 0.01);
-        assert!(m.usada <= m.total);
+        let listas = ConsultaMemoria::nueva().and_then(|c| c.leer());
+        assert!(listas.is_some());
+        for m in [memoria(listas), memoria(None)] {
+            assert!(m.total > 0);
+            let suma = m.usada + m.en_cache + m.libre;
+            assert!(suma.abs_diff(m.total) as f64 / m.total as f64 <= 0.01);
+            assert!(m.usada <= m.total);
+        }
+    }
+
+    #[test]
+    fn en_el_equipo_real_la_cpu_total_sale_del_contador_del_administrador_de_tareas() {
+        let c = ConsultaCpu::nueva().expect("contador % Processor Utility");
+        std::thread::sleep(std::time::Duration::from_millis(300));
+        let v = c.leer().expect("lectura de CPU");
+        assert!((0.0..=100.0).contains(&v));
+    }
+
+    #[test]
+    fn en_uso_excluye_la_lista_modificada_como_el_administrador_de_tareas() {
+        const G: u64 = 1 << 30;
+        let listas = Listas { modificada: G, libre: 2 * G };
+        let (usada, en_cache, libre) = repartir(16 * G, 6 * G, 3 * G, Some(listas));
+        assert_eq!((usada, en_cache, libre), (9 * G, 5 * G, 2 * G));
+        let (usada, en_cache, libre) = repartir(16 * G, 6 * G, 3 * G, None);
+        assert_eq!((usada, en_cache, libre), (10 * G, 3 * G, 3 * G));
+        let raras = Listas { modificada: 20 * G, libre: 9 * G };
+        let (usada, en_cache, libre) = repartir(16 * G, 6 * G, 0, Some(raras));
+        assert_eq!(usada + en_cache + libre, 16 * G);
+        assert_eq!((usada, libre), (0, 6 * G));
     }
 
     #[test]

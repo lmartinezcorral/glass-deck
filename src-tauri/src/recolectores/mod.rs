@@ -1,4 +1,6 @@
 pub mod historial;
+#[cfg(all(test, windows))]
+mod qa;
 #[cfg(windows)]
 pub mod win;
 
@@ -147,6 +149,10 @@ struct Recolector {
     #[cfg(windows)]
     disco_io: Option<win::ConsultaDisco>,
     #[cfg(windows)]
+    memoria_listas: Option<win::ConsultaMemoria>,
+    #[cfg(windows)]
+    cpu_total: Option<win::ConsultaCpu>,
+    #[cfg(windows)]
     adaptador: Option<win::Adaptador>,
     adaptador_revisado: Option<Instant>,
     red_previa: Option<(u32, u64, u64, Instant)>,
@@ -165,6 +171,10 @@ impl Recolector {
             #[cfg(windows)]
             disco_io: None,
             #[cfg(windows)]
+            memoria_listas: None,
+            #[cfg(windows)]
+            cpu_total: win::ConsultaCpu::nueva(),
+            #[cfg(windows)]
             adaptador: None,
             adaptador_revisado: None,
             red_previa: None,
@@ -175,6 +185,9 @@ impl Recolector {
 
     fn cpu(&mut self, h: &mut Historiales) -> MuestraCpu {
         self.sys.refresh_cpu_usage();
+        #[cfg(windows)]
+        let total = self.cpu_total.as_ref().and_then(|c| c.leer()).unwrap_or_else(|| self.sys.global_cpu_usage());
+        #[cfg(not(windows))]
         let total = self.sys.global_cpu_usage();
         let nucleos: Vec<f32> = self.sys.cpus().iter().map(|c| c.cpu_usage()).collect();
         h.cpu.agregar(total);
@@ -190,7 +203,10 @@ impl Recolector {
     fn ram(&mut self, h: &mut Historiales) -> MemoriaSerie {
         #[cfg(windows)]
         let m = {
-            let m = win::memoria();
+            if self.memoria_listas.is_none() {
+                self.memoria_listas = win::ConsultaMemoria::nueva();
+            }
+            let m = win::memoria(self.memoria_listas.as_ref().and_then(|c| c.leer()));
             MemoriaSerie {
                 total: m.total,
                 usada: m.usada,
