@@ -65,11 +65,24 @@ pub struct Intervalos {
     pub disco_ms: u64,
     pub spending_ms: u64,
     pub clima_ms: u64,
+    pub correo_ms: u64,
+    pub calendario_ms: u64,
+    /// Cada cuánto cambia la alerta del widget de correo (GD-ROT-01).
+    pub rotacion_ms: u64,
 }
 
 impl Default for Intervalos {
     fn default() -> Self {
-        Self { cpu_ram_red_ms: 2_000, procesos_ms: 3_000, disco_ms: 5_000, spending_ms: 900_000, clima_ms: 1_800_000 }
+        Self {
+            cpu_ram_red_ms: 2_000,
+            procesos_ms: 3_000,
+            disco_ms: 5_000,
+            spending_ms: 900_000,
+            clima_ms: 1_800_000,
+            correo_ms: 300_000,
+            calendario_ms: 600_000,
+            rotacion_ms: 600_000,
+        }
     }
 }
 
@@ -79,6 +92,9 @@ impl Intervalos {
     pub const MIN_DISCO_MS: u64 = 1_000;
     pub const MIN_SPENDING_MS: u64 = 300_000;
     pub const MIN_CLIMA_MS: u64 = 900_000;
+    pub const MIN_CORREO_MS: u64 = 120_000;
+    pub const MIN_CALENDARIO_MS: u64 = 300_000;
+    pub const MIN_ROTACION_MS: u64 = 60_000;
 
     pub fn validar(&self) -> Result<(), String> {
         if self.cpu_ram_red_ms < Self::MIN_CPU_RAM_RED_MS {
@@ -95,6 +111,15 @@ impl Intervalos {
         }
         if self.clima_ms < Self::MIN_CLIMA_MS {
             return Err("El intervalo del clima no puede ser menor a 15 min".into());
+        }
+        if self.correo_ms < Self::MIN_CORREO_MS {
+            return Err("El intervalo del correo no puede ser menor a 2 min".into());
+        }
+        if self.calendario_ms < Self::MIN_CALENDARIO_MS {
+            return Err("El intervalo de la agenda no puede ser menor a 5 min".into());
+        }
+        if self.rotacion_ms < Self::MIN_ROTACION_MS {
+            return Err("La rotación de la alerta no puede ser menor a 1 min".into());
         }
         Ok(())
     }
@@ -392,8 +417,21 @@ mod pruebas {
 
     #[test]
     fn intervalos_en_el_minimo_se_aceptan() {
-        let i = Intervalos { cpu_ram_red_ms: 1_000, procesos_ms: 2_000, disco_ms: 1_000, spending_ms: 300_000, clima_ms: 900_000 };
+        let i = Intervalos {
+            cpu_ram_red_ms: 1_000,
+            procesos_ms: 2_000,
+            disco_ms: 1_000,
+            spending_ms: 300_000,
+            clima_ms: 900_000,
+            correo_ms: 120_000,
+            calendario_ms: 300_000,
+            rotacion_ms: 60_000,
+        };
         assert!(i.validar().is_ok());
+        let i = Intervalos { correo_ms: 119_999, ..Intervalos::default() };
+        assert!(i.validar().is_err());
+        let i = Intervalos { rotacion_ms: 59_999, ..Intervalos::default() };
+        assert!(i.validar().is_err());
         let i = Intervalos { spending_ms: 299_999, ..Intervalos::default() };
         assert!(i.validar().is_err());
         let i = Intervalos { clima_ms: 899_999, ..Intervalos::default() };
@@ -439,12 +477,13 @@ mod pruebas {
         assert_eq!(c.atajos.mostrar_ocultar, "Ctrl+Shift+F9");
         assert_eq!(c.lista_negra_usuario, vec!["spotify".to_string()]);
         assert!(!c.arranque_windows && c.iman);
-        for id in ["spending", "clima"] {
+        for id in ["spending", "clima", "correo"] {
             assert!(c.widgets.contains_key(id), "falta {id}");
             assert!(!c.widget(id).activo, "los widgets nuevos llegan apagados");
         }
         assert_eq!(c.precios_modelos, precios_por_defecto());
         assert_eq!(c.intervalos.clima_ms, 1_800_000);
+        assert_eq!((c.intervalos.correo_ms, c.intervalos.calendario_ms, c.intervalos.rotacion_ms), (300_000, 600_000, 600_000));
         assert_eq!(c.clima, ConfigClima::default());
         assert_eq!(c.umbrales, Umbrales::default());
     }
@@ -522,6 +561,7 @@ mod pruebas {
         let c = Config::default();
         assert!(!c.widget("spending").activo);
         assert!(!c.widget("clima").activo);
+        assert!(!c.widget("correo").activo);
         assert!(c.widget("cpu").activo);
     }
 

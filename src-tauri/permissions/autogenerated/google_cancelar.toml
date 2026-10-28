@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-google-cancelar"
+description = "Enables the google_cancelar command without any pre-configured scope."
+commands.allow = ["google_cancelar"]
+
+[[permission]]
+identifier = "deny-google-cancelar"
+description = "Denies the google_cancelar command without any pre-configured scope."
+commands.deny = ["google_cancelar"]

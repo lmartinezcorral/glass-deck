@@ -11,9 +11,10 @@ mod seguridad;
 mod ventanas;
 
 use config::{AlmacenConfig, AlmacenEstado};
+use recolectores::google::{self, Google};
 use recolectores::servicios::{self, EstadoServicios};
 use std::path::PathBuf;
-use tauri::{Manager, RunEvent};
+use tauri::{Emitter, Manager, RunEvent};
 use ventanas::paneles::{self, EstadoDock};
 
 fn carpeta_config(app: &tauri::App) -> PathBuf {
@@ -79,12 +80,21 @@ pub fn run() {
             }
             ventanas::iniciar_vigilancia(h);
             recolectores::iniciar(h);
+            let cuentas_google = std::sync::Arc::new(Google::nuevo(std::sync::Arc::new(google::InternetGoogle)));
+            let avisador = h.clone();
+            cuentas_google.al_cambiar(move || {
+                let _ = avisador.emit("gd://google", ());
+            });
+            app.manage(cuentas_google.clone());
             let inicio = app.path().home_dir().unwrap_or_else(|_| PathBuf::from("."));
             servicios::iniciar(
                 h,
                 vec![
                     Box::new(recolectores::claude_code::ClaudeCode::nuevo(&inicio)),
                     Box::new(recolectores::clima::FuenteClima::nueva(std::sync::Arc::new(conexion::Internet))),
+                    Box::new(google::FuenteCorreo(cuentas_google.clone())),
+                    Box::new(google::FuenteAgenda(cuentas_google.clone())),
+                    Box::new(google::FuenteAlerta::nueva(cuentas_google)),
                 ],
             );
             ventanas::marcar_arranque_listo();
@@ -124,6 +134,11 @@ pub fn run() {
             comandos::avisos_probar,
             comandos::avisos_historial,
             comandos::google_cliente_importar,
+            google::comandos::google_cuentas,
+            google::comandos::google_conectar,
+            google::comandos::google_cancelar,
+            google::comandos::google_desconectar,
+            google::comandos::google_abrir,
         ])
         .build(tauri::generate_context!())
         .expect("no se pudo iniciar Glassdeck");

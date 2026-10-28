@@ -1,5 +1,6 @@
 pub mod claude_code;
 pub mod clima;
+pub mod google;
 pub mod historial;
 #[cfg(all(test, windows))]
 mod qa;

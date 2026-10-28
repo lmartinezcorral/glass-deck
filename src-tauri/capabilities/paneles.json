@@ -31,6 +31,11 @@
     "allow-clima-fijar-ubicacion",
     "allow-avisos-probar",
     "allow-avisos-historial",
-    "allow-google-cliente-importar"
+    "allow-google-cliente-importar",
+    "allow-google-cuentas",
+    "allow-google-conectar",
+    "allow-google-cancelar",
+    "allow-google-desconectar",
+    "allow-google-abrir"
   ]
 }

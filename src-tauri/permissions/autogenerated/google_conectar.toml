@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-google-conectar"
+description = "Enables the google_conectar command without any pre-configured scope."
+commands.allow = ["google_conectar"]
+
+[[permission]]
+identifier = "deny-google-conectar"
+description = "Denies the google_conectar command without any pre-configured scope."
+commands.deny = ["google_conectar"]

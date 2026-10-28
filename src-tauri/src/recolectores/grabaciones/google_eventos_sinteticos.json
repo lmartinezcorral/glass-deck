@@ -1,0 +1,37 @@
+{
+  "items": [
+    {
+      "id": "evento0000000001",
+      "status": "confirmed",
+      "summary": "Revisión semanal (prueba)",
+      "location": "Sala virtual",
+      "description": "DESCRIPCION-SINTETICA que nunca se pide ni se guarda",
+      "htmlLink": "https://www.google.com/calendar/event?eid=ZXZlbnRvMDAwMDAwMDAwMQ",
+      "start": { "dateTime": "2026-10-28T17:00:00-06:00" },
+      "end": { "dateTime": "2026-10-28T17:45:00-06:00" }
+    },
+    {
+      "id": "evento0000000002",
+      "status": "confirmed",
+      "summary": "Día completo (prueba)",
+      "htmlLink": "https://www.google.com/calendar/event?eid=ZXZlbnRvMDAwMDAwMDAwMg",
+      "start": { "date": "2026-10-29" },
+      "end": { "date": "2026-10-30" }
+    },
+    {
+      "id": "evento0000000003",
+      "status": "cancelled",
+      "summary": "Cancelado (prueba)",
+      "htmlLink": "https://www.google.com/calendar/event?eid=ZXZlbnRvMDAwMDAwMDAwMw",
+      "start": { "dateTime": "2026-10-28T18:00:00-06:00" },
+      "end": { "dateTime": "2026-10-28T19:00:00-06:00" }
+    },
+    {
+      "id": "evento0000000004",
+      "status": "confirmed",
+      "htmlLink": "https://evil.example.com/calendar/event?eid=x",
+      "start": { "dateTime": "2026-10-28T20:00:00-06:00" },
+      "end": { "dateTime": "2026-10-28T21:00:00-06:00" }
+    }
+  ]
+}
