@@ -69,7 +69,10 @@ export function VistaDock() {
     </button>
   );
 
-  const cuentas = resumenConGoogle(resumenCuentas(credenciales, web), cuentasGoogle);
+  let indiceGoogle = 0;
+  const cuentas = resumenConGoogle(resumenCuentas(credenciales, web), cuentasGoogle).map((c) =>
+    privacidad && c.clave?.startsWith('google:') ? { ...c, nombre: `Google ${++indiceGoogle}` } : c,
+  );
   const conectadas = cuentas.filter((c) => c.estado === 'conectada').length;
   const descripcionCuentas = cuentas.map((c) => `${c.nombre}: ${textoEstadoCuenta(c.estado).toLowerCase()}`).join(', ');
   const porConectar = cuentaPorConectar(credenciales, web);

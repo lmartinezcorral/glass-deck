@@ -359,6 +359,22 @@ describe('dock (GD-DOCK-02)', () => {
     expect(boton('Conectar Claude.ai')).toBeTruthy();
   });
 
+  it('con modo privacidad no muestra los correos de las cuentas de Google', async () => {
+    cuentasGoogle = [
+      { id: 'cuenta-a', correo: 'ana@ejemplo.test', estado: 'conectada' },
+      { id: 'cuenta-b', correo: 'bea@ejemplo.test', estado: 'conectada' },
+    ];
+    invocar.mockImplementation(async (comando: string) => (comando === 'config_leer' ? { ...CONFIG, privacidad: true } : responder(comando)));
+    act(() => raiz.render(<VistaDock />));
+    await esperar();
+    await esperar();
+    const cuentas = contenedor.querySelector<HTMLButtonElement>('.gd-dock__cuentas')!;
+    const textos = `${cuentas.getAttribute('aria-label')} ${cuentas.title}`;
+    expect(textos).not.toContain('@ejemplo.test');
+    expect(textos).toContain('Google 1');
+    expect(textos).toContain('Google 2');
+  });
+
   it('se pone ámbar con sesión vencida o Cloudflare y ofrece reconectar directo', async () => {
     cuentasWeb = {
       web: [
