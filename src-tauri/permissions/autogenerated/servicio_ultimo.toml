@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-servicio-ultimo"
+description = "Enables the servicio_ultimo command without any pre-configured scope."
+commands.allow = ["servicio_ultimo"]
+
+[[permission]]
+identifier = "deny-servicio-ultimo"
+description = "Denies the servicio_ultimo command without any pre-configured scope."
+commands.deny = ["servicio_ultimo"]

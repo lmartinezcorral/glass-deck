@@ -1,4 +1,5 @@
 pub mod historial;
+pub mod servicios;
 #[cfg(windows)]
 pub mod win;
 

@@ -22,6 +22,10 @@ const COMANDOS: &[&str] = &[
     "reiniciar_explorer",
     "abrir_administrador_tareas",
     "estado_entorno",
+    "boveda_estado",
+    "boveda_guardar",
+    "boveda_borrar",
+    "servicio_ultimo",
 ];
 
 fn main() {

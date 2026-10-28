@@ -21,6 +21,10 @@
     "allow-mostrar-ocultar-todo",
     "allow-restablecer-posiciones",
     "allow-abrir-administrador-tareas",
-    "allow-estado-entorno"
+    "allow-estado-entorno",
+    "allow-boveda-estado",
+    "allow-boveda-guardar",
+    "allow-boveda-borrar",
+    "allow-servicio-ultimo"
   ]
 }

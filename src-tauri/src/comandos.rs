@@ -2,7 +2,9 @@ use crate::acciones::limpieza::{self, Opciones, Origen, Resumen};
 use crate::acciones::procesos::{Politica, Rechazo, ResultadoCierre};
 use crate::atajos::{self, Accion, EstadoAtajo};
 use crate::config::{AlmacenConfig, Config, EstadoWidget};
+use crate::recolectores::servicios::{EstadoFuente, EstadoServicios};
 use crate::recolectores::{EstadoRecoleccion, SerieHistorial};
+use crate::seguridad::boveda::{self, Clave};
 use crate::ventanas::{self, catalogo, paneles};
 use serde::Serialize;
 use std::path::PathBuf;
@@ -274,6 +276,40 @@ pub fn estado_entorno(app: AppHandle) -> serde_json::Value {
         "pausado": e.pausado.load(Ordering::Relaxed),
         "version": env!("CARGO_PKG_VERSION"),
     })
+}
+
+#[derive(Serialize)]
+pub struct EstadoCredencial {
+    pub clave: Clave,
+    pub presente: bool,
+}
+
+/// GD-NFR-SEC-01: a la interfaz solo llega si la credencial existe, nunca su valor.
+#[tauri::command]
+pub async fn boveda_estado() -> Vec<EstadoCredencial> {
+    tauri::async_runtime::spawn_blocking(|| {
+        Clave::TODAS.iter().map(|c| EstadoCredencial { clave: *c, presente: boveda::existe(c.nombre()) }).collect()
+    })
+    .await
+    .unwrap_or_default()
+}
+
+#[tauri::command]
+pub fn boveda_guardar(clave: Clave, valor: String) -> R<()> {
+    if !clave.se_captura_a_mano() {
+        return Err("Esta credencial se obtiene con su propio inicio de sesión".into());
+    }
+    boveda::guardar(clave.nombre(), valor.trim())
+}
+
+#[tauri::command]
+pub fn boveda_borrar(clave: Clave) -> R<()> {
+    boveda::borrar(clave.nombre())
+}
+
+#[tauri::command]
+pub fn servicio_ultimo(app: AppHandle, fuente: String) -> Option<EstadoFuente> {
+    app.state::<EstadoServicios>().ultimo(&fuente)
 }
 
 #[cfg(test)]

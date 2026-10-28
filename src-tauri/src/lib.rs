@@ -2,13 +2,15 @@ mod acciones;
 mod atajos;
 mod bandeja;
 mod comandos;
+mod conexion;
 mod config;
 mod poc;
 mod recolectores;
 mod seguridad;
 mod ventanas;
 
-use config::AlmacenConfig;
+use config::{AlmacenConfig, AlmacenEstado};
+use recolectores::servicios::{self, EstadoServicios};
 use std::path::PathBuf;
 use tauri::{Manager, RunEvent};
 use ventanas::paneles::{self, EstadoDock};
@@ -22,6 +24,11 @@ fn carpeta_logs(app: &tauri::App) -> PathBuf {
         .local_data_dir()
         .map(|d| d.join("Glassdeck").join("logs"))
         .unwrap_or_else(|_| PathBuf::from("logs"))
+}
+
+pub fn borrar_credenciales() {
+    #[cfg(windows)]
+    seguridad::boveda::borrar_todas();
 }
 
 pub fn run() {
@@ -44,6 +51,8 @@ pub fn run() {
             seguridad::registro::iniciar(&carpeta_logs(app));
             log::info!("Glassdeck {} iniciando", env!("CARGO_PKG_VERSION"));
             app.manage(AlmacenConfig::nuevo(&carpeta_config(app)));
+            app.manage(AlmacenEstado::nuevo(&carpeta_config(app)));
+            app.manage(EstadoServicios::default());
             app.manage(ventanas::Gestor::nuevo());
             app.manage(recolectores::EstadoRecoleccion::default());
             app.manage(atajos::Atajos::default());
@@ -67,6 +76,7 @@ pub fn run() {
             }
             ventanas::iniciar_vigilancia(h);
             recolectores::iniciar(h);
+            servicios::iniciar(h, Vec::new());
             ventanas::marcar_arranque_listo();
             Ok(())
         })
@@ -94,6 +104,10 @@ pub fn run() {
             comandos::reiniciar_explorer,
             comandos::abrir_administrador_tareas,
             comandos::estado_entorno,
+            comandos::boveda_estado,
+            comandos::boveda_guardar,
+            comandos::boveda_borrar,
+            comandos::servicio_ultimo,
         ])
         .build(tauri::generate_context!())
         .expect("no se pudo iniciar Glassdeck");

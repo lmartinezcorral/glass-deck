@@ -195,6 +195,24 @@
           "markdownDescription": "Enables the atajos_estado command without any pre-configured scope."
         },
         {
+          "description": "Enables the boveda_borrar command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-boveda-borrar",
+          "markdownDescription": "Enables the boveda_borrar command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the boveda_estado command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-boveda-estado",
+          "markdownDescription": "Enables the boveda_estado command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the boveda_guardar command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-boveda-guardar",
+          "markdownDescription": "Enables the boveda_guardar command without any pre-configured scope."
+        },
+        {
           "description": "Enables the config_guardar command without any pre-configured scope.",
           "type": "string",
           "const": "allow-config-guardar",
@@ -285,6 +303,12 @@
           "markdownDescription": "Enables the restablecer_posiciones command without any pre-configured scope."
         },
         {
+          "description": "Enables the servicio_ultimo command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-servicio-ultimo",
+          "markdownDescription": "Enables the servicio_ultimo command without any pre-configured scope."
+        },
+        {
           "description": "Enables the widget_activar command without any pre-configured scope.",
           "type": "string",
           "const": "allow-widget-activar",
@@ -331,6 +355,24 @@
           "type": "string",
           "const": "deny-atajos-estado",
           "markdownDescription": "Denies the atajos_estado command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the boveda_borrar command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-boveda-borrar",
+          "markdownDescription": "Denies the boveda_borrar command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the boveda_estado command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-boveda-estado",
+          "markdownDescription": "Denies the boveda_estado command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the boveda_guardar command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-boveda-guardar",
+          "markdownDescription": "Denies the boveda_guardar command without any pre-configured scope."
         },
         {
           "description": "Denies the config_guardar command without any pre-configured scope.",
@@ -421,6 +463,12 @@
           "type": "string",
           "const": "deny-restablecer-posiciones",
           "markdownDescription": "Denies the restablecer_posiciones command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the servicio_ultimo command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-servicio-ultimo",
+          "markdownDescription": "Denies the servicio_ultimo command without any pre-configured scope."
         },
         {
           "description": "Denies the widget_activar command without any pre-configured scope.",
