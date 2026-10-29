@@ -32,6 +32,14 @@ Tiempo estimado: 15 minutos. Costo: gratis.
 3. Público (**Audience**): elige **Externo**.
 4. Información de contacto: tu correo.
 5. Acepta la política de datos de usuario y pulsa **Crear**.
+6. **Información de la marca** → **Dominio de la app** (sin esto Google no deja publicar en el paso 5):
+   - Página principal: `https://glassdeck.newachi.mx/`
+   - Política de privacidad: `https://glassdeck.newachi.mx/aviso_privacidad`
+   - Condiciones del servicio: `https://glassdeck.newachi.mx/condiciones_servicio`
+   - **Dominios autorizados** → **Agregar dominio**: `newachi.mx`
+   - Pulsa **Guardar**.
+
+El sitio vive en el repo `site-newachi`, carpeta `glassdeck/` (deploy en el V110 con `scripts/deploy-glassdeck.sh`).
 
 ## Paso 4. Declarar los permisos (scopes)
 
@@ -106,6 +114,7 @@ Si no eres administrador del dominio, esa cuenta no se podrá conectar sin la ay
 
 | Síntoma | Causa probable | Solución |
 |---|---|---|
+| **Publicar app** aparece en gris («Se requieren un nombre de app, un correo electrónico de asistencia, una URL de página principal…») | Faltan las URLs del dominio de la app | Paso 3, punto 6 |
 | Te pide iniciar sesión cada 7 días | La app quedó en modo de prueba | Paso 5 |
 | «Acceso bloqueado: … no completó el proceso de verificación» o «solo pueden acceder los testers aprobados» | La app sigue en modo de prueba y tu cuenta no está en la lista de usuarios de prueba | Publica la app (paso 5) o, en **Público** → **Usuarios de prueba**, pulsa **Agregar usuarios** y escribe cada cuenta que vas a conectar |
 | `access_denied` o «app bloqueada» en una cuenta de dominio propio | Cuenta de Workspace con apps no verificadas bloqueadas | Paso 8 |
