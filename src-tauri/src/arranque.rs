@@ -1,5 +1,5 @@
-//! Arranque con Windows (GD-INST-02, GD-CUST-07): tarea programada «al iniciar sesión» del usuario y la
-//! clave Run de `tauri-plugin-autostart` solo como respaldo.
+//! Arranque con Windows (GD-INST-02, GD-CUST-07): tarea programada «al iniciar sesión» del usuario, registrada con
+//! la API COM del Programador de tareas, y la clave Run de `tauri-plugin-autostart` solo como respaldo.
 
 use parking_lot::Mutex;
 use std::path::Path;
@@ -134,8 +134,8 @@ fn etiqueta<'a>(xml: &'a str, nombre: &str) -> Option<&'a str> {
     Some(xml[inicio..fin].trim())
 }
 
-/// `schtasks /Query /XML` escribe en la página de códigos de la consola: los caracteres fuera de ASCII
-/// pueden llegar cambiados, así que se comparan solo los ASCII.
+/// Las tareas registradas por versiones que usaban `schtasks` pudieron quedar con los caracteres fuera de ASCII
+/// cambiados por la página de códigos de la consola, así que se comparan solo los ASCII.
 fn ascii(texto: &str) -> String {
     texto.chars().filter(|c| c.is_ascii() && *c != '?').collect::<String>().to_ascii_lowercase()
 }
@@ -242,7 +242,7 @@ pub fn registrar_arranque_listo() {
     log::info!("Arranque con Windows: arranque listo (espera del escritorio {espera:.1} s)");
 }
 
-/// Corre fuera del hilo principal (schtasks tarda) y lee la opción guardada dentro del turno: si se cambia
+/// Corre fuera del hilo principal (el Programador de tareas puede tardar) y lee la opción guardada dentro del turno: si se cambia
 /// dos veces seguidas, gana el último valor guardado.
 pub fn aplicar(app: &AppHandle, activo: bool) {
     if std::env::current_exe().map(|e| es_binario_de_desarrollo(&e)).unwrap_or(false) {
@@ -268,7 +268,7 @@ fn aplicar_ahora(app: &AppHandle, activo: bool) {
         log::warn!("No se pudo cambiar el arranque con Windows: sin ruta del ejecutable");
         return;
     };
-    let mut sistema = win::SistemaReal { tareas: win::SchTasks::nueva(NOMBRE_TAREA), app };
+    let mut sistema = win::SistemaReal { tareas: win::ProgramadorTareas::nuevo(NOMBRE_TAREA), app };
     match decidir(&mut sistema, activo, &def) {
         Ok(Metodo::Tarea) => log::info!("Arranque con Windows: tarea programada"),
         Ok(Metodo::Run) => log::info!("Arranque con Windows: clave Run (respaldo)"),
@@ -283,17 +283,16 @@ fn aplicar_ahora(_app: &AppHandle, _activo: bool) {}
 #[cfg(windows)]
 pub mod win {
     use super::{DefTarea, Sistema, ARGUMENTO};
-    use std::ffi::OsStr;
-    use std::os::windows::process::CommandExt;
-    use std::process::{Command, Output, Stdio};
     use tauri::AppHandle;
     use tauri_plugin_autostart::ManagerExt;
-    use windows::core::{w, PCWSTR};
-    use windows::Win32::Foundation::{CloseHandle, FILETIME};
+    use windows::core::{w, BSTR, PCWSTR};
+    use windows::Win32::Foundation::{CloseHandle, ERROR_FILE_NOT_FOUND, FILETIME};
+    use windows::Win32::System::Com::{CoCreateInstance, CoInitializeEx, CoUninitialize, CLSCTX_INPROC_SERVER, COINIT_MULTITHREADED};
+    use windows::Win32::System::TaskScheduler::{ITaskFolder, ITaskService, TaskScheduler, TASK_CREATE_OR_UPDATE, TASK_LOGON_INTERACTIVE_TOKEN};
     use windows::Win32::System::Threading::{GetCurrentProcess, GetProcessTimes, OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION};
+    use windows::Win32::System::Variant::VARIANT;
     use windows::Win32::UI::WindowsAndMessaging::{FindWindowW, GetWindowThreadProcessId};
 
-    const SIN_VENTANA: u32 = 0x0800_0000;
     const MS_ENTRE_1601_Y_1970: i64 = 11_644_473_600_000;
 
     pub fn def_actual() -> Option<DefTarea> {
@@ -307,58 +306,81 @@ pub mod win {
         Some(DefTarea { usuario, exe: exe.to_string_lossy().to_string(), argumentos: ARGUMENTO.into(), carpeta })
     }
 
-    pub struct SchTasks {
+    /// `CoUninitialize` solo si este hilo inicializó COM (`S_OK` o `S_FALSE`); si ya estaba en otro modo, se usa ese.
+    struct Com(bool);
+
+    impl Com {
+        fn iniciar() -> Self {
+            Com(unsafe { CoInitializeEx(None, COINIT_MULTITHREADED) }.is_ok())
+        }
+    }
+
+    impl Drop for Com {
+        fn drop(&mut self) {
+            if self.0 {
+                unsafe { CoUninitialize() };
+            }
+        }
+    }
+
+    fn describir(e: &windows::core::Error) -> String {
+        format!("0x{:08X}", e.code().0 as u32)
+    }
+
+    /// Las interfaces COM se sueltan dentro de `f`, antes de liberar COM al salir.
+    fn con_carpeta_raiz<T>(f: impl FnOnce(&ITaskFolder) -> windows::core::Result<T>) -> windows::core::Result<T> {
+        let _com = Com::iniciar();
+        let raiz = unsafe {
+            let servicio: ITaskService = CoCreateInstance(&TaskScheduler, None, CLSCTX_INPROC_SERVER)?;
+            let vacio = VARIANT::default();
+            servicio.Connect(&vacio, &vacio, &vacio, &vacio)?;
+            servicio.GetFolder(&BSTR::from("\\"))?
+        };
+        f(&raiz)
+    }
+
+    /// API COM del Programador de tareas (GD-INST-02): el XML va en memoria, sin procesos hijos ni archivos temporales.
+    pub struct ProgramadorTareas {
         nombre: String,
     }
 
-    impl SchTasks {
-        pub fn nueva(nombre: &str) -> Self {
+    impl ProgramadorTareas {
+        pub fn nuevo(nombre: &str) -> Self {
             Self { nombre: nombre.into() }
         }
 
-        fn ejecutar<I: IntoIterator<Item = S>, S: AsRef<OsStr>>(args: I) -> std::io::Result<Output> {
-            Command::new("schtasks.exe")
-                .args(args)
-                .stdin(Stdio::null())
-                .creation_flags(SIN_VENTANA)
-                .output()
-        }
-
         pub fn consultar(&self) -> Option<String> {
-            let salida = Self::ejecutar(["/Query", "/TN", &self.nombre, "/XML"]).ok()?;
-            salida.status.success().then(|| String::from_utf8_lossy(&salida.stdout).into_owned())
+            con_carpeta_raiz(|c| unsafe { c.GetTask(&BSTR::from(self.nombre.as_str()))?.Xml() }).ok().map(|x| x.to_string())
         }
 
-        /// schtasks espera el XML en UTF-16 LE con BOM; el archivo temporal es propio y se borra siempre.
         pub fn crear(&self, xml: &str) -> Result<(), String> {
-            let marca = std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .map(|d| d.as_nanos())
-                .unwrap_or_default();
-            let ruta = std::env::temp_dir().join(format!("glassdeck-tarea-{}-{marca}.xml", std::process::id()));
-            let mut bytes = vec![0xFF, 0xFE];
-            bytes.extend(xml.encode_utf16().flat_map(u16::to_le_bytes));
-            std::fs::write(&ruta, bytes).map_err(|_| "no se pudo escribir el XML temporal".to_string())?;
-            let salida = Self::ejecutar([OsStr::new("/Create"), OsStr::new("/TN"), OsStr::new(&self.nombre), OsStr::new("/XML"), ruta.as_os_str(), OsStr::new("/F")]);
-            let _ = std::fs::remove_file(&ruta);
-            match salida {
-                Ok(s) if s.status.success() => Ok(()),
-                Ok(s) => Err(format!("schtasks /Create terminó con código {}", s.status.code().unwrap_or(-1))),
-                Err(_) => Err("no se pudo ejecutar schtasks".into()),
-            }
+            con_carpeta_raiz(|c| unsafe {
+                let vacio = VARIANT::default();
+                c.RegisterTask(
+                    &BSTR::from(self.nombre.as_str()),
+                    &BSTR::from(xml),
+                    TASK_CREATE_OR_UPDATE.0,
+                    &vacio,
+                    &vacio,
+                    TASK_LOGON_INTERACTIVE_TOKEN,
+                    &vacio,
+                )
+                .map(|_| ())
+            })
+            .map_err(|e| format!("RegisterTask falló ({})", describir(&e)))
         }
 
         pub fn borrar(&self) -> Result<(), String> {
-            match Self::ejecutar(["/Delete", "/TN", &self.nombre, "/F"]) {
-                Ok(s) if s.status.success() => Ok(()),
-                Ok(s) => Err(format!("schtasks /Delete terminó con código {}", s.status.code().unwrap_or(-1))),
-                Err(_) => Err("no se pudo ejecutar schtasks".into()),
+            match con_carpeta_raiz(|c| unsafe { c.DeleteTask(&BSTR::from(self.nombre.as_str()), 0) }) {
+                Ok(()) => Ok(()),
+                Err(e) if e.code() == ERROR_FILE_NOT_FOUND.to_hresult() => Ok(()),
+                Err(e) => Err(format!("DeleteTask falló ({})", describir(&e))),
             }
         }
     }
 
     pub struct SistemaReal<'a> {
-        pub tareas: SchTasks,
+        pub tareas: ProgramadorTareas,
         pub app: &'a AppHandle,
     }
 
@@ -543,7 +565,7 @@ mod pruebas {
     }
 
     #[test]
-    fn la_consulta_de_schtasks_se_compara_sin_caracteres_fuera_de_ascii() {
+    fn la_tarea_consultada_se_compara_sin_caracteres_fuera_de_ascii() {
         let mut d = def();
         d.exe = r"C:\Users\Martínez\glassdeck.exe".into();
         let consultado = xml_tarea(&d).replace("Martínez", "Mart\u{FFFD}nez");
@@ -587,14 +609,14 @@ mod pruebas {
     }
 }
 
-/// QA real contra el Programador de tareas: registra una tarea de prueba con nombre único y la borra siempre.
-/// Nunca toca la tarea `Glassdeck`.
+/// QA real contra la API COM del Programador de tareas: registra una tarea de prueba con nombre único y la borra
+/// siempre. Nunca toca la tarea `Glassdeck`.
 #[cfg(all(test, windows))]
 mod qa {
-    use super::win::SchTasks;
+    use super::win::ProgramadorTareas;
     use super::*;
 
-    struct BorrarAlSalir<'a>(&'a SchTasks);
+    struct BorrarAlSalir<'a>(&'a ProgramadorTareas);
 
     impl Drop for BorrarAlSalir<'_> {
         fn drop(&mut self) {
@@ -611,13 +633,24 @@ mod qa {
         def.carpeta = Path::new(&cmd).parent().unwrap().to_string_lossy().to_string();
         def.exe = cmd;
         def.argumentos = "/c exit".into();
-        let tareas = SchTasks::nueva(&nombre);
+        let tareas = ProgramadorTareas::nuevo(&nombre);
         let _borrar = BorrarAlSalir(&tareas);
         tareas.crear(&xml_tarea(&def)).expect("el usuario puede registrar su tarea sin elevar");
+        tareas.crear(&xml_tarea(&def)).expect("registrar de nuevo actualiza la misma tarea");
         let consultado = tareas.consultar().expect("la tarea existe");
         assert_eq!(etiqueta(&consultado, "Priority"), Some("4"));
         assert_eq!(diferencias(&consultado, &def), Vec::<&str>::new(), "la consulta se reconoce: no se vuelve a registrar en cada arranque");
         tareas.borrar().expect("se borra");
         assert!(tareas.consultar().is_none());
+        assert_eq!(tareas.borrar(), Ok(()), "borrar una tarea que ya no existe no es error");
+    }
+
+    #[test]
+    fn la_app_no_lanza_schtasks_ni_escribe_el_xml_en_disco() {
+        let codigo = include_str!("arranque.rs").split("#[cfg(test)]").next().unwrap();
+        for prohibido in [["schtasks", ".exe"].concat(), ["Command", "::new"].concat(), ["temp", "_dir()"].concat(), ["fs::", "write"].concat()] {
+            assert!(!codigo.contains(&prohibido), "{prohibido}");
+        }
+        assert!(codigo.contains("RegisterTask(") && codigo.contains("TASK_LOGON_INTERACTIVE_TOKEN"));
     }
 }

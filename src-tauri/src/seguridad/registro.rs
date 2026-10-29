@@ -80,6 +80,31 @@ pub fn iniciar(dir: &Path) {
     }
 }
 
+fn describir_panico(info: &std::panic::PanicHookInfo<'_>) -> String {
+    let carga = info.payload();
+    let mensaje = carga
+        .downcast_ref::<&str>()
+        .copied()
+        .or_else(|| carga.downcast_ref::<String>().map(String::as_str))
+        .unwrap_or("sin mensaje");
+    let lugar = info.location().map(|l| format!("{}:{}", l.file(), l.line())).unwrap_or_else(|| "lugar desconocido".into());
+    enmascarar(&format!("Pánico en {lugar}: {mensaje}"))
+}
+
+/// Un cierre inesperado deja rastro en el log antes del manejo por defecto; con `panic = "abort"` en release
+/// el gancho corre igual, justo antes de abortar.
+pub fn registrar_panicos() {
+    static UNA: std::sync::Once = std::sync::Once::new();
+    UNA.call_once(|| {
+        let previo = std::panic::take_hook();
+        std::panic::set_hook(Box::new(move |info| {
+            log::error!("{}", describir_panico(info));
+            log::logger().flush();
+            previo(info);
+        }));
+    });
+}
+
 #[cfg(test)]
 struct Captura(Mutex<String>);
 
@@ -135,5 +160,17 @@ mod pruebas {
             assert!(a.metadata().unwrap().len() < 400);
         }
         let _ = fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    fn un_panico_queda_en_el_log_con_su_lugar_y_sin_datos_sensibles() {
+        let captura = captura_de_prueba();
+        registrar_panicos();
+        let r = std::thread::spawn(|| panic!("pánico de prueba al abrir C:\\Users\\hulkmtz\\x con token=valor-de-prueba")).join();
+        assert!(r.is_err());
+        let texto = captura.lock().clone();
+        let linea = texto.lines().find(|l| l.contains("pánico de prueba")).expect("el pánico se registró");
+        assert!(linea.starts_with("Pánico en src") && linea.contains("registro.rs:"), "{linea}");
+        assert!(!linea.contains("hulkmtz") && !linea.contains("valor-de-prueba"), "{linea}");
     }
 }
