@@ -8,39 +8,34 @@ const LARGO_MAX_VALOR: usize = 8_192;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Clave {
-    CursorSesion,
-    ClaudeAiSesion,
     AnthropicAdmin,
     GoogleCliente,
-    ChatgptSesion,
     OpenaiAdmin,
 }
 
 impl Clave {
-    pub const TODAS: [Clave; 6] = [
-        Clave::CursorSesion,
-        Clave::ClaudeAiSesion,
-        Clave::AnthropicAdmin,
-        Clave::GoogleCliente,
-        Clave::ChatgptSesion,
-        Clave::OpenaiAdmin,
-    ];
+    pub const TODAS: [Clave; 3] = [Clave::AnthropicAdmin, Clave::GoogleCliente, Clave::OpenaiAdmin];
 
     pub fn nombre(self) -> &'static str {
         match self {
-            Clave::CursorSesion => "cursor/sesion",
-            Clave::ClaudeAiSesion => "claude_ai/sesion",
             Clave::AnthropicAdmin => "anthropic/admin",
             Clave::GoogleCliente => "google/cliente",
-            Clave::ChatgptSesion => "chatgpt/sesion",
             Clave::OpenaiAdmin => "openai/admin",
         }
     }
 
-    /// Las cookies y el cliente OAuth llegan por sus propios flujos; solo las claves de administrador se teclean (GD-CLA-05, GD-OAI-05).
+    /// El cliente OAuth llega por su propio flujo; solo las claves de administrador se teclean (GD-CLA-05, GD-OAI-05).
     pub fn se_captura_a_mano(self) -> bool {
         matches!(self, Clave::AnthropicAdmin | Clave::OpenaiAdmin)
     }
+}
+
+/// Donde las versiones anteriores a SPEC 1.6 copiaban la cookie de sesión (R-10). Las sesiones web viven solo en el
+/// perfil aislado de WebView2: estos nombres no se pueden guardar y solo se borran, sin leerlos (GD-CUR-02).
+pub const SESIONES_WEB_ANTIGUAS: [&str; 3] = ["cursor/sesion", "claude_ai/sesion", "chatgpt/sesion"];
+
+fn es_sesion_web(nombre: &str) -> bool {
+    SESIONES_WEB_ANTIGUAS.iter().any(|s| nombre.strip_prefix(s).is_some_and(|resto| resto.is_empty() || resto.starts_with('/')))
 }
 
 /// Envoltura sin `Serialize` ni `Display`: no puede viajar a la interfaz ni imprimirse por accidente.
@@ -104,6 +99,9 @@ fn entrada(nombre: &str) -> Result<Entry, String> {
 }
 
 pub fn guardar(nombre: &str, valor: &str) -> Result<(), String> {
+    if es_sesion_web(nombre) {
+        return Err("Las sesiones web no se guardan en la bóveda".into());
+    }
     if valor.is_empty() {
         return Err("El valor está vacío".into());
     }
@@ -139,63 +137,32 @@ pub(crate) fn leer(nombre: &str) -> Result<Option<Secreto>, String> {
     }
 }
 
-/// Windows guarda cada valor en UTF-16 con un máximo de 2 560 bytes (1 280 caracteres): una cookie de ChatGPT no cabe.
-const LARGO_PARTE: usize = 1_200;
+/// Las cookies que no cabían en una credencial se repartían en `nombre/1..16`.
 const PARTES_MAX: usize = 16;
-const MARCA_PARTES: &str = "glassdeck-partes:";
 
 fn nombre_parte(nombre: &str, i: usize) -> String {
     format!("{nombre}/{i}")
 }
 
-/// Para cookies de sesión: si el valor no cabe en una credencial se reparte en `nombre/1..N` y `nombre` guarda cuántas son.
-pub fn guardar_largo(nombre: &str, valor: &str) -> Result<(), String> {
-    if valor.is_empty() {
-        return Err("El valor está vacío".into());
+/// Borra una sesión web que dejó una versión anterior, con sus partes, sin leer su valor; `true` si existía.
+pub fn borrar_sesion_antigua(nombre: &str) -> Result<bool, String> {
+    if !SESIONES_WEB_ANTIGUAS.contains(&nombre) {
+        return Err("No es una sesión web antigua".into());
     }
-    borrar_partes(nombre);
-    let caracteres: Vec<char> = valor.chars().collect();
-    if caracteres.len() <= LARGO_PARTE {
-        return guardar(nombre, valor);
-    }
-    let partes: Vec<String> = caracteres.chunks(LARGO_PARTE).map(|c| c.iter().collect()).collect();
-    if partes.len() > PARTES_MAX {
-        return Err("El valor es demasiado largo".into());
-    }
-    for (i, p) in partes.iter().enumerate() {
-        entrada(&nombre_parte(nombre, i + 1))?.set_password(p).map_err(|e| describir(&e))?;
-    }
-    guardar(nombre, &format!("{MARCA_PARTES}{}", partes.len()))
-}
-
-#[allow(dead_code)]
-pub(crate) fn leer_largo(nombre: &str) -> Result<Option<Secreto>, String> {
-    let Some(s) = leer(nombre)? else { return Ok(None) };
-    let Some(n) = s.0.strip_prefix(MARCA_PARTES).and_then(|n| n.parse::<usize>().ok()) else { return Ok(Some(s)) };
-    if !(1..=PARTES_MAX).contains(&n) {
-        return Ok(None);
-    }
-    let mut todo = String::new();
-    for i in 1..=n {
-        match leer(&nombre_parte(nombre, i))? {
-            Some(p) => todo.push_str(&p.0),
-            None => return Ok(None),
+    let existia = match entrada(nombre)?.delete_credential() {
+        Ok(()) => true,
+        Err(keyring::Error::NoEntry) => false,
+        Err(e) => return Err(describir(&e)),
+    };
+    if existia {
+        for i in 1..=PARTES_MAX {
+            if let Ok(e) = entrada(&nombre_parte(nombre, i)) {
+                let _ = e.delete_credential();
+            }
         }
+        log::info!("Bóveda: sesión web antigua {nombre} borrada sin leerla");
     }
-    Ok(Some(Secreto(todo)))
-}
-
-fn borrar_partes(nombre: &str) {
-    for i in 1..=PARTES_MAX {
-        if let Ok(e) = entrada(&nombre_parte(nombre, i)) {
-            let _ = e.delete_credential();
-        }
-    }
-}
-
-pub fn borrar_largo(nombre: &str) -> Result<(), String> {
-    borrar_partes(nombre);
-    borrar(nombre)
+    Ok(existia)
 }
 
 /// Borra todas las credenciales `Glassdeck/*` del usuario; lo usa el desinstalador (GD-INST-03).
@@ -238,6 +205,7 @@ pub(crate) mod mock {
     use std::sync::{LazyLock, Once};
 
     static ALMACEN: LazyLock<Mutex<HashMap<String, Vec<u8>>>> = LazyLock::new(|| Mutex::new(HashMap::new()));
+    static LECTURAS: LazyLock<Mutex<HashMap<String, usize>>> = LazyLock::new(|| Mutex::new(HashMap::new()));
 
     struct Credencial(String);
 
@@ -247,6 +215,7 @@ pub(crate) mod mock {
             Ok(())
         }
         fn get_secret(&self) -> keyring::Result<Vec<u8>> {
+            *LECTURAS.lock().entry(self.0.clone()).or_default() += 1;
             ALMACEN.lock().get(&self.0).cloned().ok_or(keyring::Error::NoEntry)
         }
         fn delete_credential(&self) -> keyring::Result<()> {
@@ -276,6 +245,17 @@ pub(crate) mod mock {
 
     pub fn objetivos() -> Vec<String> {
         ALMACEN.lock().keys().cloned().collect()
+    }
+
+    /// Siembra un valor como lo habría dejado una versión anterior, sin pasar por `guardar`.
+    pub fn sembrar(objetivo: &str, valor: &str) {
+        instalar();
+        ALMACEN.lock().insert(objetivo.to_string(), valor.as_bytes().to_vec());
+    }
+
+    /// Cuántas veces se pidió el valor de un objetivo.
+    pub fn lecturas(objetivo: &str) -> usize {
+        LECTURAS.lock().get(objetivo).copied().unwrap_or(0)
     }
 }
 
@@ -333,19 +313,29 @@ mod pruebas {
     }
 
     #[test]
-    fn un_valor_largo_se_reparte_en_partes_y_se_reconstruye() {
-        let nombre = "prueba/largo";
-        let valor: String = (0..4_000).map(|i| char::from(b'a' + (i % 26) as u8)).collect();
-        guardar_largo(nombre, &valor).unwrap();
-        assert!(existe(nombre));
-        let partes = mock::objetivos().iter().filter(|o| o.starts_with("Glassdeck/prueba/largo/")).count();
-        assert_eq!(partes, 4);
-        assert_eq!(leer_largo(nombre).unwrap().unwrap().exponer(), valor);
-        guardar_largo(nombre, "corto-de-prueba").unwrap();
-        assert_eq!(leer_largo(nombre).unwrap().unwrap().exponer(), "corto-de-prueba");
-        assert!(!mock::objetivos().iter().any(|o| o.starts_with("Glassdeck/prueba/largo/")), "las partes viejas se borran");
-        borrar_largo(nombre).unwrap();
-        assert!(leer_largo(nombre).unwrap().is_none());
-        assert!(guardar_largo(nombre, &"x".repeat(LARGO_PARTE * PARTES_MAX + 1)).is_err());
+    fn las_sesiones_web_no_se_pueden_guardar_en_la_boveda() {
+        for nombre in SESIONES_WEB_ANTIGUAS {
+            for n in [nombre.to_string(), nombre_parte(nombre, 1)] {
+                assert!(guardar(&n, "cookie-de-prueba").is_err(), "{n}");
+                assert!(!mock::objetivos().contains(&objetivo(&n)), "{n}");
+            }
+        }
+        assert!(!es_sesion_web("cursor/sesiones") && !es_sesion_web("anthropic/admin"));
+        assert!(Clave::TODAS.iter().all(|c| !es_sesion_web(c.nombre())));
+    }
+
+    #[test]
+    fn la_sesion_antigua_se_borra_con_sus_partes_sin_leerla() {
+        let nombre = "chatgpt/sesion";
+        mock::sembrar(&objetivo(nombre), "glassdeck-partes:2");
+        mock::sembrar(&objetivo(&nombre_parte(nombre, 1)), "cookie-de-prueba-a");
+        mock::sembrar(&objetivo(&nombre_parte(nombre, 2)), "cookie-de-prueba-b");
+        assert_eq!(borrar_sesion_antigua(nombre), Ok(true));
+        assert!(!mock::objetivos().iter().any(|o| o.starts_with("Glassdeck/chatgpt/sesion")));
+        assert_eq!(borrar_sesion_antigua(nombre), Ok(false), "sin nada guardado no es error");
+        for o in [objetivo(nombre), objetivo(&nombre_parte(nombre, 1)), objetivo(&nombre_parte(nombre, 2))] {
+            assert_eq!(mock::lecturas(&o), 0, "{o}");
+        }
+        assert!(borrar_sesion_antigua("anthropic/admin").is_err(), "solo borra sesiones web");
     }
 }

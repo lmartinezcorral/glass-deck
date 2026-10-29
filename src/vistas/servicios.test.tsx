@@ -290,6 +290,15 @@ describe('cuentas (GD-DOCK-02, GD-CLA-05)', () => {
     const etiquetas = [...contenedor.querySelectorAll('input')].map((i) => i.getAttribute('aria-label') ?? '');
     expect(etiquetas.every((e) => e.startsWith('Clave de administrador'))).toBe(true);
     expect(texto().match(/no oficial/g)?.length).toBeGreaterThanOrEqual(3);
+    expect(texto()).toContain('las sesiones de Cursor, Claude.ai y ChatGPT se quedan en su perfil aislado');
+  });
+
+  it('sin respuesta del núcleo ninguna cuenta web aparece conectada, aunque quede una credencial vieja (GD-CUR-02)', async () => {
+    credenciales = [{ clave: 'cursor_sesion' as never, presente: true }];
+    act(() => raiz.render(<SeccionCuentas />));
+    await esperar();
+    for (const nombre of ['Cursor', 'Claude.ai', 'ChatGPT']) expect(boton(`Conectar ${nombre}`)).toBeTruthy();
+    expect(boton('Desconectar Cursor')).toBeUndefined();
   });
 
   it('«Desconectar» borra la sesión y el perfil del servicio; con sesión vencida ofrece reconectar (GD-NFR-SEC-04)', async () => {
@@ -326,7 +335,10 @@ describe('cuentas (GD-DOCK-02, GD-CLA-05)', () => {
 
 describe('dock (GD-DOCK-02)', () => {
   it('incluye Spending y Clima y resume las cuentas con puntos de color', async () => {
-    credenciales = [{ clave: 'cursor_sesion', presente: true }];
+    cuentasWeb = {
+      web: [cuentaWeb('cursor', 'conectada'), cuentaWeb('claude_ai', 'sin_conectar'), cuentaWeb('chatgpt', 'sin_conectar')],
+      claves: { anthropic_admin: false, openai_admin: false },
+    };
     act(() => raiz.render(<VistaDock />));
     await esperar();
     await esperar();

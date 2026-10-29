@@ -1,19 +1,20 @@
 //! claude.ai (no oficial, GD-CLA-04): todas las direcciones y nombres de campos de claude.ai viven aquí.
 //! Direcciones candidatas conocidas por la comunidad, sin confirmar con una sesión real: si no cuadran, «Formato cambió».
 
-use super::{campo, ciclo_de, como_navegador, fecha, numero, pedir, texto, VentanaUso};
+use super::{campo, ciclo_de, fecha, json_de, numero, pedir, texto, VentanaUso};
 use crate::avisos::{Medidor, Uso};
 use crate::conexion::{Peticion, TransporteWeb};
 use crate::recolectores::servicios::Motivo;
-use crate::seguridad::boveda::Secreto;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 pub const URL_LOGIN: &str = "https://claude.ai/login";
-pub const URL_COOKIES: &str = "https://claude.ai/";
-pub const COOKIES_SESION: &[&str] = &["sessionKey"];
+pub const ORIGEN: &str = "https://claude.ai";
+/// Sondeo del login (GD-CLA-04): solo dice si la cuenta ya ve al menos una organización.
+pub const GUION_SESION: &str = "fetch('https://claude.ai/api/organizations', { credentials: 'include', redirect: 'manual', cache: 'no-store' }) \
+     .then(async (r) => { if (!r.ok) return false; const j = await r.json().catch(() => null); \
+     return Array.isArray(j) && j.length > 0; }).catch(() => false)";
 
-const ORIGEN: &str = "https://claude.ai";
 const URL_ORGANIZACIONES: &str = "https://claude.ai/api/organizations";
 const RUTA_USO: &str = "usage";
 
@@ -82,11 +83,12 @@ pub fn interpretar_uso(v: &Value) -> Option<DatosClaudeAi> {
     Some(DatosClaudeAi { cinco_horas: ventana(v, VENTANA_5H), semanal: ventana(v, VENTANA_SEMANAL), extras })
 }
 
-pub fn leer(t: &dyn TransporteWeb, cookie: &Secreto) -> Result<Value, Motivo> {
-    let orgs = pedir(t, como_navegador(Peticion::get(URL_ORGANIZACIONES), ORIGEN, cookie))?;
+/// Corre dentro del WebView oculto con el perfil de claude.ai: la sesión la pone el navegador, no Glassdeck.
+pub fn leer(t: &dyn TransporteWeb) -> Result<Value, Motivo> {
+    let orgs = pedir(t, json_de(Peticion::get(URL_ORGANIZACIONES)))?;
     let uuid = elegir_organizacion(&orgs).ok_or(Motivo::FormatoCambio)?;
     let url = format!("{URL_ORGANIZACIONES}/{uuid}/{RUTA_USO}");
-    let uso = pedir(t, como_navegador(Peticion::get(url), ORIGEN, cookie))?;
+    let uso = pedir(t, json_de(Peticion::get(url)))?;
     let datos = interpretar_uso(&uso).ok_or(Motivo::FormatoCambio)?;
     serde_json::to_value(datos).map_err(|_| Motivo::Interno)
 }
@@ -108,8 +110,6 @@ mod pruebas {
     use crate::conexion::ErrorRed;
     use crate::recolectores::web::prueba::Grabado;
     use serde_json::json;
-
-    const COOKIE: &str = "sessionKey=cookie-de-prueba";
 
     fn orgs() -> Value {
         json!([
@@ -134,14 +134,12 @@ mod pruebas {
             ("GET https://claude.ai/api/organizations", Ok(orgs())),
             ("GET https://claude.ai/api/organizations/org-pro-1111/usage", Ok(uso())),
         ]);
-        let d: DatosClaudeAi = serde_json::from_value(leer(&t, &Secreto::de_prueba(COOKIE)).unwrap()).unwrap();
+        let d: DatosClaudeAi = serde_json::from_value(leer(&t).unwrap()).unwrap();
         assert_eq!(d.cinco_horas, Some(VentanaUso { porcentaje: 37.0, reinicio: Some("2026-10-28T20:00:00Z".into()) }));
         assert_eq!(d.semanal.as_ref().map(|w| w.porcentaje), Some(12.0));
         assert_eq!(d.extras, vec![VentanaExtra { nombre: "opus".into(), ventana: VentanaUso { porcentaje: 5.5, reinicio: None } }]);
         let pedidas = t.pedidas.lock();
-        let cookie = pedidas[0].encabezados.iter().find(|(n, _)| *n == "cookie").map(|(_, v)| v.as_str());
-        assert_eq!(cookie, Some(COOKIE));
-        assert!(pedidas[0].encabezados.iter().any(|(n, v)| *n == "user-agent" && v.contains("Edg/")));
+        assert!(pedidas.iter().all(|p| p.encabezados == vec![("accept", "application/json".to_string())]), "la sesión la pone el WebView");
     }
 
     #[test]
@@ -157,7 +155,7 @@ mod pruebas {
             ("GET https://claude.ai/api/organizations", Ok(orgs())),
             ("GET https://claude.ai/api/organizations/org-pro-1111/usage", Ok(json!({ "limits": [] }))),
         ]);
-        assert_eq!(leer(&t, &Secreto::de_prueba(COOKIE)), Err(Motivo::FormatoCambio));
+        assert_eq!(leer(&t), Err(Motivo::FormatoCambio));
     }
 
     #[test]
@@ -166,14 +164,14 @@ mod pruebas {
         assert_eq!(elegir_organizacion(&json!({ "uuid": "no-es-lista" })), None);
         assert_eq!(elegir_organizacion(&json!([{ "uuid": "solo-una" }])).as_deref(), Some("solo-una"));
         let t = Grabado::nuevo(vec![("GET https://claude.ai/api/organizations", Ok(json!([])))]);
-        assert_eq!(leer(&t, &Secreto::de_prueba(COOKIE)), Err(Motivo::FormatoCambio));
+        assert_eq!(leer(&t), Err(Motivo::FormatoCambio));
     }
 
     #[test]
     fn sesion_vencida_y_cloudflare_son_motivos_distintos() {
         for (error, motivo) in [(ErrorRed::SesionExpirada, Motivo::SesionExpirada), (ErrorRed::Cloudflare, Motivo::Cloudflare)] {
             let t = Grabado::nuevo(vec![("GET https://claude.ai/api/organizations", Err(error))]);
-            assert_eq!(leer(&t, &Secreto::de_prueba(COOKIE)), Err(motivo));
+            assert_eq!(leer(&t), Err(motivo));
         }
         assert_ne!(Motivo::Cloudflare.texto(), Motivo::SesionExpirada.texto());
     }

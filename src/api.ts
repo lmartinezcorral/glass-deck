@@ -354,7 +354,7 @@ export type Lectura =
   | { fuente: 'procesos'; datos: FilaProceso[] }
   | LecturaServicio;
 
-export type ClaveCredencial = 'cursor_sesion' | 'claude_ai_sesion' | 'anthropic_admin' | 'google_cliente' | 'chatgpt_sesion' | 'openai_admin';
+export type ClaveCredencial = 'anthropic_admin' | 'google_cliente' | 'openai_admin';
 
 export type ServicioWeb = 'cursor' | 'claude_ai' | 'chatgpt';
 export type EstadoConexion = 'conectada' | 'reconectar' | 'sin_conectar';
@@ -500,7 +500,7 @@ export const api = {
   googleAbrir: (url: string) => invoke<void>('google_abrir', { url }),
   /** Abre la ventana de login aislada del servicio; la sesión nunca pasa por la interfaz. */
   cuentaConectar: (servicio: ServicioWeb) => invoke<void>('cuenta_conectar', { servicio }),
-  /** Borra la sesión guardada y el perfil de login de ese servicio. */
+  /** Quita la marca de conexión y borra el perfil de login (la sesión) de ese servicio. */
   cuentaDesconectar: (servicio: ServicioWeb) => invoke<void>('cuenta_desconectar', { servicio }),
   cuentasEstado: () => invoke<EstadoCuentas>('cuentas_estado'),
 };

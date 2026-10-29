@@ -75,7 +75,7 @@ export function VistaDock() {
   );
   const conectadas = cuentas.filter((c) => c.estado === 'conectada').length;
   const descripcionCuentas = cuentas.map((c) => `${c.nombre}: ${textoEstadoCuenta(c.estado).toLowerCase()}`).join(', ');
-  const porConectar = cuentaPorConectar(credenciales, web);
+  const porConectar = cuentaPorConectar(web);
   const iconoPorConectar = porConectar && cuentas.find((c) => c.id === (porConectar.servicio === 'claude_ai' ? 'claude' : porConectar.servicio))?.icono;
 
   return (

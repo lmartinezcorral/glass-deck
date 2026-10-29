@@ -143,22 +143,18 @@ impl ClienteHttp {
             error
         })?;
         let estado = r.status().as_u16();
-        let mut encabezados = Vec::new();
-        let mut set_cookie = Vec::new();
-        for (nombre, valor) in r.headers() {
-            let Ok(v) = valor.to_str() else { continue };
-            if nombre == reqwest::header::SET_COOKIE {
-                set_cookie.push(v.to_string());
-            } else {
-                encabezados.push((nombre.as_str().to_string(), v.to_string()));
-            }
-        }
+        let encabezados: Vec<(String, String)> = r
+            .headers()
+            .iter()
+            .filter(|(nombre, _)| !nombre.as_str().eq_ignore_ascii_case(ENCABEZADO_DE_SESION))
+            .filter_map(|(nombre, valor)| Some((nombre.as_str().to_string(), valor.to_str().ok()?.to_string())))
+            .collect();
         if r.content_length().map(|n| n as usize > TAMANO_MAX).unwrap_or(false) {
             return Err(ErrorRed::Formato);
         }
         let cuerpo = r.bytes().map_err(|e| clasificar(&e))?;
         match interpretar(estado, &encabezados, &cuerpo) {
-            Ok(json) => Ok(Respuesta { estado, cuerpo: json, encabezados, set_cookie }),
+            Ok(json) => Ok(Respuesta { estado, cuerpo: json, encabezados }),
             Err(e) => {
                 log::warn!("Red: {host} respondió {estado} ({e:?})");
                 Err(e)
@@ -348,40 +344,36 @@ impl std::fmt::Debug for Peticion {
     }
 }
 
-/// Solo existe para respuestas 2xx con JSON; `set_cookie` puede traer una sesión renovada y no se imprime.
+/// Las sesiones web viven solo en el perfil de WebView2 (GD-CUR-02): una respuesta nunca trae cookies nuevas.
+const ENCABEZADO_DE_SESION: &str = "set-cookie";
+
+/// Solo existe para respuestas 2xx con JSON.
 pub struct Respuesta {
     pub estado: u16,
     pub cuerpo: serde_json::Value,
     pub encabezados: Vec<(String, String)>,
-    set_cookie: Vec<String>,
 }
 
 impl Respuesta {
     #[cfg(test)]
     pub fn de_prueba(cuerpo: serde_json::Value) -> Self {
-        Self { estado: 200, cuerpo, encabezados: Vec::new(), set_cookie: Vec::new() }
+        Self { estado: 200, cuerpo, encabezados: Vec::new() }
     }
 
-    /// Para el WebView oculto: su perfil guarda las cookies renovadas, así que no hay `Set-Cookie` que entregar.
     #[cfg_attr(not(windows), allow(dead_code))]
-    pub fn sin_cookies(estado: u16, cuerpo: serde_json::Value, encabezados: Vec<(String, String)>) -> Self {
-        Self { estado, cuerpo, encabezados, set_cookie: Vec::new() }
+    pub fn nueva(estado: u16, cuerpo: serde_json::Value, encabezados: Vec<(String, String)>) -> Self {
+        Self { estado, cuerpo, encabezados }
     }
 
     #[allow(dead_code)]
     pub fn encabezado(&self, nombre: &str) -> Option<&str> {
         valor_encabezado(&self.encabezados, nombre)
     }
-
-    #[allow(dead_code)]
-    pub(crate) fn cookies_nuevas(&self) -> &[String] {
-        &self.set_cookie
-    }
 }
 
 impl std::fmt::Debug for Respuesta {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Respuesta").field("estado", &self.estado).field("set_cookie", &self.set_cookie.len()).finish()
+        f.debug_struct("Respuesta").field("estado", &self.estado).finish()
     }
 }
 
@@ -437,9 +429,15 @@ pub fn interpretar(estado: u16, encabezados: &[(String, String)], cuerpo: &[u8])
     serde_json::from_slice(cuerpo).map_err(|_| ErrorRed::Formato)
 }
 
-/// Los adaptadores web piden por aquí para poder cambiar de mecanismo (reqwest o un WebView oculto) sin tocar el parseo.
+/// Los adaptadores web piden por aquí para poder probarse con respuestas grabadas: las APIs de costos van por reqwest
+/// y Cursor, claude.ai y ChatGPT por un WebView oculto con el perfil del servicio, sin tocar el parseo.
 pub trait TransporteWeb: Send + Sync {
     fn enviar(&self, p: &Peticion) -> Result<Respuesta, ErrorRed>;
+    /// Lectura compuesta que corre entera dentro de la página de `origen`: `guion` es una función `async` de JavaScript
+    /// del adaptador que devuelve una `Response` o `{ estado }`, para que lo intermedio (p. ej. un token) no salga de ahí.
+    fn en_pagina(&self, _origen: &'static str, _guion: &'static str) -> Result<Respuesta, ErrorRed> {
+        Err(ErrorRed::DominioNoPermitido)
+    }
     /// Libera lo que el transporte haya abierto para una ronda de lecturas.
     fn terminar(&self) {}
 }

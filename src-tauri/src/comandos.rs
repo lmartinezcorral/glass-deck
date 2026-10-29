@@ -298,7 +298,7 @@ pub fn boveda_guardar(app: AppHandle, clave: Clave, valor: String) -> R<()> {
 
 #[tauri::command]
 pub fn boveda_borrar(app: AppHandle, clave: Clave) -> R<()> {
-    boveda::borrar_largo(clave.nombre())?;
+    boveda::borrar(clave.nombre())?;
     web::credencial_cambio(&app, clave);
     Ok(())
 }
@@ -376,14 +376,14 @@ pub fn avisos_historial(app: AppHandle) -> Vec<avisos::AvisoEnviado> {
     avisos::historial(&app.state::<AlmacenEstado>())
 }
 
-/// Abre la ventana de login aislada del servicio; la cookie de sesión va directo a la bóveda (GD-NFR-SEC-04).
+/// Abre la ventana de login aislada del servicio; la sesión se queda en su perfil de WebView2 (GD-NFR-SEC-04).
 /// Asíncrono: en Windows crear un WebView2 desde un comando síncrono bloquea la app.
 #[tauri::command]
 pub async fn cuenta_conectar(app: AppHandle, servicio: ServicioWeb) -> R<()> {
     ventanas::login::conectar(&app, servicio)
 }
 
-/// Borra la sesión guardada y el perfil de login de ese servicio.
+/// Quita la marca de conexión y borra el perfil de login (la sesión) de ese servicio.
 #[tauri::command]
 pub async fn cuenta_desconectar(app: AppHandle, servicio: ServicioWeb) -> R<()> {
     ventanas::login::desconectar(&app, servicio)

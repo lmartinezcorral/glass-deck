@@ -34,7 +34,7 @@ const LECTURA_CORTADA = new Set(['sesion_expirada', 'cloudflare']);
 
 /** Sin el estado del núcleo, el propio resultado de la lectura dice si hay sesión y si sigue vigente. */
 function estadoFila(servicio: ServicioWeb, fuente: EstadoFuente<unknown> | null, cuentas: EstadoCuentas | null): EstadoCuenta {
-  if (cuentas) return estadoServicio(servicio, null, cuentas);
+  if (cuentas) return estadoServicio(servicio, cuentas);
   if (fuente?.error && LECTURA_CORTADA.has(fuente.error)) return 'reconectar';
   return fuente?.datos ? 'conectada' : 'sin_conectar';
 }

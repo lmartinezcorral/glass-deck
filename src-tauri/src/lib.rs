@@ -35,6 +35,7 @@ pub fn borrar_credenciales() {
 }
 
 pub fn run() {
+    seguridad::registro::registrar_panicos();
     arranque::esperar_escritorio_si_hace_falta();
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
@@ -97,6 +98,7 @@ pub fn run() {
                 Box::new(google::FuenteAgenda(cuentas_google.clone())),
                 Box::new(google::FuenteAlerta::nueva(cuentas_google)),
             ];
+            recolectores::web::migrar_al_arrancar(h);
             fuentes.extend(recolectores::web::fuentes(h));
             servicios::iniciar(h, fuentes);
             ventanas::marcar_arranque_listo();

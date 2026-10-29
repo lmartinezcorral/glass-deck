@@ -24,30 +24,26 @@ export const textoEstadoCuenta = (e: EstadoCuenta): string => TEXTO_ESTADO[e];
 
 export const NOMBRE_SERVICIO: Record<ServicioWeb, string> = { cursor: 'Cursor', claude_ai: 'Claude.ai', chatgpt: 'ChatGPT' };
 
-const CLAVE_SERVICIO: Record<ServicioWeb, ClaveCredencial> = { cursor: 'cursor_sesion', claude_ai: 'claude_ai_sesion', chatgpt: 'chatgpt_sesion' };
-
 export function credencialPresente(credenciales: readonly EstadoCredencial[] | null, clave: ClaveCredencial): boolean {
   return credenciales?.find((c) => c.clave === clave)?.presente ?? false;
 }
 
-/** El núcleo dice si la sesión sigue vigente; mientras no responda, basta con saber si hay sesión guardada. */
-export function estadoServicio(servicio: ServicioWeb, credenciales: readonly EstadoCredencial[] | null, web: EstadoCuentas | null): EstadoCuenta {
-  const real = web?.web.find((c) => c.servicio === servicio);
-  if (real) return real.estado;
-  return credencialPresente(credenciales, CLAVE_SERVICIO[servicio]) ? 'conectada' : 'sin_conectar';
+/** Solo el núcleo sabe si hay sesión: vive en el perfil aislado del servicio, no en la bóveda. */
+export function estadoServicio(servicio: ServicioWeb, web: EstadoCuentas | null): EstadoCuenta {
+  return web?.web.find((c) => c.servicio === servicio)?.estado ?? 'sin_conectar';
 }
 
 function detalleWeb(estado: EstadoCuenta, web: EstadoCuentas | null, servicio: ServicioWeb): string {
   if (estado === 'reconectar') return `${web?.web.find((c) => c.servicio === servicio)?.motivo ?? 'Sesión expirada'} · vuelve a conectar`;
-  return estado === 'conectada' ? 'Sesión guardada · lectura no oficial' : 'Sin sesión · lectura no oficial';
+  return estado === 'conectada' ? 'Sesión en perfil aislado · lectura no oficial' : 'Sin sesión · lectura no oficial';
 }
 
 /** GD-DOCK-02: ámbar si la última lectura dio sesión vencida o Cloudflare. La entrada gris de Google la reemplaza `resumenConGoogle` por cuenta. */
 export function resumenCuentas(credenciales: readonly EstadoCredencial[] | null, web: EstadoCuentas | null = null): ResumenCuenta[] {
   const cliente = credencialPresente(credenciales, 'google_cliente');
-  const cursor = estadoServicio('cursor', credenciales, web);
-  const claudeAi = estadoServicio('claude_ai', credenciales, web);
-  const chatgpt = estadoServicio('chatgpt', credenciales, web);
+  const cursor = estadoServicio('cursor', web);
+  const claudeAi = estadoServicio('claude_ai', web);
+  const chatgpt = estadoServicio('chatgpt', web);
   return [
     {
       id: 'google',
@@ -82,10 +78,10 @@ export function resumenCuentas(credenciales: readonly EstadoCredencial[] | null,
 }
 
 /** El que el dock ofrece conectar directo: primero uno que pida reconexión, luego uno sin conectar; ninguno si hay un login abierto. */
-export function cuentaPorConectar(credenciales: readonly EstadoCredencial[] | null, web: EstadoCuentas | null): { servicio: ServicioWeb; estado: EstadoCuenta } | null {
+export function cuentaPorConectar(web: EstadoCuentas | null): { servicio: ServicioWeb; estado: EstadoCuenta } | null {
   if (web?.web.some((c) => c.conectando)) return null;
   const servicios: ServicioWeb[] = ['cursor', 'claude_ai', 'chatgpt'];
-  const estados = servicios.map((servicio) => ({ servicio, estado: estadoServicio(servicio, credenciales, web) }));
+  const estados = servicios.map((servicio) => ({ servicio, estado: estadoServicio(servicio, web) }));
   return estados.find((e) => e.estado === 'reconectar') ?? estados.find((e) => e.estado === 'sin_conectar') ?? null;
 }
 

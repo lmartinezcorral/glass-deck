@@ -1,5 +1,7 @@
 //! Fuentes web de gasto y uso (bloques 13 y 17). Cada servicio vive en su propio adaptador con todas sus
-//! direcciones y nombres de campos (GD-CUR-04); aquí solo queda lo común: credenciales, fuentes y estado de las cuentas.
+//! direcciones y nombres de campos (GD-CUR-04); aquí solo queda lo común: fuentes, marca de conexión y estado de las
+//! cuentas. Las sesiones de Cursor, claude.ai y ChatGPT viven solo en su perfil aislado de WebView2 y se leen ahí:
+//! Glassdeck no lee, copia ni guarda cookies (GD-CUR-02, GD-NFR-SEC-01, R-10).
 
 pub mod anthropic_consola;
 pub mod chatgpt;
@@ -9,13 +11,13 @@ pub mod openai_api;
 
 use super::servicios::{EstadoFuente, EstadoServicios, Fuente, Motivo};
 use crate::avisos::Uso;
-use crate::conexion::{ErrorRed, Peticion, Respuesta, TransporteWeb};
-use crate::config::Config;
-use crate::seguridad::boveda::{self, Clave, Secreto};
+use crate::conexion::{Peticion, Respuesta, TransporteWeb};
+use crate::config::{AlmacenEstado, Config};
+use crate::seguridad::boveda::{self, Clave};
 use chrono::{DateTime, Datelike, Local, SecondsFormat, TimeZone, Utc};
+use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager};
@@ -26,9 +28,9 @@ pub const POSTS_DE_LECTURA: &[&str] = cursor::POSTS_LECTURA;
 /// El dock y Customize recargan el estado de las cuentas al recibirlo.
 pub const EVENTO_CUENTAS: &str = "gd://cuentas";
 
-/// cursor.com, claude.ai y chatgpt.com reciben las peticiones como si vinieran de Edge.
-pub const UA_EDGE: &str =
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 Edg/141.0.0.0";
+/// Una sola ronda web a la vez: como mucho un WebView oculto vivo (presupuesto de RAM, GD-NFR-PERF-02). Desconectar
+/// también la toma para borrar el perfil cuando ninguna lectura lo usa.
+pub(crate) static RONDA_WEB: Mutex<()> = Mutex::new(());
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -58,14 +60,6 @@ impl ServicioWeb {
         }
     }
 
-    pub fn clave(self) -> Clave {
-        match self {
-            ServicioWeb::Cursor => Clave::CursorSesion,
-            ServicioWeb::ClaudeAi => Clave::ClaudeAiSesion,
-            ServicioWeb::Chatgpt => Clave::ChatgptSesion,
-        }
-    }
-
     pub fn url_login(self) -> &'static str {
         match self {
             ServicioWeb::Cursor => cursor::URL_LOGIN,
@@ -74,53 +68,37 @@ impl ServicioWeb {
         }
     }
 
-    /// Dirección cuyas cookies se leen del perfil de login; también es el origen del WebView oculto.
-    pub fn url_cookies(self) -> &'static str {
+    /// Origen del WebView oculto de lectura y de los sondeos del login.
+    pub fn origen(self) -> &'static str {
         match self {
-            ServicioWeb::Cursor => cursor::URL_COOKIES,
-            ServicioWeb::ClaudeAi => claude_ai::URL_COOKIES,
-            ServicioWeb::Chatgpt => chatgpt::URL_COOKIES,
+            ServicioWeb::Cursor => cursor::ORIGEN,
+            ServicioWeb::ClaudeAi => claude_ai::ORIGEN,
+            ServicioWeb::Chatgpt => chatgpt::ORIGEN,
         }
     }
 
-    pub fn cookies_sesion(self) -> &'static [&'static str] {
+    /// Expresión de JavaScript que corre en la ventana de login y resuelve a `true` o `false`: si la sesión ya sirve.
+    pub fn guion_sesion(self) -> &'static str {
         match self {
-            ServicioWeb::Cursor => cursor::COOKIES_SESION,
-            ServicioWeb::ClaudeAi => claude_ai::COOKIES_SESION,
-            ServicioWeb::Chatgpt => chatgpt::COOKIES_SESION,
+            ServicioWeb::Cursor => cursor::GUION_SESION,
+            ServicioWeb::ClaudeAi => claude_ai::GUION_SESION,
+            ServicioWeb::Chatgpt => chatgpt::GUION_SESION,
+        }
+    }
+
+    /// Credencial donde las versiones anteriores a SPEC 1.6 copiaban su cookie; solo se borra al migrar.
+    pub fn credencial_antigua(self) -> &'static str {
+        match self {
+            ServicioWeb::Cursor => boveda::SESIONES_WEB_ANTIGUAS[0],
+            ServicioWeb::ClaudeAi => boveda::SESIONES_WEB_ANTIGUAS[1],
+            ServicioWeb::Chatgpt => boveda::SESIONES_WEB_ANTIGUAS[2],
         }
     }
 }
 
-/// Arma el encabezado `Cookie` solo con las cookies de sesión; acepta una cookie partida en `.0`, `.1`… (ChatGPT).
-/// `None` si falta alguna: el login todavía no termina.
-pub fn seleccionar_cookies(requeridas: &[&str], cookies: &[(String, String)]) -> Option<String> {
-    let mut pares = Vec::new();
-    for base in requeridas {
-        if let Some((n, v)) = cookies.iter().find(|(n, v)| n == base && !v.is_empty()) {
-            pares.push(format!("{n}={v}"));
-            continue;
-        }
-        let mut partes: Vec<(u32, &String, &String)> = cookies
-            .iter()
-            .filter(|(_, v)| !v.is_empty())
-            .filter_map(|(n, v)| n.strip_prefix(base)?.strip_prefix('.')?.parse::<u32>().ok().map(|i| (i, n, v)))
-            .collect();
-        partes.sort_by_key(|p| p.0);
-        if partes.is_empty() || partes.iter().enumerate().any(|(i, p)| p.0 as usize != i) {
-            return None;
-        }
-        pares.extend(partes.iter().map(|(_, n, v)| format!("{n}={v}")));
-    }
-    Some(pares.join("; "))
-}
-
-pub(crate) fn como_navegador(p: Peticion, origen: &str, cookie: &Secreto) -> Peticion {
-    p.encabezado("user-agent", UA_EDGE)
-        .encabezado("accept", "application/json")
-        .encabezado("accept-language", "es-MX,es;q=0.9,en;q=0.8")
-        .encabezado("referer", format!("{origen}/"))
-        .encabezado("cookie", cookie.exponer())
+/// La sesión la pone el WebView con el perfil del servicio; Glassdeck solo pide JSON.
+pub(crate) fn json_de(p: Peticion) -> Peticion {
+    p.encabezado("accept", "application/json")
 }
 
 pub(crate) fn pedir(t: &dyn TransporteWeb, p: Peticion) -> Result<Value, Motivo> {
@@ -189,14 +167,17 @@ pub fn inicio_mes_local(ahora: DateTime<Local>) -> (DateTime<Utc>, String) {
     (inicio.with_timezone(&Utc), format!("{:04}-{:02}", ahora.year(), ahora.month()))
 }
 
+pub type Conectada = Arc<dyn Fn() -> bool + Send + Sync>;
+
 pub struct FuenteWeb {
     servicio: ServicioWeb,
     transporte: Arc<dyn TransporteWeb>,
+    conectada: Conectada,
 }
 
 impl FuenteWeb {
-    pub fn nueva(servicio: ServicioWeb, transporte: Arc<dyn TransporteWeb>) -> Self {
-        Self { servicio, transporte }
+    pub fn nueva(servicio: ServicioWeb, transporte: Arc<dyn TransporteWeb>, conectada: Conectada) -> Self {
+        Self { servicio, transporte, conectada }
     }
 }
 
@@ -213,16 +194,18 @@ impl Fuente for FuenteWeb {
         Duration::from_millis(cfg.intervalos.spending_ms)
     }
 
-    /// Sin sesión guardada no se toca la red: el dato queda en `null` y la cuenta en gris.
+    /// Sin marca de conexión no se toca la red: el dato queda en `null` y la cuenta en gris. La marca se revisa ya con
+    /// el turno tomado: si se desconectó mientras esperaba, no se vuelve a abrir el perfil.
     fn recolectar(&mut self, _cfg: &Config) -> Result<Value, Motivo> {
-        let Some(cookie) = boveda::leer_largo(self.servicio.clave().nombre()).map_err(|_| Motivo::Interno)? else {
+        let _turno = RONDA_WEB.lock();
+        if !(self.conectada)() {
             return Ok(Value::Null);
-        };
+        }
         let t = &*self.transporte;
         let r = match self.servicio {
-            ServicioWeb::Cursor => cursor::leer(t, &cookie, Utc::now()),
-            ServicioWeb::ClaudeAi => claude_ai::leer(t, &cookie),
-            ServicioWeb::Chatgpt => chatgpt::leer(t, &cookie, Utc::now()),
+            ServicioWeb::Cursor => cursor::leer(t, Utc::now()),
+            ServicioWeb::ClaudeAi => claude_ai::leer(t),
+            ServicioWeb::Chatgpt => chatgpt::leer(t, Utc::now()),
         };
         t.terminar();
         r
@@ -303,40 +286,6 @@ impl Fuente for FuenteCostos {
     }
 }
 
-/// Si el primero topa con Cloudflare, el resto de la ronda pasa por el respaldo (el WebView oculto).
-pub struct ConRespaldo {
-    principal: Arc<dyn TransporteWeb>,
-    respaldo: Arc<dyn TransporteWeb>,
-    en_respaldo: AtomicBool,
-}
-
-impl ConRespaldo {
-    pub fn nuevo(principal: Arc<dyn TransporteWeb>, respaldo: Arc<dyn TransporteWeb>) -> Self {
-        Self { principal, respaldo, en_respaldo: AtomicBool::new(false) }
-    }
-}
-
-impl TransporteWeb for ConRespaldo {
-    fn enviar(&self, p: &Peticion) -> Result<Respuesta, ErrorRed> {
-        if !self.en_respaldo.load(Ordering::Relaxed) {
-            match self.principal.enviar(p) {
-                Err(ErrorRed::Cloudflare) => {
-                    log::info!("Cloudflare rechazó la lectura directa; se reintenta con el WebView oculto");
-                    self.en_respaldo.store(true, Ordering::Relaxed);
-                }
-                r => return r,
-            }
-        }
-        self.respaldo.enviar(p)
-    }
-
-    fn terminar(&self) {
-        self.en_respaldo.store(false, Ordering::Relaxed);
-        self.principal.terminar();
-        self.respaldo.terminar();
-    }
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum EstadoConexion {
@@ -379,10 +328,11 @@ pub fn estado_cuenta(presente: bool, ultimo: Option<&EstadoFuente>) -> (EstadoCo
 
 pub fn estado_cuentas(app: &AppHandle) -> EstadoCuentas {
     let servicios = app.state::<EstadoServicios>();
+    let marcas = app.state::<AlmacenEstado>();
     let web = ServicioWeb::TODOS
         .iter()
         .map(|s| {
-            let presente = boveda::existe(s.clave().nombre());
+            let presente = marcas.sesion_web(s.id());
             let (estado, motivo) = estado_cuenta(presente, servicios.ultimo(s.id()).as_ref());
             let conectando = app.get_webview_window(&crate::ventanas::login::etiqueta(*s)).is_some();
             EstadoCuentaWeb { servicio: *s, estado, motivo, conectando }
@@ -395,27 +345,57 @@ pub fn estado_cuentas(app: &AppHandle) -> EstadoCuentas {
     EstadoCuentas { web, claves }
 }
 
-/// Cursor, claude.ai y ChatGPT leen primero directo y, si Cloudflare lo impide, con el WebView oculto de su perfil de login.
+/// Cursor, claude.ai y ChatGPT leen solo con el WebView oculto de su perfil aislado; las APIs de costos, por reqwest
+/// con su clave de la bóveda.
 pub fn fuentes(app: &AppHandle) -> Vec<Box<dyn Fuente>> {
-    let directo: Arc<dyn TransporteWeb> = Arc::new(crate::conexion::Internet);
     let mut v: Vec<Box<dyn Fuente>> = ServicioWeb::TODOS
         .iter()
         .map(|s| {
             let oculto = Arc::new(crate::ventanas::login::NavegadorOculto::nuevo(app.clone(), *s));
-            Box::new(FuenteWeb::nueva(*s, Arc::new(ConRespaldo::nuevo(directo.clone(), oculto)))) as Box<dyn Fuente>
+            let marcas = app.clone();
+            let id = s.id();
+            let conectada: Conectada = Arc::new(move || marcas.state::<AlmacenEstado>().sesion_web(id));
+            Box::new(FuenteWeb::nueva(*s, oculto, conectada)) as Box<dyn Fuente>
         })
         .collect();
+    let directo: Arc<dyn TransporteWeb> = Arc::new(crate::conexion::Internet);
     v.extend([ApiCostos::Anthropic, ApiCostos::OpenAi].map(|a| Box::new(FuenteCostos::nueva(a, directo.clone())) as Box<dyn Fuente>));
     v
 }
 
+/// SPEC 1.6 (R-10): las versiones anteriores copiaban la cookie de sesión a la bóveda. Se borra sin leerla y, si el
+/// perfil aislado del servicio existe, queda «por verificar»: marcado como conectado hasta que la siguiente lectura
+/// decida verde o ámbar. Devuelve los servicios que quedaron por verificar.
+pub fn migrar_sesiones_antiguas(
+    servicios: &[ServicioWeb],
+    perfil_existe: impl Fn(ServicioWeb) -> bool,
+    marcas: &AlmacenEstado,
+) -> Vec<ServicioWeb> {
+    let mut por_verificar = Vec::new();
+    for s in servicios {
+        match boveda::borrar_sesion_antigua(s.credencial_antigua()) {
+            Ok(true) if perfil_existe(*s) => {
+                if let Err(e) = marcas.marcar_sesion_web(s.id(), true) {
+                    log::warn!("{e}");
+                }
+                log::info!("Conexión: {} queda por verificar con su perfil aislado", s.nombre());
+                por_verificar.push(*s);
+            }
+            Ok(_) => {}
+            Err(e) => log::warn!("Conexión: no se pudo borrar la sesión antigua de {}: {e}", s.nombre()),
+        }
+    }
+    por_verificar
+}
+
+pub fn migrar_al_arrancar(app: &AppHandle) {
+    let existe = |s: ServicioWeb| crate::ventanas::login::dir_perfil(app, s).is_some_and(|d| d.is_dir());
+    migrar_sesiones_antiguas(&ServicioWeb::TODOS, existe, &app.state::<AlmacenEstado>());
+}
+
 /// Fuente que lee con cada credencial: al guardarla o borrarla se relee de inmediato.
 pub fn fuente_de_clave(c: Clave) -> Option<&'static str> {
-    ServicioWeb::TODOS
-        .iter()
-        .find(|s| s.clave() == c)
-        .map(|s| s.id())
-        .or_else(|| [ApiCostos::Anthropic, ApiCostos::OpenAi].into_iter().find(|a| a.clave() == c).map(|a| a.id()))
+    [ApiCostos::Anthropic, ApiCostos::OpenAi].into_iter().find(|a| a.clave() == c).map(|a| a.id())
 }
 
 pub fn credencial_cambio(app: &AppHandle, c: Clave) {
@@ -438,11 +418,14 @@ pub(crate) mod prueba {
         pub cuerpo: Option<Value>,
     }
 
-    /// Respuestas grabadas sintéticas por «MÉTODO dirección-sin-consulta»; valida dominio y lista de POST como el real.
-    /// Si una dirección tiene varias respuestas se entregan en orden (paginación); la última se repite.
+    /// Respuestas grabadas sintéticas por «MÉTODO dirección-sin-consulta» (o «PAGINA origen» para las lecturas
+    /// compuestas); valida dominio y lista de POST como el real. Si una dirección tiene varias respuestas se entregan
+    /// en orden (paginación); la última se repite.
     pub struct Grabado {
         respuestas: Mutex<Vec<(String, Result<Value, ErrorRed>)>>,
         pub pedidas: Mutex<Vec<Pedida>>,
+        pub guiones: Mutex<Vec<&'static str>>,
+        pub terminadas: Mutex<usize>,
     }
 
     impl Grabado {
@@ -450,22 +433,16 @@ pub(crate) mod prueba {
             Self {
                 respuestas: Mutex::new(respuestas.into_iter().map(|(k, v)| (k.to_string(), v)).collect()),
                 pedidas: Mutex::new(Vec::new()),
+                guiones: Mutex::new(Vec::new()),
+                terminadas: Mutex::new(0),
             }
         }
 
         pub fn urls(&self) -> Vec<String> {
             self.pedidas.lock().iter().map(|p| p.url.clone()).collect()
         }
-    }
 
-    impl TransporteWeb for Grabado {
-        fn enviar(&self, p: &Peticion) -> Result<Respuesta, ErrorRed> {
-            let u = validar_peticion(p)?;
-            self.pedidas.lock().push(Pedida { metodo: p.metodo, url: u.to_string(), encabezados: p.encabezados.clone(), cuerpo: p.cuerpo.clone() });
-            let metodo = if p.metodo == Metodo::Get { "GET" } else { "POST" };
-            let mut sin_consulta = u.clone();
-            sin_consulta.set_query(None);
-            let clave = format!("{metodo} {sin_consulta}");
+        fn responder(&self, clave: &str) -> Result<Respuesta, ErrorRed> {
             let mut lista = self.respuestas.lock();
             let indices: Vec<usize> = lista.iter().enumerate().filter(|(_, (k, _))| *k == clave).map(|(i, _)| i).collect();
             let r = match indices.as_slice() {
@@ -476,6 +453,27 @@ pub(crate) mod prueba {
             r.map(Respuesta::de_prueba)
         }
     }
+
+    impl TransporteWeb for Grabado {
+        fn enviar(&self, p: &Peticion) -> Result<Respuesta, ErrorRed> {
+            let u = validar_peticion(p)?;
+            self.pedidas.lock().push(Pedida { metodo: p.metodo, url: u.to_string(), encabezados: p.encabezados.clone(), cuerpo: p.cuerpo.clone() });
+            let metodo = if p.metodo == Metodo::Get { "GET" } else { "POST" };
+            let mut sin_consulta = u.clone();
+            sin_consulta.set_query(None);
+            self.responder(&format!("{metodo} {sin_consulta}"))
+        }
+
+        fn en_pagina(&self, origen: &'static str, guion: &'static str) -> Result<Respuesta, ErrorRed> {
+            crate::conexion::validar_url(origen, &[])?;
+            self.guiones.lock().push(guion);
+            self.responder(&format!("PAGINA {origen}"))
+        }
+
+        fn terminar(&self) {
+            *self.terminadas.lock() += 1;
+        }
+    }
 }
 
 #[cfg(test)]
@@ -483,29 +481,11 @@ mod pruebas {
     use super::prueba::Grabado;
     use super::*;
     use crate::conexion::ErrorRed;
+    use crate::seguridad::boveda::mock;
     use serde_json::json;
 
-    fn cookies(pares: &[(&str, &str)]) -> Vec<(String, String)> {
-        pares.iter().map(|(a, b)| (a.to_string(), b.to_string())).collect()
-    }
-
-    #[test]
-    fn solo_se_toman_las_cookies_de_sesion_y_sin_ellas_el_login_no_termina() {
-        let todas = cookies(&[("_ga", "analitica"), ("WorkosCursorSessionToken", "cookie-de-prueba"), ("otra", "x")]);
-        assert_eq!(seleccionar_cookies(cursor::COOKIES_SESION, &todas).as_deref(), Some("WorkosCursorSessionToken=cookie-de-prueba"));
-        assert_eq!(seleccionar_cookies(claude_ai::COOKIES_SESION, &todas), None);
-        assert_eq!(seleccionar_cookies(cursor::COOKIES_SESION, &cookies(&[("WorkosCursorSessionToken", "")])), None);
-    }
-
-    #[test]
-    fn la_cookie_de_chatgpt_partida_se_junta_en_orden() {
-        let base = chatgpt::COOKIES_SESION[0];
-        let partes = cookies(&[(&format!("{base}.1"), "parte-b"), ("__cf_bm", "x"), (&format!("{base}.0"), "parte-a")]);
-        assert_eq!(seleccionar_cookies(chatgpt::COOKIES_SESION, &partes), Some(format!("{base}.0=parte-a; {base}.1=parte-b")));
-        let incompleta = cookies(&[(&format!("{base}.1"), "parte-b")]);
-        assert_eq!(seleccionar_cookies(chatgpt::COOKIES_SESION, &incompleta), None);
-        let entera = cookies(&[(base, "entera"), (&format!("{base}.0"), "vieja")]);
-        assert_eq!(seleccionar_cookies(chatgpt::COOKIES_SESION, &entera), Some(format!("{base}=entera")));
+    fn siempre(conectada: bool) -> Conectada {
+        Arc::new(move || conectada)
     }
 
     #[test]
@@ -543,30 +523,12 @@ mod pruebas {
     }
 
     #[test]
-    fn con_cloudflare_el_resto_de_la_ronda_pasa_por_el_respaldo_y_el_parseo_no_cambia() {
-        let organizaciones = json!([{ "uuid": "org-1", "capabilities": ["chat"] }]);
-        let uso = json!({ "five_hour": { "utilization": 40.0, "resets_at": "2026-10-28T20:00:00Z" }, "seven_day": null });
-        let directo = Arc::new(Grabado::nuevo(vec![("GET https://claude.ai/api/organizations", Err(ErrorRed::Cloudflare))]));
-        let oculto = Arc::new(Grabado::nuevo(vec![
-            ("GET https://claude.ai/api/organizations", Ok(organizaciones)),
-            ("GET https://claude.ai/api/organizations/org-1/usage", Ok(uso)),
-        ]));
-        let t = ConRespaldo::nuevo(directo.clone(), oculto.clone());
-        let d = claude_ai::leer(&t, &Secreto::de_prueba("sessionKey=cookie-de-prueba")).unwrap();
-        assert_eq!(d["cinco_horas"]["porcentaje"], 40.0);
-        assert_eq!(directo.urls().len(), 1);
-        assert_eq!(oculto.urls().len(), 2);
-        t.terminar();
-        assert!(!t.en_respaldo.load(Ordering::Relaxed), "cada ronda vuelve a intentar la lectura directa");
-    }
-
-    #[test]
-    fn sin_sesion_guardada_la_fuente_no_toca_la_red() {
+    fn sin_marca_de_conexion_la_fuente_no_toca_la_red() {
         let t = Arc::new(Grabado::nuevo(vec![]));
-        let mut f = FuenteWeb::nueva(ServicioWeb::ClaudeAi, t.clone());
-        boveda::borrar_largo(Clave::ClaudeAiSesion.nombre()).unwrap();
+        let mut f = FuenteWeb::nueva(ServicioWeb::ClaudeAi, t.clone(), siempre(false));
         assert_eq!(f.recolectar(&Config::default()), Ok(Value::Null));
-        assert!(t.urls().is_empty());
+        assert!(t.urls().is_empty() && t.guiones.lock().is_empty());
+        assert_eq!(*t.terminadas.lock(), 0, "ni siquiera se abre el WebView");
         assert!(f.usos(&Value::Null, &Config::default()).is_empty());
         let mut costos = FuenteCostos::nueva(ApiCostos::OpenAi, t.clone());
         assert_eq!(costos.recolectar(&Config::default()), Ok(Value::Null));
@@ -574,25 +536,74 @@ mod pruebas {
     }
 
     #[test]
-    fn ni_la_cookie_ni_el_token_llegan_al_log_ni_a_lo_que_ve_la_interfaz() {
+    fn cada_ronda_lee_por_el_transporte_y_lo_cierra_al_terminar_aunque_falle() {
+        let organizaciones = json!([{ "uuid": "org-1", "capabilities": ["chat"] }]);
+        let uso = json!({ "five_hour": { "utilization": 40.0, "resets_at": "2026-10-28T20:00:00Z" }, "seven_day": null });
+        let t = Arc::new(Grabado::nuevo(vec![
+            ("GET https://claude.ai/api/organizations", Ok(organizaciones)),
+            ("GET https://claude.ai/api/organizations/org-1/usage", Ok(uso)),
+        ]));
+        let mut f = FuenteWeb::nueva(ServicioWeb::ClaudeAi, t.clone(), siempre(true));
+        let d = f.recolectar(&Config::default()).unwrap();
+        assert_eq!(d["cinco_horas"]["porcentaje"], 40.0);
+        assert_eq!((t.urls().len(), *t.terminadas.lock()), (2, 1));
+        let t = Arc::new(Grabado::nuevo(vec![(&format!("PAGINA {}", chatgpt::ORIGEN), Err(ErrorRed::Cloudflare))]));
+        let mut f = FuenteWeb::nueva(ServicioWeb::Chatgpt, t.clone(), siempre(true));
+        assert_eq!(f.recolectar(&Config::default()), Err(Motivo::Cloudflare));
+        assert_eq!(*t.terminadas.lock(), 1);
+    }
+
+    #[test]
+    fn la_migracion_borra_la_sesion_antigua_sin_leerla_y_la_boveda_no_recibe_sesiones_web() {
+        let marcas = AlmacenEstado::nuevo(&crate::config::dir_temporal("web-migracion"));
+        let servicios = [ServicioWeb::Cursor, ServicioWeb::ClaudeAi];
+        let cursor_sesion = boveda::objetivo(ServicioWeb::Cursor.credencial_antigua());
+        mock::sembrar(&cursor_sesion, "glassdeck-partes:1");
+        mock::sembrar(&format!("{cursor_sesion}/1"), "WorkosCursorSessionToken=cookie-de-prueba");
+        let perfil_existe = |s: ServicioWeb| s == ServicioWeb::Cursor || s == ServicioWeb::ClaudeAi;
+
+        assert_eq!(migrar_sesiones_antiguas(&servicios, perfil_existe, &marcas), vec![ServicioWeb::Cursor]);
+        assert!(marcas.sesion_web("cursor"), "Cursor queda por verificar con su perfil");
+        assert!(!marcas.sesion_web("claude_ai"), "un perfil sin sesión antigua no se marca");
+        assert_eq!(mock::lecturas(&cursor_sesion) + mock::lecturas(&format!("{cursor_sesion}/1")), 0);
+        assert_eq!(estado_cuenta(marcas.sesion_web("cursor"), None), (EstadoConexion::Conectada, None));
+        assert_eq!(migrar_sesiones_antiguas(&servicios, perfil_existe, &marcas), vec![], "solo migra una vez");
+        assert!(marcas.sesion_web("cursor"));
+
+        let resumen = json!({ "billingCycleStart": "2026-10-05T00:00:00Z", "individualUsage": { "plan": { "used": 100, "limit": 2000 } } });
+        let t = Arc::new(Grabado::nuevo(vec![
+            ("GET https://cursor.com/api/usage-summary", Ok(resumen)),
+            ("GET https://claude.ai/api/organizations", Err(ErrorRed::SesionExpirada)),
+        ]));
+        let conectada: Conectada = {
+            let marcas = Arc::new(marcas);
+            Arc::new(move || marcas.sesion_web("cursor"))
+        };
+        assert!(FuenteWeb::nueva(ServicioWeb::Cursor, t.clone(), conectada.clone()).recolectar(&Config::default()).is_ok());
+        let _ = FuenteWeb::nueva(ServicioWeb::ClaudeAi, t.clone(), siempre(true)).recolectar(&Config::default());
+        let sesiones: Vec<String> = mock::objetivos()
+            .into_iter()
+            .filter(|o| servicios.iter().any(|s| o.starts_with(&boveda::objetivo(s.credencial_antigua()))))
+            .collect();
+        assert!(sesiones.is_empty(), "{sesiones:?}");
+        assert!(t.pedidas.lock().iter().all(|p| !p.encabezados.iter().any(|(k, _)| k.eq_ignore_ascii_case("cookie"))));
+    }
+
+    #[test]
+    fn ni_cookies_ni_tokens_llegan_al_log_ni_a_lo_que_ve_la_interfaz() {
         let captura = crate::seguridad::registro::captura_de_prueba();
-        let cookie = Secreto::de_prueba("WorkosCursorSessionToken=user_x%3A%3Acookie-de-prueba; sessionKey=cookie-de-prueba");
-        let sesion = json!({ "accessToken": "token-de-prueba" });
         let t = Grabado::nuevo(vec![
-            ("GET https://chatgpt.com/api/auth/session", Ok(sesion)),
-            ("GET https://chatgpt.com/backend-api/wham/usage", Err(ErrorRed::Cloudflare)),
+            ("PAGINA https://chatgpt.com", Err(ErrorRed::Cloudflare)),
             ("GET https://claude.ai/api/organizations", Err(ErrorRed::SesionExpirada)),
             ("GET https://cursor.com/api/usage-summary", Err(ErrorRed::Formato)),
         ]);
-        let respaldo = Arc::new(Grabado::nuevo(vec![]));
-        let r = ConRespaldo::nuevo(Arc::new(t), respaldo);
-        let _ = chatgpt::leer(&r, &cookie, Utc::now());
-        let _ = claude_ai::leer(&r, &cookie);
-        let _ = cursor::leer(&r, &cookie, Utc::now());
-        let p = como_navegador(Peticion::post_lectura("https://cursor.com/api/dashboard/set-hard-limit", json!({})), "https://cursor.com", &cookie)
+        let _ = chatgpt::leer(&t, Utc::now());
+        let _ = claude_ai::leer(&t);
+        let _ = cursor::leer(&t, Utc::now());
+        let p = json_de(Peticion::post_lectura("https://cursor.com/api/dashboard/set-hard-limit", json!({})))
             .encabezado("authorization", "Bearer token-de-prueba");
         assert!(crate::conexion::validar_peticion(&p).is_err());
-        log::warn!("depuración accidental: {p:?} {cookie:?} {:?}", Respuesta::de_prueba(json!({})));
+        log::warn!("depuración accidental: {p:?} {:?}", Respuesta::de_prueba(json!({})));
 
         let fuente = EstadoFuente { datos: Some(json!({ "cinco_horas": null })), error: Some(Motivo::Cloudflare), ..Default::default() };
         let (estado, motivo) = estado_cuenta(true, Some(&fuente));
@@ -612,20 +623,70 @@ mod pruebas {
 
     #[test]
     fn cada_credencial_relee_su_propia_fuente() {
-        assert_eq!(fuente_de_clave(Clave::CursorSesion), Some("cursor"));
-        assert_eq!(fuente_de_clave(Clave::ChatgptSesion), Some("chatgpt"));
         assert_eq!(fuente_de_clave(Clave::AnthropicAdmin), Some("anthropic_consola"));
         assert_eq!(fuente_de_clave(Clave::OpenaiAdmin), Some("openai_api"));
         assert_eq!(fuente_de_clave(Clave::GoogleCliente), None);
     }
 
     #[test]
-    fn las_direcciones_de_login_y_cookies_son_de_dominios_permitidos() {
+    fn las_direcciones_de_login_y_lectura_son_de_dominios_permitidos() {
         for s in ServicioWeb::TODOS {
-            for u in [s.url_login(), s.url_cookies()] {
+            for u in [s.url_login(), s.origen()] {
                 assert!(crate::conexion::validar_url(u, &[]).is_ok(), "{u}");
             }
-            assert!(!s.cookies_sesion().is_empty());
+            assert!(s.guion_sesion().starts_with(&format!("fetch('{}/", s.origen())), "el sondeo es del propio origen");
+            assert!(boveda::SESIONES_WEB_ANTIGUAS.contains(&s.credencial_antigua()));
         }
+    }
+
+    /// GD-CUR-02, GD-NFR-SEC-01: revisión automática del código; ninguna API de cookies ni guardado de sesiones web.
+    /// Los patrones se arman por partes para que esta prueba no se encuentre a sí misma.
+    #[test]
+    fn el_codigo_no_usa_ninguna_api_de_cookies() {
+        let raiz = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+        let prohibidos: Vec<String> = [
+            ["cookies", "_for_url"],
+            [".cookies", "()"],
+            ["Cookie", "Manager"],
+            ["GetCookie", "s"],
+            ["getCookie", "s"],
+            ["getAllCookie", "s"],
+            ["\"Network", "."],
+            ["\"Storage", "."],
+            ["document", ".cookie"],
+            ["set_", "cookie"],
+            ["SET_", "COOKIE"],
+            ["cookie", "_store"],
+            ["guardar", "_largo"],
+            ["leer", "_largo"],
+        ]
+        .iter()
+        .map(|p| p.concat())
+        .collect();
+        let mut archivos = Vec::new();
+        let mut pendientes = vec![raiz.join("src"), raiz.join("..").join("src")];
+        while let Some(dir) = pendientes.pop() {
+            for e in std::fs::read_dir(&dir).unwrap().flatten() {
+                let ruta = e.path();
+                if ruta.is_dir() {
+                    pendientes.push(ruta);
+                } else if ruta.extension().is_some_and(|x| ["rs", "ts", "tsx"].contains(&x.to_str().unwrap_or_default())) {
+                    archivos.push(ruta);
+                }
+            }
+        }
+        archivos.push(raiz.join("Cargo.toml"));
+        assert!(archivos.len() > 50, "se revisó el código de verdad");
+        for ruta in &archivos {
+            let texto = std::fs::read_to_string(ruta).unwrap();
+            for p in &prohibidos {
+                assert!(!texto.contains(p.as_str()), "{} usa {p}", ruta.display());
+            }
+        }
+        let cargo = std::fs::read_to_string(raiz.join("Cargo.toml")).unwrap();
+        assert!(!cargo.contains("\"cookies\""), "reqwest sin almacén de cookies");
+        let llamada = ["CallDevToolsProtocol", "Method("].concat();
+        let devtools: usize = archivos.iter().map(|r| std::fs::read_to_string(r).unwrap().matches(llamada.as_str()).count()).sum();
+        assert_eq!(devtools, 1, "una sola llamada a DevTools, la de `Runtime.evaluate`");
     }
 }

@@ -2,21 +2,22 @@
 //! Solo lectura: los POST de `POSTS_LECTURA` son consultas del panel (no cambian nada en la cuenta) y `conexion`
 //! rechaza cualquier otro POST. Los montos del panel llegan en centavos salvo el límite duro, que llega en dólares.
 
-use super::{campo, corta, como_navegador, fecha, numero, pedir, texto};
+use super::{campo, corta, fecha, json_de, numero, pedir, texto};
 use crate::avisos::{self, Medidor, Uso};
 use crate::config::Config;
 use crate::conexion::{Peticion, TransporteWeb};
 use crate::recolectores::servicios::Motivo;
-use crate::seguridad::boveda::Secreto;
 use chrono::{DateTime, Datelike, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 pub const URL_LOGIN: &str = "https://cursor.com/dashboard";
-pub const URL_COOKIES: &str = "https://cursor.com/";
-pub const COOKIES_SESION: &[&str] = &["WorkosCursorSessionToken"];
+pub const ORIGEN: &str = "https://cursor.com";
+/// Sondeo del login (GD-CUR-01): solo dice si `/api/auth/me` reconoce a alguien.
+pub const GUION_SESION: &str = "fetch('https://cursor.com/api/auth/me', { credentials: 'include', redirect: 'manual', cache: 'no-store' }) \
+     .then(async (r) => { if (!r.ok) return false; const j = await r.json().catch(() => null); \
+     return !!j && typeof j === 'object' && ['sub', 'id', 'userId', 'email'].some((k) => !!j[k]); }).catch(() => false)";
 
-const ORIGEN: &str = "https://cursor.com";
 const URL_YO: &str = "https://cursor.com/api/auth/me";
 const URL_RESUMEN: &str = "https://cursor.com/api/usage-summary";
 const URL_USO: &str = "https://cursor.com/api/usage";
@@ -29,7 +30,6 @@ pub const POSTS_LECTURA: &[&str] = &[URL_PERIODO, URL_LIMITE, URL_FACTURA];
 
 const CAMPOS_ID: &[&str] = &["sub", "id", "userId"];
 const CONSULTA_USUARIO: &str = "user";
-const SEPARADORES_ID: &[&str] = &["%3A%3A", "::"];
 const LARGO_MAX_ID: usize = 64;
 
 const CICLO_INICIO: &str = "billingCycleStart";
@@ -126,13 +126,6 @@ fn id_valido(id: &str) -> bool {
     !id.is_empty() && id.len() <= LARGO_MAX_ID && id.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
 }
 
-/// La cookie de Cursor es `<id de usuario>::<token>`: sirve de respaldo si `/api/auth/me` no responde.
-fn id_de_cookie(cookie: &Secreto) -> Option<String> {
-    let valor = cookie.exponer().split(';').find_map(|p| p.trim().strip_prefix(COOKIES_SESION[0])?.strip_prefix('='))?;
-    let id = SEPARADORES_ID.iter().find_map(|s| valor.split_once(s).map(|(id, _)| id))?;
-    id_valido(id).then(|| id.to_string())
-}
-
 /// Sesión vencida y Cloudflare cortan; otro error deja sin ese dato y se recuerda el primero.
 fn intentar(r: Result<Value, Motivo>, primer_error: &mut Option<Motivo>) -> Result<Option<Value>, Motivo> {
     match r {
@@ -145,12 +138,13 @@ fn intentar(r: Result<Value, Motivo>, primer_error: &mut Option<Motivo>) -> Resu
     }
 }
 
-fn post(url: &str, cuerpo: Value, cookie: &Secreto) -> Peticion {
-    como_navegador(Peticion::post_lectura(url, cuerpo), ORIGEN, cookie).encabezado("origin", ORIGEN)
+fn post(url: &str, cuerpo: Value) -> Peticion {
+    json_de(Peticion::post_lectura(url, cuerpo))
 }
 
-pub fn leer(t: &dyn TransporteWeb, cookie: &Secreto, ahora: DateTime<Utc>) -> Result<Value, Motivo> {
-    let get = |url: &str| como_navegador(Peticion::get(url), ORIGEN, cookie);
+/// Corre dentro del WebView oculto con el perfil de Cursor: la sesión la pone el navegador, no Glassdeck.
+pub fn leer(t: &dyn TransporteWeb, ahora: DateTime<Utc>) -> Result<Value, Motivo> {
+    let get = |url: &str| json_de(Peticion::get(url));
     let mut error = None;
     let mut d = DatosCursor::default();
 
@@ -159,29 +153,26 @@ pub fn leer(t: &dyn TransporteWeb, cookie: &Secreto, ahora: DateTime<Utc>) -> Re
         totalizar(&mut d);
     }
     if d.gasto_usd.is_none() {
-        if let Some(v) = intentar(pedir(t, post(URL_PERIODO, json!({}), cookie)), &mut error)? {
+        if let Some(v) = intentar(pedir(t, post(URL_PERIODO, json!({}))), &mut error)? {
             aplicar_periodo(&mut d, &v);
             totalizar(&mut d);
         }
     }
     if d.gasto_usd.is_some() && d.bajo_demanda_limite_usd.is_none() {
-        if let Some(v) = intentar(pedir(t, post(URL_LIMITE, json!({}), cookie)), &mut error)? {
+        if let Some(v) = intentar(pedir(t, post(URL_LIMITE, json!({}))), &mut error)? {
             d.bajo_demanda_limite_usd = numero(&v, &[LIMITE_DURO_USD]).filter(|l| *l > 0.0);
             totalizar(&mut d);
         }
     }
     if d.gasto_usd.is_none() {
         let cuerpo = json!({ "month": ahora.month(), "year": ahora.year(), "includeUsageEvents": false });
-        if let Some(v) = intentar(pedir(t, post(URL_FACTURA, cuerpo, cookie)), &mut error)? {
+        if let Some(v) = intentar(pedir(t, post(URL_FACTURA, cuerpo)), &mut error)? {
             d.gasto_usd = total_factura(&v);
         }
     }
     if d.gasto_usd.is_none() {
         let yo = intentar(pedir(t, get(URL_YO)), &mut error)?;
-        let id = yo
-            .and_then(|v| CAMPOS_ID.iter().find_map(|k| texto(&v, &[k])))
-            .filter(|id| id_valido(id))
-            .or_else(|| id_de_cookie(cookie));
+        let id = yo.and_then(|v| CAMPOS_ID.iter().find_map(|k| texto(&v, &[k]))).filter(|id| id_valido(id));
         if let Some(id) = id {
             if let Some(v) = intentar(pedir(t, get(URL_USO).consulta(CONSULTA_USUARIO, id)), &mut error)? {
                 aplicar_solicitudes(&mut d, &v);
@@ -216,14 +207,12 @@ mod pruebas {
     use crate::recolectores::web::prueba::Grabado;
     use chrono::TimeZone;
 
-    const COOKIE: &str = "WorkosCursorSessionToken=user_prueba123%3A%3Acookie-de-prueba";
-
     fn ahora() -> DateTime<Utc> {
         Utc.with_ymd_and_hms(2026, 10, 28, 12, 0, 0).unwrap()
     }
 
     fn leer_con(t: &Grabado) -> Result<DatosCursor, Motivo> {
-        leer(t, &Secreto::de_prueba(COOKIE), ahora()).map(|v| serde_json::from_value(v).unwrap())
+        leer(t, ahora()).map(|v| serde_json::from_value(v).unwrap())
     }
 
     fn resumen() -> Value {
@@ -254,7 +243,7 @@ mod pruebas {
         assert_eq!(t.urls().len(), 2);
         let pedidas = t.pedidas.lock();
         assert_eq!(pedidas[1].metodo, Metodo::PostLectura);
-        assert!(pedidas[1].encabezados.iter().any(|(k, v)| *k == "origin" && v == "https://cursor.com"));
+        assert!(pedidas.iter().all(|p| p.encabezados.iter().all(|(k, _)| *k == "accept")), "la sesión la pone el WebView");
     }
 
     #[test]
@@ -303,8 +292,8 @@ mod pruebas {
             ("GET https://cursor.com/api/usage", Ok(json!({ "gpt-4": { "numRequests": 1 } }))),
             ("GET https://cursor.com/api/auth/me", Ok(json!({ "sub": "../otro" }))),
         ]);
-        leer_con(&t).unwrap();
-        assert!(t.urls().last().unwrap().ends_with("/api/usage?user=user_prueba123"), "id inválido: se usa el de la cookie");
+        assert_eq!(leer_con(&t), Err(Motivo::ServicioNoDisponible), "id inválido: no se pide el uso");
+        assert!(!t.urls().iter().any(|u| u.contains("/api/usage?")));
     }
 
     #[test]
@@ -350,15 +339,12 @@ mod pruebas {
     }
 
     #[test]
-    fn la_cookie_no_aparece_en_los_datos_y_el_presupuesto_manda_en_los_avisos() {
+    fn el_presupuesto_manda_en_los_avisos() {
         let t = Grabado::nuevo(vec![
             ("GET https://cursor.com/api/usage-summary", Ok(resumen())),
             ("POST https://cursor.com/api/dashboard/get-hard-limit", Ok(json!({}))),
         ]);
-        let v = leer(&t, &Secreto::de_prueba(COOKIE), ahora()).unwrap();
-        assert!(!v.to_string().contains("cookie-de-prueba"));
-        assert_eq!(id_de_cookie(&Secreto::de_prueba(COOKIE)).as_deref(), Some("user_prueba123"));
-        assert_eq!(id_de_cookie(&Secreto::de_prueba("WorkosCursorSessionToken=sin-separador")), None);
+        let v = leer(&t, ahora()).unwrap();
         let mut cfg = Config::default();
         assert_eq!(usos(&v, &cfg)[0].porcentaje, 87.5, "17.5 de 20 incluidos");
         cfg.umbrales.presupuesto_cursor_usd = Some(35.0);

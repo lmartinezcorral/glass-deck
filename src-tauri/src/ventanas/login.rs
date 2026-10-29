@@ -1,12 +1,13 @@
 //! Conexión de Cursor, claude.ai y ChatGPT (GD-CUR-01, GD-CLA-04, GD-OAI-04, GD-NFR-SEC-04).
 //! La ventana de login carga la página del servicio en un perfil de WebView2 propio (`perfiles/<servicio>`), sin scripts
 //! de Glassdeck y con una etiqueta que ninguna capacidad cubre: aunque Tauri inyecte su puente, cualquier comando se rechaza.
-//! Las cookies se leen desde un hilo aparte (en el hilo principal WebView2 se bloquea) y solo pasan a la bóveda.
+//! La sesión se queda en ese perfil: el login solo pregunta a la página si ya hay sesión (sí/no) y las lecturas corren
+//! en un WebView oculto con el mismo perfil. Glassdeck no lee ni guarda cookies (GD-CUR-02, GD-NFR-SEC-01, R-10).
 
-use crate::conexion::{interpretar, validar_peticion, ErrorRed, Metodo, Peticion, Respuesta, TransporteWeb};
+use crate::config::AlmacenEstado;
+use crate::conexion::{interpretar, validar_peticion, validar_url, ErrorRed, Metodo, Peticion, Respuesta, TransporteWeb};
 use crate::recolectores::servicios::EstadoServicios;
-use crate::recolectores::web::{seleccionar_cookies, ServicioWeb, EVENTO_CUENTAS};
-use crate::seguridad::boveda;
+use crate::recolectores::web::{ServicioWeb, EVENTO_CUENTAS, RONDA_WEB};
 use serde_json::{json, Value};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::Ordering;
@@ -17,9 +18,10 @@ use tauri::{AppHandle, Emitter, Manager, Url, WebviewUrl, WebviewWindow, Webview
 pub const PREFIJO_ETIQUETA: &str = "login-";
 pub const PREFIJO_LECTURA: &str = "lectura-";
 
-const SONDEO_COOKIES: Duration = Duration::from_secs(1);
+const SONDEO_LOGIN: Duration = Duration::from_secs(3);
+const ESPERA_SONDEO: Duration = Duration::from_secs(10);
 const ESPERA_LOGIN_MAX: Duration = Duration::from_secs(20 * 60);
-const INTENTOS_BORRAR_PERFIL: u32 = 10;
+const INTENTOS_BORRAR_PERFIL: u32 = 20;
 const PAUSA_BORRAR_PERFIL: Duration = Duration::from_millis(500);
 const ESPERA_CARGA: Duration = Duration::from_secs(30);
 const ESPERA_PETICION: Duration = Duration::from_secs(30);
@@ -37,7 +39,7 @@ fn etiqueta_lectura(s: ServicioWeb) -> String {
     format!("{PREFIJO_LECTURA}{}", s.id())
 }
 
-fn dir_perfil(app: &AppHandle, s: ServicioWeb) -> Option<PathBuf> {
+pub fn dir_perfil(app: &AppHandle, s: ServicioWeb) -> Option<PathBuf> {
     app.path().local_data_dir().ok().map(|d| d.join("Glassdeck").join("perfiles").join(s.id()))
 }
 
@@ -58,11 +60,23 @@ fn cerrar_lectura(app: &AppHandle, s: ServicioWeb) {
     }
 }
 
+fn cerrar_todo(app: &AppHandle, s: ServicioWeb) {
+    if let Some(v) = app.get_webview_window(&etiqueta(s)) {
+        let _ = v.destroy();
+    }
+    cerrar_lectura(app, s);
+}
+
+fn perfil_en_uso(app: &AppHandle, s: ServicioWeb) -> bool {
+    [etiqueta(s), etiqueta_lectura(s)].iter().any(|e| app.get_webview_window(e).is_some())
+}
+
 /// Solo https dentro de la ventana de login; las ventanas emergentes se niegan.
 fn navegacion_permitida(u: &Url) -> bool {
     u.scheme() == "https" || u.as_str() == "about:blank"
 }
 
+/// El perfil se conserva: si ya tiene una sesión válida (cuenta «por verificar»), el primer sondeo la confirma.
 pub fn conectar(app: &AppHandle, s: ServicioWeb) -> Result<(), String> {
     if let Some(v) = app.get_webview_window(&etiqueta(s)) {
         let _ = v.show();
@@ -70,8 +84,6 @@ pub fn conectar(app: &AppHandle, s: ServicioWeb) -> Result<(), String> {
         return Ok(());
     }
     let dir = dir_perfil(app, s).ok_or("Sin carpeta de datos local")?;
-    cerrar_lectura(app, s);
-    let perfil_limpio = borrar_perfil(&dir);
     let url = Url::parse(s.url_login()).map_err(|_| "Dirección de login inválida".to_string())?;
     WebviewWindowBuilder::new(app, etiqueta(s), WebviewUrl::External(url))
         .title(format!("Glassdeck · Conectar {}", s.nombre()))
@@ -87,19 +99,18 @@ pub fn conectar(app: &AppHandle, s: ServicioWeb) -> Result<(), String> {
     let app = app.clone();
     std::thread::Builder::new()
         .name(format!("glassdeck-login-{}", s.id()))
-        .spawn(move || vigilar_login(&app, s, perfil_limpio))
+        .spawn(move || vigilar_login(&app, s))
         .map_err(|_| "No se pudo vigilar el login".to_string())?;
     Ok(())
 }
 
-/// Si el perfil viejo no se pudo borrar, su cookie de sesión no cuenta: hay que esperar una nueva.
-fn vigilar_login(app: &AppHandle, s: ServicioWeb, perfil_limpio: bool) {
+/// Sondea desde un hilo aparte (en el hilo principal WebView2 se bloquea) y solo cuando la ventana ya volvió al origen
+/// del servicio; la página responde únicamente sí o no.
+fn vigilar_login(app: &AppHandle, s: ServicioWeb) {
     let inicio = Instant::now();
-    let Ok(url_cookies) = Url::parse(s.url_cookies()) else { return };
-    let mut previa: Option<String> = None;
-    let mut primera = true;
+    let Ok(origen) = Url::parse(s.origen()) else { return };
     loop {
-        std::thread::sleep(SONDEO_COOKIES);
+        std::thread::sleep(SONDEO_LOGIN);
         let Some(v) = app.get_webview_window(&etiqueta(s)) else {
             log::info!("Conexión: el login de {} se cerró sin terminar", s.nombre());
             avisar(app);
@@ -111,28 +122,17 @@ fn vigilar_login(app: &AppHandle, s: ServicioWeb, perfil_limpio: bool) {
             avisar(app);
             return;
         }
-        let pares: Vec<(String, String)> = match v.cookies_for_url(url_cookies.clone()) {
-            Ok(c) => c.iter().map(|c| (c.name().to_string(), c.value().to_string())).collect(),
-            Err(_) => {
-                log::warn!("Conexión: no se pudieron leer las cookies de {}", s.nombre());
-                continue;
-            }
-        };
-        let actual = seleccionar_cookies(s.cookies_sesion(), &pares);
-        drop(pares);
-        if primera {
-            primera = false;
-            if !perfil_limpio {
-                previa = actual;
-                continue;
-            }
-        }
-        let Some(valor) = actual.filter(|a| Some(a) != previa.as_ref()) else { continue };
-        if let Err(e) = boveda::guardar_largo(s.clave().nombre(), &valor) {
-            log::warn!("Conexión: no se pudo guardar la sesión de {}: {e}", s.nombre());
+        if !v.url().is_ok_and(|u| u.origin() == origen.origin()) {
             continue;
         }
-        drop(valor);
+        let lista = evaluar(&v, s.guion_sesion().to_string(), ESPERA_SONDEO).ok().and_then(|t| leer_si_no(&t));
+        if lista != Some(true) {
+            continue;
+        }
+        if let Err(e) = app.state::<AlmacenEstado>().marcar_sesion_web(s.id(), true) {
+            log::warn!("Conexión: no se pudo marcar {} como conectado: {e}", s.nombre());
+            continue;
+        }
         log::info!("Conexión: {} conectado", s.nombre());
         let _ = v.destroy();
         app.state::<EstadoServicios>().forzar(s.id());
@@ -141,22 +141,24 @@ fn vigilar_login(app: &AppHandle, s: ServicioWeb, perfil_limpio: bool) {
     }
 }
 
+/// Quita la marca y borra el perfil (la sesión) cuando ningún WebView lo usa: el borrado espera a que termine la
+/// ronda web en curso y la siguiente ya ve la cuenta desconectada.
 pub fn desconectar(app: &AppHandle, s: ServicioWeb) -> Result<(), String> {
-    if let Some(v) = app.get_webview_window(&etiqueta(s)) {
-        let _ = v.destroy();
-    }
-    cerrar_lectura(app, s);
-    boveda::borrar_largo(s.clave().nombre())?;
+    app.state::<AlmacenEstado>().marcar_sesion_web(s.id(), false)?;
+    cerrar_todo(app, s);
     if let Some(dir) = dir_perfil(app, s) {
-        let nombre = s.nombre();
+        let app = app.clone();
         std::thread::spawn(move || {
+            let _turno = RONDA_WEB.lock();
+            cerrar_todo(&app, s);
             for _ in 0..INTENTOS_BORRAR_PERFIL {
-                if borrar_perfil(&dir) {
+                if !perfil_en_uso(&app, s) && borrar_perfil(&dir) {
+                    log::info!("Conexión: perfil de {} borrado", s.nombre());
                     return;
                 }
                 std::thread::sleep(PAUSA_BORRAR_PERFIL);
             }
-            log::warn!("Conexión: no se pudo borrar el perfil de login de {nombre}; se borrará al volver a conectar");
+            log::warn!("Conexión: no se pudo borrar el perfil de {}; se reintentará al volver a desconectar", s.nombre());
         });
     }
     log::info!("Conexión: {} desconectado", s.nombre());
@@ -165,9 +167,10 @@ pub fn desconectar(app: &AppHandle, s: ServicioWeb) -> Result<(), String> {
     Ok(())
 }
 
-/// Respaldo ante Cloudflare: un WebView invisible con el perfil del login hace el mismo `fetch` desde el propio origen.
-/// Aterriza en una página sin scripts del sitio (el ícono) para que nadie haya reemplazado `fetch`, no tiene comandos de
-/// Glassdeck (su etiqueta no está en ninguna capacidad) y el resultado vuelve solo por DevTools; se destruye al final de cada ronda.
+/// Único transporte de Cursor, claude.ai y ChatGPT: un WebView invisible con el perfil del login hace `fetch` desde el
+/// propio origen. Aterriza en una página sin scripts del sitio (el ícono) para que nadie haya reemplazado `fetch`, no
+/// tiene comandos de Glassdeck (su etiqueta no está en ninguna capacidad) y el resultado vuelve solo por DevTools; se
+/// destruye al final de cada ronda.
 pub struct NavegadorOculto {
     app: AppHandle,
     servicio: ServicioWeb,
@@ -179,7 +182,7 @@ impl NavegadorOculto {
     }
 
     fn origen(&self) -> Result<Url, ErrorRed> {
-        Url::parse(self.servicio.url_cookies()).map_err(|_| ErrorRed::DominioNoPermitido)
+        validar_url(self.servicio.origen(), &[])
     }
 
     fn ventana(&self) -> Result<WebviewWindow, ErrorRed> {
@@ -218,6 +221,17 @@ impl NavegadorOculto {
         }
         Ok(v)
     }
+
+    fn ejecutar(&self, lectura: &str) -> Result<Respuesta, ErrorRed> {
+        let v = self.ventana()?;
+        let texto = evaluar(&v, envolver(lectura), ESPERA_PETICION)?;
+        let (estado, encabezados, cuerpo) = leer_resultado(&texto)?;
+        let r = interpretar(estado, &encabezados, cuerpo.as_bytes());
+        if let Err(e) = &r {
+            log::warn!("Red (WebView oculto): {} respondió {estado} ({e:?})", self.servicio.nombre());
+        }
+        Ok(Respuesta::nueva(estado, r?, encabezados))
+    }
 }
 
 impl TransporteWeb for NavegadorOculto {
@@ -226,14 +240,14 @@ impl TransporteWeb for NavegadorOculto {
         if u.origin() != self.origen()?.origin() {
             return Err(ErrorRed::DominioNoPermitido);
         }
-        let v = self.ventana()?;
-        let texto = evaluar(&v, guion_fetch(p, &u))?;
-        let (estado, encabezados, cuerpo) = leer_resultado(&texto)?;
-        let r = interpretar(estado, &encabezados, cuerpo.as_bytes());
-        if let Err(e) = &r {
-            log::warn!("Red (WebView oculto): {} respondió {estado} ({e:?})", u.host_str().unwrap_or_default());
+        self.ejecutar(&lectura_fetch(p, &u))
+    }
+
+    fn en_pagina(&self, origen: &'static str, guion: &'static str) -> Result<Respuesta, ErrorRed> {
+        if validar_url(origen, &[])?.origin() != self.origen()?.origin() {
+            return Err(ErrorRed::DominioNoPermitido);
         }
-        Ok(Respuesta::sin_cookies(estado, r?, encabezados))
+        self.ejecutar(guion)
     }
 
     fn terminar(&self) {
@@ -241,8 +255,21 @@ impl TransporteWeb for NavegadorOculto {
     }
 }
 
-/// `fetch` del propio origen con las cookies del perfil; una redirección (a un login) vuelve como 302.
-fn guion_fetch(p: &Peticion, u: &Url) -> String {
+/// Corre una lectura (función `async` que devuelve una `Response` o `{ estado }`) y devuelve solo estado, tres
+/// encabezados y el texto del cuerpo. `OPC` manda las cookies del perfil sin seguir redirecciones: una redirección (a un
+/// login) vuelve como 302.
+fn envolver(lectura: &str) -> String {
+    let opc = json!({ "credentials": "include", "redirect": "manual", "cache": "no-store" });
+    format!(
+        "(async () => {{ const OPC = {opc}; const r = await ({lectura})(); \
+         if (!(r instanceof Response)) return {{ estado: r && r.estado }}; \
+         if (r.type === 'opaqueredirect') return {{ estado: 302 }}; \
+         const h = (n) => r.headers.get(n) || ''; \
+         return {{ estado: r.status, tipo: h('content-type'), cf: h('cf-mitigated'), servidor: h('server'), cuerpo: (await r.text()).slice(0, {CARACTERES_MAX}) }}; }})()"
+    )
+}
+
+fn lectura_fetch(p: &Peticion, u: &Url) -> String {
     let mut encabezados: serde_json::Map<String, Value> = p
         .encabezados
         .iter()
@@ -250,18 +277,13 @@ fn guion_fetch(p: &Peticion, u: &Url) -> String {
         .map(|(n, v)| (n.to_string(), Value::String(v.clone())))
         .collect();
     let metodo = if p.metodo == Metodo::Get { "GET" } else { "POST" };
-    let mut opciones = json!({ "method": metodo, "credentials": "include", "redirect": "manual", "cache": "no-store" });
+    let mut opciones = json!({ "method": metodo });
     if let Some(c) = &p.cuerpo {
         encabezados.insert("content-type".into(), Value::String("application/json".into()));
         opciones["body"] = Value::String(c.to_string());
     }
     opciones["headers"] = Value::Object(encabezados);
-    format!(
-        "(async () => {{ const r = await fetch({url}, {opciones}); if (r.type === 'opaqueredirect') return {{ estado: 302 }}; \
-         const h = (n) => r.headers.get(n) || ''; \
-         return {{ estado: r.status, tipo: h('content-type'), cf: h('cf-mitigated'), servidor: h('server'), cuerpo: (await r.text()).slice(0, {CARACTERES_MAX}) }}; }})()",
-        url = Value::String(u.to_string()),
-    )
+    format!("async () => fetch({url}, {{ ...OPC, ...{opciones} }})", url = Value::String(u.to_string()))
 }
 
 /// Resultado de `Runtime.evaluate`; si `fetch` lanzó (red caída, CORS) no hay respuesta que interpretar.
@@ -281,8 +303,17 @@ fn leer_resultado(texto: &str) -> Result<(u16, Vec<(String, String)>, String), E
     Ok((estado, encabezados, campo("cuerpo")))
 }
 
+/// Respuesta del sondeo de login: solo un booleano cuenta; cualquier otra cosa es «todavía no».
+fn leer_si_no(texto: &str) -> Option<bool> {
+    let v: Value = serde_json::from_str(texto).ok()?;
+    if v.get("exceptionDetails").is_some() {
+        return None;
+    }
+    v.pointer("/result/value")?.as_bool()
+}
+
 #[cfg(windows)]
-fn evaluar(v: &WebviewWindow, guion: String) -> Result<String, ErrorRed> {
+fn evaluar(v: &WebviewWindow, guion: String, espera: Duration) -> Result<String, ErrorRed> {
     use webview2_com::CallDevToolsProtocolMethodCompletedHandler;
     use windows_core::HSTRING;
     let (tx, rx) = std::sync::mpsc::channel::<Result<String, ()>>();
@@ -303,7 +334,7 @@ fn evaluar(v: &WebviewWindow, guion: String) -> Result<String, ErrorRed> {
         }
     })
     .map_err(|_| ErrorRed::Cloudflare)?;
-    match rx.recv_timeout(ESPERA_PETICION) {
+    match rx.recv_timeout(espera) {
         Ok(Ok(texto)) => Ok(texto),
         Ok(Err(())) => Err(ErrorRed::Cloudflare),
         Err(_) => Err(ErrorRed::TiempoAgotado),
@@ -311,7 +342,7 @@ fn evaluar(v: &WebviewWindow, guion: String) -> Result<String, ErrorRed> {
 }
 
 #[cfg(not(windows))]
-fn evaluar(_: &WebviewWindow, _: String) -> Result<String, ErrorRed> {
+fn evaluar(_: &WebviewWindow, _: String, _: Duration) -> Result<String, ErrorRed> {
     Err(ErrorRed::Cloudflare)
 }
 
@@ -379,20 +410,33 @@ mod pruebas {
 
     #[test]
     fn el_fetch_del_webview_oculto_no_manda_cookies_ni_encabezados_del_navegador() {
-        let p = crate::recolectores::web::como_navegador(
-            Peticion::get("https://chatgpt.com/backend-api/wham/usage"),
-            "https://chatgpt.com",
-            &boveda::Secreto::de_prueba("x=cookie-de-prueba"),
-        )
-        .encabezado("authorization", "Bearer token-de-prueba");
+        let p = Peticion::get("https://chatgpt.com/backend-api/wham/usage")
+            .encabezado("cookie", "x=cookie-de-prueba")
+            .encabezado("user-agent", "otro")
+            .encabezado("referer", "https://chatgpt.com/")
+            .encabezado("accept", "application/json");
         let u = validar_peticion(&p).unwrap();
-        let g = guion_fetch(&p, &u);
+        let g = envolver(&lectura_fetch(&p, &u));
         assert!(!g.contains("cookie-de-prueba") && !g.contains("user-agent") && !g.contains("referer"));
-        assert!(g.contains("\"authorization\":\"Bearer token-de-prueba\"") && g.contains("\"credentials\":\"include\""));
+        assert!(g.contains("\"accept\":\"application/json\"") && g.contains("\"credentials\":\"include\""));
         assert!(g.contains("\"redirect\":\"manual\"") && g.contains("\"method\":\"GET\""));
+        assert!(g.contains("fetch(\"https://chatgpt.com/backend-api/wham/usage\", { ...OPC, ..."));
         let post = Peticion::post_lectura("https://cursor.com/api/dashboard/get-hard-limit", json!({ "a": 1 }));
-        let g = guion_fetch(&post, &validar_peticion(&post).unwrap());
+        let g = lectura_fetch(&post, &validar_peticion(&post).unwrap());
         assert!(g.contains("\"method\":\"POST\"") && g.contains("\"body\":\"{\\\"a\\\":1}\"") && g.contains("application/json"));
+    }
+
+    #[test]
+    fn la_envoltura_solo_devuelve_estado_tres_encabezados_y_el_cuerpo() {
+        let g = envolver(crate::recolectores::web::chatgpt::GUION_USO);
+        assert!(g.starts_with("(async () => { const OPC = {") && g.ends_with("})()"));
+        assert!(g.contains(&format!("const r = await ({})();", crate::recolectores::web::chatgpt::GUION_USO)));
+        let tras_lectura = g.rsplit("})();").next().unwrap();
+        for k in ["estado:", "tipo:", "cf:", "servidor:", "cuerpo:"] {
+            assert!(tras_lectura.contains(k), "{k}");
+        }
+        assert!(!tras_lectura.contains("accessToken") && !tras_lectura.contains("headers.entries"));
+        assert_eq!(tras_lectura.matches("r.headers.get(n)").count(), 1);
     }
 
     #[test]
@@ -403,11 +447,38 @@ mod pruebas {
         let reto = json!({ "result": { "value": { "estado": 403, "tipo": "text/html", "cf": "challenge", "cuerpo": "<html>" } } });
         let (estado, enc, cuerpo) = leer_resultado(&reto.to_string()).unwrap();
         assert_eq!(interpretar(estado, &enc, cuerpo.as_bytes()), Err(ErrorRed::Cloudflare));
-        let redir = json!({ "result": { "value": { "estado": 302 } } });
-        let (estado, enc, cuerpo) = leer_resultado(&redir.to_string()).unwrap();
-        assert_eq!(interpretar(estado, &enc, cuerpo.as_bytes()), Err(ErrorRed::SesionExpirada));
+        for sin_sesion in [302, 401] {
+            let r = json!({ "result": { "value": { "estado": sin_sesion } } });
+            let (estado, enc, cuerpo) = leer_resultado(&r.to_string()).unwrap();
+            assert_eq!(interpretar(estado, &enc, cuerpo.as_bytes()), Err(ErrorRed::SesionExpirada), "{sin_sesion}");
+        }
         let fallo = json!({ "result": { "type": "object" }, "exceptionDetails": { "text": "TypeError: Failed to fetch" } });
         assert_eq!(leer_resultado(&fallo.to_string()).err(), Some(ErrorRed::SinConexion));
         assert_eq!(leer_resultado("no es json").err(), Some(ErrorRed::Formato));
+        assert_eq!(leer_resultado(&json!({ "result": { "value": { "estado": null } } }).to_string()).err(), Some(ErrorRed::Formato));
+    }
+
+    #[test]
+    fn el_sondeo_del_login_solo_entiende_si_o_no() {
+        let si = json!({ "result": { "type": "boolean", "value": true } });
+        let no = json!({ "result": { "type": "boolean", "value": false } });
+        assert_eq!(leer_si_no(&si.to_string()), Some(true));
+        assert_eq!(leer_si_no(&no.to_string()), Some(false));
+        for otro in [
+            json!({ "result": { "type": "string", "value": "true" } }),
+            json!({ "result": { "type": "object", "value": { "accessToken": "token-de-prueba" } } }),
+            json!({ "result": { "type": "undefined" } }),
+            json!({ "result": { "type": "boolean", "value": true }, "exceptionDetails": { "text": "x" } }),
+        ] {
+            assert_eq!(leer_si_no(&otro.to_string()), None, "{otro}");
+        }
+        assert_eq!(leer_si_no("no es json"), None);
+        for s in ServicioWeb::TODOS {
+            let g = s.guion_sesion();
+            assert!(g.contains("credentials: 'include'") && g.contains(".catch(() => false)"), "{}", s.id());
+            for retorno in g.split("return ").skip(1) {
+                assert!(["false;", "!!j", "Array.isArray(j)"].iter().any(|p| retorno.starts_with(p)), "{}: {retorno}", s.id());
+            }
+        }
     }
 }

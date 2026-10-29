@@ -1,29 +1,41 @@
 //! ChatGPT (no oficial, GD-OAI-04): todas las direcciones y nombres de campos de chatgpt.com viven aquí.
-//! El token de acceso de `/api/auth/session` solo vive en memoria durante la lectura; nunca se guarda.
+//! El token de acceso de `/api/auth/session` se pide y se usa dentro de la página de chatgpt.com: nunca sale de ella.
 
-use super::{campo, ciclo_de, como_navegador, fecha, iso, numero, pedir, texto, VentanaUso};
+use super::{ciclo_de, fecha, iso, numero, texto, VentanaUso};
 use crate::avisos::{Medidor, Uso};
-use crate::conexion::{Peticion, TransporteWeb};
+use crate::conexion::TransporteWeb;
 use crate::recolectores::servicios::Motivo;
-use crate::seguridad::boveda::Secreto;
 use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 pub const URL_LOGIN: &str = "https://chatgpt.com/auth/login";
-pub const URL_COOKIES: &str = "https://chatgpt.com/";
-/// Puede llegar partida en `.0`, `.1`… cuando no cabe en una sola cookie.
-pub const COOKIES_SESION: &[&str] = &["__Secure-next-auth.session-token"];
+pub const ORIGEN: &str = "https://chatgpt.com";
+/// Sondeo del login (GD-OAI-04): solo dice si la sesión ya trae token, sin devolverlo.
+pub const GUION_SESION: &str = "fetch('https://chatgpt.com/api/auth/session', { credentials: 'include', redirect: 'manual', cache: 'no-store' }) \
+     .then(async (r) => { if (!r.ok) return false; const j = await r.json().catch(() => null); \
+     return !!j && typeof j.accessToken === 'string' && j.accessToken.length > 0; }).catch(() => false)";
 
-const ORIGEN: &str = "https://chatgpt.com";
+#[cfg(test)]
 const URL_SESION: &str = "https://chatgpt.com/api/auth/session";
+#[cfg(test)]
 const URL_USO: &str = "https://chatgpt.com/backend-api/wham/usage";
 
-const CAMPO_TOKEN: &str = "accessToken";
-const CAMPO_CUENTA: &[&str] = &["account", "id"];
-const ENCABEZADO_CUENTA: &str = "chatgpt-account-id";
-const LARGO_MAX_TOKEN: usize = 8_192;
-const LARGO_MAX_CUENTA: usize = 128;
+/// Lectura compuesta para `TransporteWeb::en_pagina`: pide la sesión, usa su token como `Authorization` para pedir
+/// el uso y devuelve solo la respuesta del uso. Sin token es como un 401; si la sesión no es JSON, se devuelve tal
+/// cual para que se reconozca Cloudflare. `OPC` lo define el transporte (`credentials: 'include'`, sin redirecciones).
+pub const GUION_USO: &str = "async () => {
+  const sesion = await fetch('https://chatgpt.com/api/auth/session', { ...OPC, headers: { accept: 'application/json' } });
+  if (!sesion.ok) return sesion;
+  const datos = await sesion.clone().json().catch(() => null);
+  if (datos === null || typeof datos !== 'object') return sesion;
+  const token = typeof datos.accessToken === 'string' ? datos.accessToken : '';
+  if (!token || token.length > 8192 || !/^[\\x21-\\x7e]+$/.test(token)) return { estado: 401 };
+  const cuenta = typeof datos.account?.id === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(datos.account.id) ? datos.account.id : '';
+  const encabezados = { accept: 'application/json', authorization: 'Bearer ' + token };
+  if (cuenta) encabezados['chatgpt-account-id'] = cuenta;
+  return fetch('https://chatgpt.com/backend-api/wham/usage', { ...OPC, headers: encabezados });
+}";
 
 const CAMPO_PLAN: &str = "plan_type";
 const CAMPO_LIMITES: &str = "rate_limit";
@@ -40,10 +52,6 @@ pub struct DatosChatgpt {
     pub plan: Option<String>,
     pub cinco_horas: Option<VentanaUso>,
     pub semanal: Option<VentanaUso>,
-}
-
-fn cuenta_valida(c: &str) -> bool {
-    c.len() <= LARGO_MAX_CUENTA && c.chars().all(|x| x.is_ascii_alphanumeric() || x == '-' || x == '_')
 }
 
 fn ventana(w: &Value, ahora: DateTime<Utc>) -> Option<VentanaUso> {
@@ -69,19 +77,8 @@ pub fn interpretar_uso(v: &Value, ahora: DateTime<Utc>) -> Option<DatosChatgpt> 
     Some(d)
 }
 
-pub fn leer(t: &dyn TransporteWeb, cookie: &Secreto, ahora: DateTime<Utc>) -> Result<Value, Motivo> {
-    let sesion = pedir(t, como_navegador(Peticion::get(URL_SESION), ORIGEN, cookie))?;
-    let token = campo(&sesion, &[CAMPO_TOKEN])
-        .and_then(Value::as_str)
-        .filter(|s| !s.is_empty() && s.len() <= LARGO_MAX_TOKEN && s.is_ascii())
-        .map(|s| format!("Bearer {s}"))
-        .ok_or(Motivo::SesionExpirada)?;
-    let mut p = como_navegador(Peticion::get(URL_USO), ORIGEN, cookie).encabezado("authorization", token);
-    if let Some(cuenta) = texto(&sesion, CAMPO_CUENTA).filter(|c| cuenta_valida(c)) {
-        p = p.encabezado(ENCABEZADO_CUENTA, cuenta);
-    }
-    drop(sesion);
-    let uso = pedir(t, p)?;
+pub fn leer(t: &dyn TransporteWeb, ahora: DateTime<Utc>) -> Result<Value, Motivo> {
+    let uso = t.en_pagina(ORIGEN, GUION_USO).map(|r| r.cuerpo).map_err(Motivo::from)?;
     let datos = interpretar_uso(&uso, ahora).ok_or(Motivo::FormatoCambio)?;
     serde_json::to_value(datos).map_err(|_| Motivo::Interno)
 }
@@ -105,14 +102,10 @@ mod pruebas {
     use chrono::TimeZone;
     use serde_json::json;
 
-    const COOKIE: &str = "__Secure-next-auth.session-token.0=cookie-de-prueba; __Secure-next-auth.session-token.1=cookie-de-prueba";
+    const PAGINA: &str = "PAGINA https://chatgpt.com";
 
     fn ahora() -> DateTime<Utc> {
         Utc.with_ymd_and_hms(2026, 10, 28, 12, 0, 0).unwrap()
-    }
-
-    fn sesion() -> Value {
-        json!({ "user": { "name": "Persona de prueba" }, "expires": "2026-12-01T00:00:00Z", "accessToken": "token-de-prueba", "account": { "id": "cuenta-de-prueba", "planType": "plus" } })
     }
 
     fn uso() -> Value {
@@ -128,25 +121,39 @@ mod pruebas {
     }
 
     #[test]
-    fn lee_las_ventanas_de_5_h_y_semanal_con_el_token_solo_en_memoria() {
-        let t = Grabado::nuevo(vec![
-            ("GET https://chatgpt.com/api/auth/session", Ok(sesion())),
-            ("GET https://chatgpt.com/backend-api/wham/usage", Ok(uso())),
-        ]);
-        let v = leer(&t, &Secreto::de_prueba(COOKIE), ahora()).unwrap();
-        let d: DatosChatgpt = serde_json::from_value(v.clone()).unwrap();
+    fn lee_las_ventanas_de_5_h_y_semanal_con_una_sola_lectura_dentro_de_la_pagina() {
+        let t = Grabado::nuevo(vec![(PAGINA, Ok(uso()))]);
+        let v = leer(&t, ahora()).unwrap();
+        let d: DatosChatgpt = serde_json::from_value(v).unwrap();
         assert_eq!(d.plan.as_deref(), Some("plus"));
         assert_eq!(d.cinco_horas, Some(VentanaUso { porcentaje: 23.0, reinicio: Some("2026-10-28T13:00:00Z".into()) }));
         assert_eq!(d.semanal.as_ref().map(|w| w.porcentaje), Some(61.5));
         assert!(d.semanal.unwrap().reinicio.is_some());
-        let pedidas = t.pedidas.lock();
-        let de = |i: usize, n: &str| pedidas[i].encabezados.iter().find(|(k, _)| *k == n).map(|(_, v)| v.clone());
-        assert_eq!(de(0, "authorization"), None);
-        assert_eq!(de(1, "authorization").as_deref(), Some("Bearer token-de-prueba"));
-        assert_eq!(de(1, "chatgpt-account-id").as_deref(), Some("cuenta-de-prueba"));
-        assert_eq!(de(1, "cookie").as_deref(), Some(COOKIE));
-        let texto = v.to_string();
-        assert!(!texto.contains("token-de-prueba") && !texto.contains("cookie-de-prueba"));
+        assert!(t.urls().is_empty(), "ni la sesión ni el uso se piden desde el núcleo");
+        assert_eq!(t.guiones.lock().as_slice(), [GUION_USO]);
+    }
+
+    /// Las expresiones que devuelve el guion de uso.
+    fn retornos(guion: &str) -> Vec<&str> {
+        guion.split("return ").skip(1).map(|r| r.split(';').next().unwrap().trim()).collect()
+    }
+
+    #[test]
+    fn el_guion_de_uso_nunca_devuelve_el_token_ni_la_sesion() {
+        assert!(GUION_USO.contains(URL_SESION) && GUION_USO.contains(URL_USO));
+        assert_eq!(GUION_USO.matches("accessToken").count(), 2, "solo se lee dentro de la página");
+        let r = retornos(GUION_USO);
+        assert_eq!(r.len(), 4);
+        for expresion in &r {
+            let permitida = *expresion == "sesion"
+                || *expresion == "{ estado: 401 }"
+                || expresion.starts_with(&format!("fetch('{URL_USO}'"));
+            assert!(permitida, "{expresion}");
+            assert!(!expresion.contains("accessToken") && !expresion.contains("datos"), "{expresion}");
+        }
+        let sondeo = retornos(GUION_SESION);
+        assert!(sondeo.iter().all(|e| *e == "false" || e.starts_with("!!j && typeof j.accessToken === 'string'")), "{sondeo:?}");
+        assert!(!GUION_SESION.contains("return j") && !GUION_SESION.contains("return r"));
     }
 
     #[test]
@@ -161,34 +168,19 @@ mod pruebas {
     }
 
     #[test]
-    fn sin_rate_limit_es_formato_cambio_y_sin_token_es_sesion_expirada() {
-        let t = Grabado::nuevo(vec![
-            ("GET https://chatgpt.com/api/auth/session", Ok(sesion())),
-            ("GET https://chatgpt.com/backend-api/wham/usage", Ok(json!({ "detail": "x" }))),
-        ]);
-        assert_eq!(leer(&t, &Secreto::de_prueba(COOKIE), ahora()), Err(Motivo::FormatoCambio));
-        let t = Grabado::nuevo(vec![("GET https://chatgpt.com/api/auth/session", Ok(json!({})))]);
-        assert_eq!(leer(&t, &Secreto::de_prueba(COOKIE), ahora()), Err(Motivo::SesionExpirada));
-        assert_eq!(t.urls().len(), 1, "sin token no se pide el uso");
-    }
-
-    #[test]
-    fn cloudflare_401_y_cuenta_rara_se_manejan_sin_mandar_basura() {
-        for (error, motivo) in [(ErrorRed::Cloudflare, Motivo::Cloudflare), (ErrorRed::SesionExpirada, Motivo::SesionExpirada)] {
-            let t = Grabado::nuevo(vec![
-                ("GET https://chatgpt.com/api/auth/session", Ok(sesion())),
-                ("GET https://chatgpt.com/backend-api/wham/usage", Err(error)),
-            ]);
-            assert_eq!(leer(&t, &Secreto::de_prueba(COOKIE), ahora()), Err(motivo));
+    fn sin_rate_limit_es_formato_cambio_y_los_errores_de_la_pagina_son_motivos() {
+        let t = Grabado::nuevo(vec![(PAGINA, Ok(json!({ "detail": "x" })))]);
+        assert_eq!(leer(&t, ahora()), Err(Motivo::FormatoCambio));
+        for (error, motivo) in [
+            (ErrorRed::SesionExpirada, Motivo::SesionExpirada),
+            (ErrorRed::Cloudflare, Motivo::Cloudflare),
+            (ErrorRed::SinConexion, Motivo::SinConexion),
+        ] {
+            let t = Grabado::nuevo(vec![(PAGINA, Err(error))]);
+            assert_eq!(leer(&t, ahora()), Err(motivo));
         }
-        let mut rara = sesion();
-        rara["account"]["id"] = json!("x\r\nset-cookie: y");
-        let t = Grabado::nuevo(vec![
-            ("GET https://chatgpt.com/api/auth/session", Ok(rara)),
-            ("GET https://chatgpt.com/backend-api/wham/usage", Ok(uso())),
-        ]);
-        assert!(leer(&t, &Secreto::de_prueba(COOKIE), ahora()).is_ok());
-        assert!(!t.pedidas.lock()[1].encabezados.iter().any(|(k, _)| *k == "chatgpt-account-id"));
+        assert!(GUION_USO.contains("return { estado: 401 }"), "sin token es sesión expirada");
+        assert!(GUION_USO.contains("/^[A-Za-z0-9_-]{1,128}$/.test(datos.account.id)"), "una cuenta rara no se manda como encabezado");
     }
 
     #[test]

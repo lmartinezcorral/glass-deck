@@ -1,7 +1,7 @@
 use super::almacen::{cargar_json, guardar};
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
 pub const VERSION_ESTADO: u32 = 1;
@@ -25,11 +25,13 @@ pub struct Estado {
     pub ultimos: BTreeMap<String, UltimoDato>,
     /// Clave del aviso (fuente, ciclo y umbral) y hora de envío.
     pub avisos: BTreeMap<String, i64>,
+    /// Servicios web conectados (Cursor, claude.ai, ChatGPT): solo la marca; la sesión vive en su perfil de WebView2.
+    pub sesiones_web: BTreeSet<String>,
 }
 
 impl Default for Estado {
     fn default() -> Self {
-        Self { version: VERSION_ESTADO, ultimos: BTreeMap::new(), avisos: BTreeMap::new() }
+        Self { version: VERSION_ESTADO, ultimos: BTreeMap::new(), avisos: BTreeMap::new(), sesiones_web: BTreeSet::new() }
     }
 }
 
@@ -63,6 +65,23 @@ impl AlmacenEstado {
     pub fn guardar_ultimo(&self, fuente: &str, dato: UltimoDato) -> Result<(), String> {
         self.modificar(|e| {
             e.ultimos.insert(fuente.to_string(), dato);
+        })
+    }
+
+    pub fn sesion_web(&self, servicio: &str) -> bool {
+        self.actual.lock().sesiones_web.contains(servicio)
+    }
+
+    pub fn marcar_sesion_web(&self, servicio: &str, conectada: bool) -> Result<(), String> {
+        if self.sesion_web(servicio) == conectada {
+            return Ok(());
+        }
+        self.modificar(|e| {
+            if conectada {
+                e.sesiones_web.insert(servicio.to_string());
+            } else {
+                e.sesiones_web.remove(servicio);
+            }
         })
     }
 
@@ -109,6 +128,24 @@ mod pruebas {
         let e = AlmacenEstado::nuevo(&d).leer();
         assert_eq!(e.avisos.get("cursor:2026-10:80"), Some(&despues));
         assert!(!e.avisos.contains_key("viejo"));
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    fn la_marca_de_sesion_web_persiste_y_un_state_json_anterior_la_trae_vacia() {
+        let d = dir_temporal("estado-sesiones");
+        std::fs::create_dir_all(&d).unwrap();
+        std::fs::write(d.join("state.json"), br#"{ "version": 1, "ultimos": {}, "avisos": { "x": 5 } }"#).unwrap();
+        let a = AlmacenEstado::nuevo(&d);
+        assert!(a.leer().sesiones_web.is_empty());
+        assert_eq!(a.leer().avisos.get("x"), Some(&5));
+        a.marcar_sesion_web("cursor", true).unwrap();
+        drop(a);
+        let b = AlmacenEstado::nuevo(&d);
+        assert!(b.sesion_web("cursor") && !b.sesion_web("chatgpt"));
+        assert_eq!(b.leer().version, VERSION_ESTADO);
+        b.marcar_sesion_web("cursor", false).unwrap();
+        assert!(!AlmacenEstado::nuevo(&d).sesion_web("cursor"));
         let _ = std::fs::remove_dir_all(&d);
     }
 

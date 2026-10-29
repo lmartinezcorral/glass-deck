@@ -602,7 +602,7 @@ export function SeccionCuentas() {
   const presente = (c: ClaveCredencial): boolean => credencialPresente(credenciales, c);
   const sesion = (servicio: ServicioWeb) => ({
     servicio,
-    estado: estadoServicio(servicio, credenciales, web),
+    estado: estadoServicio(servicio, web),
     conectando: web?.web.find((c) => c.servicio === servicio)?.conectando ?? false,
   });
 
@@ -632,7 +632,9 @@ export function SeccionCuentas() {
   return (
     <div className="gd-vista gd-vista--pila">
       <h2 className="gd-customize__titulo">Cuentas e inicios de sesión</h2>
-      <p className="gd-etiqueta">Las credenciales se guardan en el Administrador de credenciales de Windows; Glassdeck nunca las muestra.</p>
+      <p className="gd-etiqueta">
+        Las claves se guardan en el Administrador de credenciales de Windows; las sesiones de Cursor, Claude.ai y ChatGPT se quedan en su perfil aislado. Glassdeck nunca las muestra.
+      </p>
 
       <CuentasGoogle credenciales={credenciales} recargar={recargar} />
 
