@@ -56,7 +56,7 @@ flowchart LR
     SCH --> COL
     COL --> BUS
     SPD & GOO & WX --> EXT
-    LG -. "cookie capturada" .-> SEC
+    LG -. "solo sí/no: hay sesión" .-> CORE
     SEC --> CM
     SYS --> PDH & W32
     KIL & SHC & ZON & WM --> W32
@@ -77,7 +77,7 @@ flowchart LR
 | Configuración | Leer y validar `settings.json`, `zones.json`, `state.json`; migraciones por versión; escritura atómica con respaldo | GD-CUST-*, GD-NFR-REL-03 | `serde`, `serde_json` |
 | Bóveda de credenciales | Guardar y leer secretos con prefijo `Glassdeck/`; nunca exponerlos a la interfaz | GD-NFR-SEC-01 | `keyring` (Administrador de credenciales) |
 | Recolector de sistema | CPU total y por núcleo, RAM con desglose, disco (espacio y E/S), red por adaptador, lista de procesos con dueño | GD-SYS-*, GD-PROC-01/02 | `sysinfo` + contadores de rendimiento (PDH) para E/S de disco y caché de RAM; `GetTokenInformation` para el dueño del proceso |
-| Recolector de spending | Adaptador Cursor (no oficial), lector de JSONL de Claude Code con tabla de precios, adaptador claude.ai (no oficial), cliente de la API de costos de Anthropic | GD-CUR-*, GD-CLA-* | `reqwest` (cookies de la bóveda), `serde_json` en modo flujo; lectura incremental de JSONL por posición de archivo |
+| Recolector de spending | Adaptador Cursor (no oficial), lector de JSONL de Claude Code con tabla de precios, adaptador claude.ai (no oficial), cliente de la API de costos de Anthropic | GD-CUR-*, GD-CLA-* | Cursor, claude.ai y ChatGPT: WebView oculto y temporal con el perfil aislado del servicio (`fetch` same-origin por DevTools; Glassdeck no lee cookies); APIs de costos: `reqwest` con la clave de la bóveda; `serde_json` en modo flujo; lectura incremental de JSONL por posición de archivo |
 | Recolector de Google | OAuth de escritorio con PKCE y redirección a `127.0.0.1`, varias cuentas, Gmail `messages.list` + `messages.get` con `format=metadata`, Calendar `events.list` | GD-MAIL-*, GD-CAL-01 | `oauth2`, `reqwest` |
 | Recolector de clima | Open-Meteo actual, por hora y diario; geolocalización por IP o ciudad fija | GD-WX-* | `reqwest` |
 | Rotador de alertas | Mezcla correos no leídos y eventos, prioridad a eventos en < 30 min, rotación configurable | GD-ROT-01 | En memoria |
@@ -91,7 +91,7 @@ flowchart LR
 | Atajos globales | Registro y detección de conflictos | GD-HOT-*, GD-CUST-06 | `tauri-plugin-global-shortcut` (`RegisterHotKey`) |
 | Notificaciones | Avisos de umbral con acción de abrir | GD-ALERT-* | `tauri-plugin-notification` |
 | Motor de zonas | Huellas de monitor, cuadrículas, superposición, modificadores, memoria por app, recuperar todo | GD-ZONE-* | Ver sección 5 |
-| Ciclo de vida | Instancia única, arranque con Windows, bandeja | GD-DOCK-04/05, GD-INST-* | `tauri-plugin-single-instance`; tarea programada al iniciar sesión con `schtasks /XML` (`arranque.rs`) y `tauri-plugin-autostart` (clave Run) como respaldo; bandeja de Tauri |
+| Ciclo de vida | Instancia única, arranque con Windows, bandeja | GD-DOCK-04/05, GD-INST-* | `tauri-plugin-single-instance`; tarea programada al iniciar sesión registrada con la API COM del Programador de tareas (`ITaskService`, XML en memoria; `arranque.rs`) y `tauri-plugin-autostart` (clave Run) como respaldo; bandeja de Tauri |
 
 ## 3. Interfaz (React + TypeScript)
 
@@ -176,20 +176,20 @@ flowchart TB
     subgraph Bajo["Sin privilegios (siempre)"]
         APP["Glassdeck.exe<br/>núcleo Rust"]
         WV["WebView2 de widgets<br/>CSP estricta · solo comandos permitidos"]
-        LW["WebView2 de login<br/>sin comandos · solo cursor.com / claude.ai"]
+        LW["WebView2 de login y lectura<br/>sin comandos · perfil aislado por servicio"]
     end
     subgraph Alto["Elevado (bajo demanda, un solo uso)"]
         H["glassdeck-helper.exe<br/>acciones cerradas:<br/>limpiar C:\\Windows\\Temp ·<br/>habilitar/deshabilitar cámara"]
     end
     WV -- "invoke validado" --> APP
-    LW -. "solo cookie al terminar el login" .-> APP
+    LW -. "solo sí/no y el JSON de uso, por DevTools" .-> APP
     APP -- "UAC + parámetros validados" --> H
     APP --> CM["Administrador de credenciales"]
 ```
 
 - **Capacidades de Tauri por ventana:** los widgets solo pueden invocar los comandos de su módulo; Customize y el dock tienen los de configuración; las ventanas de login no tienen ninguno.
 - **Ayudante elevado:** ejecutable aparte con un conjunto cerrado de acciones. No acepta rutas ni comandos arbitrarios: recibe un código de acción y el núcleo valida todo antes de pedir UAC.
-- **Captura de cookies:** al detectar el fin del login (navegación al dashboard), el núcleo lee la cookie del almacén de WebView2 de esa ventana, la guarda en la bóveda y destruye la ventana y su perfil.
+- **Sesiones web sin cookies (SPEC 1.6, R-10):** Glassdeck no lee, copia ni guarda cookies. La sesión de Cursor, claude.ai y ChatGPT vive solo en `%LOCALAPPDATA%\Glassdeck\perfiles\<servicio>`. Durante el login, cada ~3 s y solo en el origen del servicio, el núcleo pregunta a la página con un `fetch` same-origin si ya hay sesión (la respuesta es solo `true`/`false`); al confirmar cierra la ventana y guarda en `state.json` una marca no secreta. Cada lectura abre un WebView oculto y temporal con ese perfil (aterriza en `favicon.ico`, una ronda por servicio y en serie), hace el `fetch` con `credentials: 'include'` y devuelve solo estado, tres encabezados y el JSON; se destruye al terminar la ronda. El token de ChatGPT se pide y se usa dentro de la página. «Desconectar» borra la marca y la carpeta del perfil cuando ningún WebView lo usa.
 - **Logs:** pasan por un filtro que enmascara secretos, asuntos, títulos y rutas de usuario.
 
 ## 5. Motor de zonas (fase 4)
